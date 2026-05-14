@@ -71,11 +71,10 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 
 export const JOB_PHASE_LABEL: Record<JobPhase, string> = {
   planning: "Planejamento",
+  permit_released: "Permit liberado",
   materials_ordered: "Material pedido",
-  materials_arrived: "Material chegou",
-  demo: "Demolição",
-  construction: "Construção",
-  finishing: "Acabamento",
+  materials_delivered: "Material entregue",
+  work_in_progress: "Trabalho em andamento",
   completed: "Concluído",
 };
 

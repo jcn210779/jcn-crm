@@ -109,20 +109,18 @@ export const TASK_STATUSES: readonly TaskStatus[] = [
 
 export type JobPhase =
   | "planning"
+  | "permit_released"
   | "materials_ordered"
-  | "materials_arrived"
-  | "demo"
-  | "construction"
-  | "finishing"
+  | "materials_delivered"
+  | "work_in_progress"
   | "completed";
 
 export const JOB_PHASES: readonly JobPhase[] = [
   "planning",
+  "permit_released",
   "materials_ordered",
-  "materials_arrived",
-  "demo",
-  "construction",
-  "finishing",
+  "materials_delivered",
+  "work_in_progress",
   "completed",
 ] as const;
 

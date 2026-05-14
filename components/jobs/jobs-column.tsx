@@ -17,11 +17,10 @@ type Props = {
 
 const PHASE_ACCENT: Record<JobPhase, string> = {
   planning: "bg-sky-400/80",
+  permit_released: "bg-violet-400/80",
   materials_ordered: "bg-indigo-400/80",
-  materials_arrived: "bg-violet-400/80",
-  demo: "bg-rose-400/80",
-  construction: "bg-amber-400/80",
-  finishing: "bg-orange-400/80",
+  materials_delivered: "bg-cyan-400/80",
+  work_in_progress: "bg-amber-400/80",
   completed: "bg-emerald-400/80",
 };
 
