@@ -1,9 +1,11 @@
 "use client";
 
-import { ChevronDown, LogOut, Plus } from "lucide-react";
+import { CalendarCheck2, ChevronDown, KanbanSquare, LogOut, Plus } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +26,7 @@ export function AppHeader({
   showNewLead = true,
   title = "Pipeline",
 }: AppHeaderProps) {
+  const pathname = usePathname();
   return (
     <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
@@ -40,6 +43,19 @@ export function AppHeader({
             </span>
           </div>
         </Link>
+
+        <nav className="flex items-center gap-1">
+          <NavLink href="/" active={pathname === "/"} icon={KanbanSquare}>
+            Pipeline
+          </NavLink>
+          <NavLink
+            href="/tasks"
+            active={pathname?.startsWith("/tasks") ?? false}
+            icon={CalendarCheck2}
+          >
+            Tasks
+          </NavLink>
+        </nav>
 
         <div className="flex items-center gap-2">
           {showNewLead && (
@@ -82,5 +98,29 @@ export function AppHeader({
         </div>
       </div>
     </header>
+  );
+}
+
+type NavLinkProps = {
+  href: string;
+  active: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+};
+
+function NavLink({ href, active, icon: Icon, children }: NavLinkProps) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] transition",
+        active
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : "border-white/[0.06] bg-white/[0.02] text-white/55 hover:text-white",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">{children}</span>
+    </Link>
   );
 }

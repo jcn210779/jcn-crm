@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { FollowUpSection } from "@/components/lead/followup-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +60,7 @@ import {
   type LeadStage,
   type LostReason,
   type StageHistoryRow,
+  type Task,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -66,6 +68,8 @@ type Props = {
   lead: Lead;
   activities: ActivityLogRow[];
   history: StageHistoryRow[];
+  tasks: Task[];
+  userEmail: string;
 };
 
 const STAGE_BADGE_VARIANT: Record<
@@ -82,7 +86,13 @@ const STAGE_BADGE_VARIANT: Record<
   perdido: "destructive",
 };
 
-export function LeadDetail({ lead, activities, history }: Props) {
+export function LeadDetail({
+  lead,
+  activities,
+  history,
+  tasks,
+  userEmail,
+}: Props) {
   const router = useRouter();
 
   const [notes, setNotes] = useState<string>(lead.notes ?? "");
@@ -306,6 +316,9 @@ export function LeadDetail({ lead, activities, history }: Props) {
           </dl>
         </SectionCard>
       </div>
+
+      {/* Follow-ups (Fase 3) */}
+      <FollowUpSection lead={lead} tasks={tasks} userEmail={userEmail} />
 
       {/* Notes editavel */}
       <SectionCard title="Anotações">
@@ -592,6 +605,24 @@ function describeActivity(a: ActivityLogRow): string {
       return "Nota adicionada";
     case "call_logged":
       return "Ligação registrada";
+    case "followup_done": {
+      const payload = a.payload as { notes?: string };
+      return payload?.notes
+        ? `Follow-up: ${payload.notes}`
+        : "Follow-up registrado";
+    }
+    case "task_scheduled": {
+      const payload = a.payload as { title?: string };
+      return payload?.title
+        ? `Tarefa agendada: ${payload.title}`
+        : "Tarefa agendada";
+    }
+    case "task_done": {
+      const payload = a.payload as { title?: string };
+      return payload?.title
+        ? `Tarefa concluída: ${payload.title}`
+        : "Tarefa concluída";
+    }
     default:
       return a.type.replace(/_/g, " ");
   }

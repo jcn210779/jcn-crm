@@ -3,6 +3,8 @@ import type {
   LeadStage,
   LostReason,
   ServiceType,
+  TaskStatus,
+  TaskType,
 } from "./types";
 
 /**
@@ -48,6 +50,22 @@ export const LOST_REASON_LABEL: Record<LostReason, string> = {
   not_ready: "Não estava pronto",
   out_of_scope: "Fora do escopo",
   other: "Outro",
+};
+
+export const TASK_TYPE_LABEL: Record<TaskType, string> = {
+  call: "Ligação",
+  sms: "SMS",
+  email: "Email",
+  visit: "Visita",
+  followup: "Follow-up",
+  internal: "Interno",
+};
+
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  pending: "Pendente",
+  done: "Feita",
+  skipped: "Pulada",
+  overdue: "Atrasada",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

@@ -81,6 +81,32 @@ export const LOST_REASONS: readonly LostReason[] = [
   "other",
 ] as const;
 
+export type TaskType =
+  | "call"
+  | "sms"
+  | "email"
+  | "visit"
+  | "followup"
+  | "internal";
+
+export const TASK_TYPES: readonly TaskType[] = [
+  "call",
+  "sms",
+  "email",
+  "visit",
+  "followup",
+  "internal",
+] as const;
+
+export type TaskStatus = "pending" | "done" | "skipped" | "overdue";
+
+export const TASK_STATUSES: readonly TaskStatus[] = [
+  "pending",
+  "done",
+  "skipped",
+  "overdue",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -148,6 +174,26 @@ export type ActivityLogRow = {
   payload: Record<string, unknown>;
 };
 
+export type Task = {
+  id: string;
+  created_at: string;
+  lead_id: string | null;
+  type: TaskType;
+  title: string;
+  due_date: string;
+  status: TaskStatus;
+  completed_at: string | null;
+  notes: string | null;
+  created_by: string;
+};
+
+/** Campos obrigatorios pra INSERT em tasks (defaults preenchem o resto). */
+export type TaskInsert = Pick<Task, "type" | "title" | "due_date"> &
+  Partial<Omit<Task, "id" | "created_at">>;
+
+/** Update parcial — qualquer campo opcional. */
+export type TaskUpdate = Partial<Omit<Task, "id" | "created_at">>;
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -190,6 +236,12 @@ export type Database = {
         Update: Partial<ActivityLogRow>;
         Relationships: [];
       };
+      tasks: {
+        Row: Task;
+        Insert: TaskInsert;
+        Update: TaskUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -206,6 +258,8 @@ export type Database = {
       lead_source: LeadSource;
       service_type: ServiceType;
       lost_reason: LostReason;
+      task_type: TaskType;
+      task_status: TaskStatus;
     };
     Functions: Record<string, never>;
   };

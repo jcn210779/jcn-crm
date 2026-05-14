@@ -9,6 +9,7 @@ import type {
   ActivityLogRow,
   Lead,
   StageHistoryRow,
+  Task,
 } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function LeadDetailPage({ params }: Props) {
     notFound();
   }
 
-  const [activityRes, historyRes] = await Promise.all([
+  const [activityRes, historyRes, tasksRes] = await Promise.all([
     supabase
       .from("activity_log")
       .select("*")
@@ -43,10 +44,16 @@ export default async function LeadDetailPage({ params }: Props) {
       .select("*")
       .eq("lead_id", params.id)
       .order("changed_at", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq("lead_id", params.id)
+      .order("due_date", { ascending: true }),
   ]);
 
   const activities = (activityRes.data ?? []) as ActivityLogRow[];
   const history = (historyRes.data ?? []) as StageHistoryRow[];
+  const tasks = (tasksRes.data ?? []) as Task[];
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -56,7 +63,13 @@ export default async function LeadDetailPage({ params }: Props) {
         showNewLead={false}
         title="Lead"
       />
-      <LeadDetail lead={lead} activities={activities} history={history} />
+      <LeadDetail
+        lead={lead}
+        activities={activities}
+        history={history}
+        tasks={tasks}
+        userEmail={user.email ?? ""}
+      />
     </main>
   );
 }
