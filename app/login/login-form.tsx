@@ -46,7 +46,11 @@ export function LoginForm() {
       email: values.email,
       options: {
         emailRedirectTo: redirectTo,
-        shouldCreateUser: true,
+        // M1 audit (Cristina, 2026-05-14): owner-only CRM. Bloqueamos criação
+        // automática de conta no client. Se o email não existir no Supabase
+        // Auth, a chamada falha com erro e o stranger não consegue entrar.
+        // Único usuário válido: info@jcnconstructioninc.com.
+        shouldCreateUser: false,
       },
     });
 
