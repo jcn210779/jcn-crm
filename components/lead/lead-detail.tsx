@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ChevronDown,
   Clock,
+  HardHat,
   Mail,
   MapPin,
   Phone,
@@ -56,6 +57,7 @@ import {
   LEAD_STAGES,
   LOST_REASONS,
   type ActivityLogRow,
+  type Job,
   type Lead,
   type LeadStage,
   type LostReason,
@@ -69,6 +71,7 @@ type Props = {
   activities: ActivityLogRow[];
   history: StageHistoryRow[];
   tasks: Task[];
+  job: Job | null;
   userEmail: string;
 };
 
@@ -91,6 +94,7 @@ export function LeadDetail({
   activities,
   history,
   tasks,
+  job,
   userEmail,
 }: Props) {
   const router = useRouter();
@@ -226,6 +230,15 @@ export function LeadDetail({
               })}
             </span>
           </div>
+          {lead.stage === "ganho" && job && (
+            <Link
+              href={`/job/${job.id}`}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-300 transition hover:bg-emerald-500/20"
+            >
+              <HardHat className="h-3.5 w-3.5" />
+              Ver job →
+            </Link>
+          )}
         </div>
 
         <DropdownMenu>

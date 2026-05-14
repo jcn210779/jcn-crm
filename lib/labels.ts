@@ -1,4 +1,5 @@
 import type {
+  JobPhase,
   LeadSource,
   LeadStage,
   LostReason,
@@ -66,6 +67,16 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   done: "Feita",
   skipped: "Pulada",
   overdue: "Atrasada",
+};
+
+export const JOB_PHASE_LABEL: Record<JobPhase, string> = {
+  planning: "Planejamento",
+  materials_ordered: "Material pedido",
+  materials_arrived: "Material chegou",
+  demo: "Demolição",
+  construction: "Construção",
+  finishing: "Acabamento",
+  completed: "Concluído",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

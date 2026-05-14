@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck2, ChevronDown, KanbanSquare, LogOut, Plus } from "lucide-react";
+import { CalendarCheck2, ChevronDown, HardHat, KanbanSquare, LogOut, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -47,6 +47,16 @@ export function AppHeader({
         <nav className="flex items-center gap-1">
           <NavLink href="/" active={pathname === "/"} icon={KanbanSquare}>
             Pipeline
+          </NavLink>
+          <NavLink
+            href="/jobs"
+            active={
+              (pathname?.startsWith("/jobs") ?? false) ||
+              (pathname?.startsWith("/job/") ?? false)
+            }
+            icon={HardHat}
+          >
+            Jobs
           </NavLink>
           <NavLink
             href="/tasks"

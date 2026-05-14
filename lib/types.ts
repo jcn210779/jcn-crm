@@ -107,6 +107,25 @@ export const TASK_STATUSES: readonly TaskStatus[] = [
   "overdue",
 ] as const;
 
+export type JobPhase =
+  | "planning"
+  | "materials_ordered"
+  | "materials_arrived"
+  | "demo"
+  | "construction"
+  | "finishing"
+  | "completed";
+
+export const JOB_PHASES: readonly JobPhase[] = [
+  "planning",
+  "materials_ordered",
+  "materials_arrived",
+  "demo",
+  "construction",
+  "finishing",
+  "completed",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -194,6 +213,41 @@ export type TaskInsert = Pick<Task, "type" | "title" | "due_date"> &
 /** Update parcial — qualquer campo opcional. */
 export type TaskUpdate = Partial<Omit<Task, "id" | "created_at">>;
 
+export type Job = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  lead_id: string;
+
+  contract_signed_at: string;
+  value: number;
+
+  expected_start: string | null;
+  expected_end: string | null;
+  actual_start: string | null;
+  actual_end: string | null;
+
+  current_phase: JobPhase;
+  notes: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */
+export type JobInsert = Pick<Job, "lead_id"> &
+  Partial<Omit<Job, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial — qualquer campo opcional. */
+export type JobUpdate = Partial<Omit<Job, "id" | "created_at" | "lead_id">>;
+
+export type JobPhaseHistoryRow = {
+  id: string;
+  job_id: string;
+  phase: JobPhase;
+  started_at: string;
+  ended_at: string | null;
+  notes: string | null;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -242,6 +296,19 @@ export type Database = {
         Update: TaskUpdate;
         Relationships: [];
       };
+      jobs: {
+        Row: Job;
+        Insert: JobInsert;
+        Update: JobUpdate;
+        Relationships: [];
+      };
+      job_phase_history: {
+        Row: JobPhaseHistoryRow;
+        Insert: Omit<JobPhaseHistoryRow, "id" | "started_at"> &
+          Partial<Pick<JobPhaseHistoryRow, "id" | "started_at">>;
+        Update: Partial<JobPhaseHistoryRow>;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -260,6 +327,7 @@ export type Database = {
       lost_reason: LostReason;
       task_type: TaskType;
       task_status: TaskStatus;
+      job_phase: JobPhase;
     };
     Functions: Record<string, never>;
   };

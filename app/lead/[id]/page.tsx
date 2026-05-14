@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type {
   ActivityLogRow,
+  Job,
   Lead,
   StageHistoryRow,
   Task,
@@ -32,7 +33,7 @@ export default async function LeadDetailPage({ params }: Props) {
     notFound();
   }
 
-  const [activityRes, historyRes, tasksRes] = await Promise.all([
+  const [activityRes, historyRes, tasksRes, jobRes] = await Promise.all([
     supabase
       .from("activity_log")
       .select("*")
@@ -49,11 +50,17 @@ export default async function LeadDetailPage({ params }: Props) {
       .select("*")
       .eq("lead_id", params.id)
       .order("due_date", { ascending: true }),
+    supabase
+      .from("jobs")
+      .select("*")
+      .eq("lead_id", params.id)
+      .maybeSingle<Job>(),
   ]);
 
   const activities = (activityRes.data ?? []) as ActivityLogRow[];
   const history = (historyRes.data ?? []) as StageHistoryRow[];
   const tasks = (tasksRes.data ?? []) as Task[];
+  const job = jobRes.data ?? null;
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -68,6 +75,7 @@ export default async function LeadDetailPage({ params }: Props) {
         activities={activities}
         history={history}
         tasks={tasks}
+        job={job}
         userEmail={user.email ?? ""}
       />
     </main>
