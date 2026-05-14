@@ -16,6 +16,7 @@ export const STAGE_LABEL: Record<LeadStage, string> = {
   visita_agendada: "Visita agendada",
   cotando: "Cotando",
   estimate_enviado: "Estimate enviado",
+  follow_up: "Follow-up",
   ganho: "Ganho",
   perdido: "Perdido",
 };

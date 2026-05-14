@@ -16,6 +16,7 @@ export type LeadStage =
   | "visita_agendada"
   | "cotando"
   | "estimate_enviado"
+  | "follow_up"
   | "ganho"
   | "perdido";
 
@@ -25,6 +26,7 @@ export const LEAD_STAGES: readonly LeadStage[] = [
   "visita_agendada",
   "cotando",
   "estimate_enviado",
+  "follow_up",
   "ganho",
   "perdido",
 ] as const;

@@ -77,6 +77,7 @@ const STAGE_BADGE_VARIANT: Record<
   visita_agendada: "default",
   cotando: "default",
   estimate_enviado: "default",
+  follow_up: "default",
   ganho: "default",
   perdido: "destructive",
 };
