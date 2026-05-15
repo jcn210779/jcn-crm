@@ -5,7 +5,7 @@ import { DecorBackground } from "@/components/decor-background";
 import { JobDetail } from "@/components/jobs/job-detail";
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type { Job, JobPhaseHistoryRow, Lead } from "@/lib/types";
+import type { Job, JobPayment, JobPhaseHistoryRow, Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,23 +27,34 @@ export default async function JobDetailPage({ params }: Props) {
     notFound();
   }
 
-  const [leadRes, historyRes] = await Promise.all([
+  const [leadRes, historyRes, paymentsRes] = await Promise.all([
     supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
     supabase
       .from("job_phase_history")
       .select("*")
       .eq("job_id", job.id)
       .order("started_at", { ascending: true }),
+    supabase
+      .from("job_payments")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("display_order", { ascending: true }),
   ]);
 
   const lead = leadRes.data ?? null;
   const history = (historyRes.data ?? []) as JobPhaseHistoryRow[];
+  const payments = (paymentsRes.data ?? []) as JobPayment[];
 
   return (
     <main className="relative min-h-screen pb-24">
       <DecorBackground />
       <AppHeader userEmail={user.email ?? ""} showNewLead={false} title="Job" />
-      <JobDetail job={job} lead={lead} history={history} />
+      <JobDetail
+        job={job}
+        lead={lead}
+        history={history}
+        payments={payments}
+      />
     </main>
   );
 }

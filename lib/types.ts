@@ -124,6 +124,43 @@ export const JOB_PHASES: readonly JobPhase[] = [
   "completed",
 ] as const;
 
+export type PaymentMethod =
+  | "check"
+  | "cash"
+  | "wire_transfer"
+  | "credit_card"
+  | "zelle"
+  | "venmo"
+  | "other";
+
+export const PAYMENT_METHODS: readonly PaymentMethod[] = [
+  "check",
+  "cash",
+  "wire_transfer",
+  "credit_card",
+  "zelle",
+  "venmo",
+  "other",
+] as const;
+
+export type PaymentKind = "deposit" | "milestone" | "final" | "extra";
+
+export const PAYMENT_KINDS: readonly PaymentKind[] = [
+  "deposit",
+  "milestone",
+  "final",
+  "extra",
+] as const;
+
+export type PaymentStatus = "pending" | "paid" | "overdue" | "cancelled";
+
+export const PAYMENT_STATUSES: readonly PaymentStatus[] = [
+  "pending",
+  "paid",
+  "overdue",
+  "cancelled",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -273,6 +310,49 @@ export type AdSpendByMonthRow = {
   amount: number;
 };
 
+export type JobPayment = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  job_id: string;
+
+  kind: PaymentKind;
+  label: string;
+  amount: number;
+
+  due_date: string | null;
+  received_at: string | null;
+
+  status: PaymentStatus;
+  method: PaymentMethod | null;
+  notes: string | null;
+
+  display_order: number;
+};
+
+/** Campos obrigatorios pra INSERT em job_payments (defaults preenchem o resto). */
+export type JobPaymentInsert = Pick<
+  JobPayment,
+  "job_id" | "kind" | "label" | "amount"
+> &
+  Partial<Omit<JobPayment, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial — qualquer campo opcional. */
+export type JobPaymentUpdate = Partial<
+  Omit<JobPayment, "id" | "created_at" | "job_id">
+>;
+
+/** Linha agregada da view v_job_payment_summary. */
+export type JobPaymentSummary = {
+  job_id: string;
+  pending_count: number;
+  paid_count: number;
+  total_paid: number;
+  total_pending: number;
+  total_planned: number;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -340,6 +420,12 @@ export type Database = {
         Update: AdSpendUpdate;
         Relationships: [];
       };
+      job_payments: {
+        Row: JobPayment;
+        Insert: JobPaymentInsert;
+        Update: JobPaymentUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -354,6 +440,10 @@ export type Database = {
         Row: AdSpendByMonthRow;
         Relationships: [];
       };
+      v_job_payment_summary: {
+        Row: JobPaymentSummary;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -363,6 +453,9 @@ export type Database = {
       task_type: TaskType;
       task_status: TaskStatus;
       job_phase: JobPhase;
+      payment_method: PaymentMethod;
+      payment_kind: PaymentKind;
+      payment_status: PaymentStatus;
     };
     Functions: Record<string, never>;
   };

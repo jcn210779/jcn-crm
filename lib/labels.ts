@@ -3,6 +3,9 @@ import type {
   LeadSource,
   LeadStage,
   LostReason,
+  PaymentKind,
+  PaymentMethod,
+  PaymentStatus,
   ServiceType,
   TaskStatus,
   TaskType,
@@ -76,6 +79,30 @@ export const JOB_PHASE_LABEL: Record<JobPhase, string> = {
   materials_delivered: "Material entregue",
   work_in_progress: "Trabalho em andamento",
   completed: "Concluído",
+};
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  check: "Cheque",
+  cash: "Dinheiro",
+  wire_transfer: "Transferência",
+  credit_card: "Cartão de crédito",
+  zelle: "Zelle",
+  venmo: "Venmo",
+  other: "Outro",
+};
+
+export const PAYMENT_KIND_LABEL: Record<PaymentKind, string> = {
+  deposit: "Entrada",
+  milestone: "Parcela",
+  final: "Pagamento final",
+  extra: "Extra",
+};
+
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  pending: "Pendente",
+  paid: "Pago",
+  overdue: "Atrasado",
+  cancelled: "Cancelado",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

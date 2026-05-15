@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
   JOB_PHASES,
   type Job,
+  type JobPayment,
   type JobPhase,
   type JobPhaseHistoryRow,
   type JobUpdate,
@@ -44,6 +46,7 @@ type Props = {
   job: Job;
   lead: Lead | null;
   history: JobPhaseHistoryRow[];
+  payments: JobPayment[];
 };
 
 const PHASE_BADGE_TONE: Record<JobPhase, string> = {
@@ -55,7 +58,7 @@ const PHASE_BADGE_TONE: Record<JobPhase, string> = {
   completed: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
 };
 
-export function JobDetail({ job, lead, history }: Props) {
+export function JobDetail({ job, lead, history, payments }: Props) {
   const router = useRouter();
 
   const [notes, setNotes] = useState<string>(job.notes ?? "");
@@ -279,6 +282,13 @@ export function JobDetail({ job, lead, history }: Props) {
           </div>
         </SectionCard>
       </div>
+
+      {/* Pagamentos */}
+      <JobPaymentsSection
+        jobId={job.id}
+        contractValue={job.value}
+        payments={payments}
+      />
 
       {/* Histórico de fases */}
       <SectionCard title="Histórico de fases">
