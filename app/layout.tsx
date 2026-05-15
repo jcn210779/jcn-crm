@@ -1,9 +1,19 @@
 import type { Metadata, Viewport } from "next";
+import { Saira_Condensed } from "next/font/google";
 
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
+
+// Saira Condensed — fallback gratuito da Centrifuge oficial (identidade JCN).
+// Centrifuge é paga; substituir quando licenciar.
+const sairaCondensed = Saira_Condensed({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-saira",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "CRM JCN — JCN Construction Inc.",
@@ -28,7 +38,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0a0a0a",
+  themeColor: "#10171E", // azul meia noite JCN
 };
 
 export default function RootLayout({
@@ -37,7 +47,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="dark" suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      className={`dark ${sairaCondensed.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen bg-background font-sans text-foreground">
         {children}
         <Toaster position="top-center" richColors />

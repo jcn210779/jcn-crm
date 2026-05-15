@@ -50,6 +50,36 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Paleta oficial JCN Construction (extraída do PDF de identidade visual)
+        jcn: {
+          gold: {
+            50: "#F5EFE0",
+            100: "#E8D9B0",
+            200: "#D4BC80",
+            300: "#C0A060",
+            400: "#B3914F",
+            500: "#A68240", // PRIMARY — dourado ocre oficial
+            600: "#8A6B33",
+            700: "#6E5526",
+            800: "#523F1A",
+            900: "#36290D",
+            DEFAULT: "#A68240",
+          },
+          midnight: {
+            DEFAULT: "#10171E", // background principal
+            light: "#1A2330",
+            dark: "#080C12",
+          },
+          ice: {
+            DEFAULT: "#F7F5EF", // texto principal
+            warm: "#EFEBE0",
+          },
+          stone: {
+            DEFAULT: "#D9D6D4", // bordas, elementos sutis
+            light: "#E8E5E2",
+            dark: "#A8A4A0",
+          },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -57,7 +87,7 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--font-saira)", "var(--font-sans)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {

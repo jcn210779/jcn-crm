@@ -20,7 +20,7 @@ const PHASE_ACCENT: Record<JobPhase, string> = {
   permit_released: "bg-violet-400/80",
   materials_ordered: "bg-indigo-400/80",
   materials_delivered: "bg-cyan-400/80",
-  work_in_progress: "bg-amber-400/80",
+  work_in_progress: "bg-jcn-gold-400/80",
   completed: "bg-emerald-400/80",
 };
 

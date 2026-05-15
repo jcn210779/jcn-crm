@@ -36,33 +36,34 @@
   }
 
   .dark {
-    --background: 0 0% 4%; /* #0a0a0a — JCN premium */
-    --foreground: 0 0% 98%;
+    /* Paleta oficial JCN Construction (aplicada 2026-05-15) */
+    --background: 210 30% 9%;            /* #10171E azul meia noite */
+    --foreground: 45 30% 95%;            /* #F7F5EF branco gelo */
 
-    --card: 0 0% 6%;
-    --card-foreground: 0 0% 98%;
+    --card: 210 25% 11%;                 /* leve variação do bg */
+    --card-foreground: 45 30% 95%;
 
-    --popover: 0 0% 6%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 210 25% 12%;
+    --popover-foreground: 45 30% 95%;
 
-    --primary: 45 93% 58%; /* amber/gold */
-    --primary-foreground: 0 0% 9%;
+    --primary: 38 50% 45%;               /* #A68240 dourado ocre */
+    --primary-foreground: 45 30% 95%;
 
-    --secondary: 24 95% 53%; /* orange */
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 38 40% 35%;             /* dourado mais escuro pra contraste */
+    --secondary-foreground: 45 30% 95%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 210 18% 16%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 38 50% 45%;
+    --accent-foreground: 45 30% 95%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 45 30% 95%;
 
     --border: 0 0% 100% / 0.08;
     --input: 0 0% 100% / 0.08;
-    --ring: 45 93% 58%;
+    --ring: 38 50% 45%;                  /* dourado pro focus ring */
   }
 }
 

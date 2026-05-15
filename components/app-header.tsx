@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart3, CalendarCheck2, ChevronDown, HardHat, KanbanSquare, LogOut, Plus } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -31,14 +32,19 @@ export function AppHeader({
     <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-primary to-secondary text-base font-black text-black shadow-[0_0_30px_-8px_rgba(250,204,21,0.5)]">
-            J
-          </span>
-          <div className="flex flex-col leading-none">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
-              CRM JCN
+          <Image
+            src="/brand/jcn-symbol-gold.png"
+            alt="JCN Construction"
+            width={36}
+            height={31}
+            priority
+            className="h-9 w-auto"
+          />
+          <div className="hidden flex-col leading-none sm:flex">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-jcn-gold/70">
+              JCN Construction
             </span>
-            <span className="mt-0.5 text-sm font-bold tracking-tight text-white">
+            <span className="mt-0.5 text-sm font-bold tracking-tight text-jcn-ice">
               {title}
             </span>
           </div>

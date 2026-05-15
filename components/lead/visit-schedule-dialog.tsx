@@ -199,7 +199,7 @@ export function VisitScheduleDialog({ lead, open, onOpenChange, onDone }: Props)
             <Label htmlFor="visit-duration">Duração</Label>
             <select
               id="visit-duration"
-              className="flex h-10 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+              className="flex h-10 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-jcn-gold-400/40"
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(Number(e.target.value))}
               disabled={saved}
@@ -212,8 +212,8 @@ export function VisitScheduleDialog({ lead, open, onOpenChange, onDone }: Props)
           </div>
 
           {saved && calendarUrl ? (
-            <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm">
-              <p className="mb-3 text-amber-200">
+            <div className="rounded-xl border border-jcn-gold-400/30 bg-jcn-gold-500/10 p-4 text-sm">
+              <p className="mb-3 text-jcn-gold-200">
                 Visita salva pra{" "}
                 <strong>
                   {format(new Date(dateTime), "EEEE, d 'de' MMMM 'às' HH:mm", {

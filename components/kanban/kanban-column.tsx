@@ -18,7 +18,7 @@ const STAGE_ACCENT: Record<LeadStage, string> = {
   novo: "bg-sky-400/80",
   contato_feito: "bg-indigo-400/80",
   visita_agendada: "bg-violet-400/80",
-  cotando: "bg-amber-400/80",
+  cotando: "bg-jcn-gold-400/80",
   estimate_enviado: "bg-orange-400/80",
   follow_up: "bg-yellow-500/80",
   ganho: "bg-emerald-400/80",

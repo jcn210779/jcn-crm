@@ -328,7 +328,7 @@ const ACCENT_GLOW: Record<Accent, string> = {
 };
 
 const ACCENT_ICON_BG: Record<Accent, string> = {
-  amber: "bg-amber-400/10 text-amber-300",
+  amber: "bg-jcn-gold-400/10 text-jcn-gold-300",
   sky: "bg-sky-400/10 text-sky-300",
   emerald: "bg-emerald-400/10 text-emerald-300",
   rose: "bg-rose-400/10 text-rose-300",
@@ -376,7 +376,7 @@ type RoasPillProps = {
 function RoasPill({ level, value }: RoasPillProps) {
   const palette: Record<RoasLevel, string> = {
     ok: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-    warn: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+    warn: "border-jcn-gold-400/30 bg-jcn-gold-400/10 text-jcn-gold-300",
     danger: "border-rose-400/30 bg-rose-400/10 text-rose-300",
     neutral: "border-white/[0.08] bg-white/[0.04] text-white/55",
   };

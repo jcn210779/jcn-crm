@@ -51,7 +51,7 @@ const PHASE_BADGE_TONE: Record<JobPhase, string> = {
   permit_released: "bg-violet-500/15 text-violet-300 border-violet-400/30",
   materials_ordered: "bg-indigo-500/15 text-indigo-300 border-indigo-400/30",
   materials_delivered: "bg-cyan-500/15 text-cyan-300 border-cyan-400/30",
-  work_in_progress: "bg-amber-500/15 text-amber-300 border-amber-400/30",
+  work_in_progress: "bg-jcn-gold-500/15 text-jcn-gold-300 border-jcn-gold-400/30",
   completed: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
 };
 
