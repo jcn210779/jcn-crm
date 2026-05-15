@@ -246,6 +246,33 @@ export type JobPhaseHistoryRow = {
   notes: string | null;
 };
 
+export type AdSpend = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  /** Sempre dia 1 do mês: YYYY-MM-01 */
+  month: string;
+  source: LeadSource;
+  amount: number;
+  notes: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em ad_spend (defaults preenchem o resto). */
+export type AdSpendInsert = Pick<AdSpend, "month" | "source" | "amount"> &
+  Partial<Omit<AdSpend, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial — qualquer campo opcional. */
+export type AdSpendUpdate = Partial<Omit<AdSpend, "id" | "created_at">>;
+
+/** Linha agregada da view v_ad_spend_by_month. */
+export type AdSpendByMonthRow = {
+  month_label: string;
+  month: string;
+  source: LeadSource;
+  amount: number;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -307,6 +334,12 @@ export type Database = {
         Update: Partial<JobPhaseHistoryRow>;
         Relationships: [];
       };
+      ad_spend: {
+        Row: AdSpend;
+        Insert: AdSpendInsert;
+        Update: AdSpendUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -315,6 +348,10 @@ export type Database = {
       };
       v_pipeline_summary: {
         Row: PipelineSummaryRow;
+        Relationships: [];
+      };
+      v_ad_spend_by_month: {
+        Row: AdSpendByMonthRow;
         Relationships: [];
       };
     };
