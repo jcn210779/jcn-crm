@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { LeadCard } from "@/components/kanban/lead-card";
+import { VisitScheduleDialog } from "@/components/lead/visit-schedule-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -53,6 +54,7 @@ export function KanbanBoardClient({ initialLeads, userEmail }: Props) {
     ALL_VALUE,
   );
   const [, startTransition] = useTransition();
+  const [visitDialogLead, setVisitDialogLead] = useState<Lead | null>(null);
 
   // Realtime: re-busca tudo quando muda algo no banco.
   useEffect(() => {
@@ -163,6 +165,13 @@ export function KanbanBoardClient({ initialLeads, userEmail }: Props) {
     }
 
     toast.success(`${lead.name} → ${STAGE_LABEL[newStage]}`);
+
+    // Quando lead vai pra visita_agendada, abre dialog pra capturar data+hora
+    // e oferecer botão Google Calendar.
+    if (newStage === "visita_agendada") {
+      setVisitDialogLead({ ...lead, stage: newStage });
+    }
+
     startTransition(() => {
       router.refresh();
     });
@@ -249,6 +258,21 @@ export function KanbanBoardClient({ initialLeads, userEmail }: Props) {
       >
         <Plus className="h-6 w-6" strokeWidth={3} />
       </Link>
+
+      {/* Dialog de agendamento de visita (abre quando lead vai pra visita_agendada) */}
+      {visitDialogLead ? (
+        <VisitScheduleDialog
+          lead={visitDialogLead}
+          open={visitDialogLead !== null}
+          onOpenChange={(open) => {
+            if (!open) setVisitDialogLead(null);
+          }}
+          onDone={() => {
+            setVisitDialogLead(null);
+            startTransition(() => router.refresh());
+          }}
+        />
+      ) : null}
     </div>
   );
 }

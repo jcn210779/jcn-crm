@@ -19,6 +19,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { FollowUpSection } from "@/components/lead/followup-section";
+import { VisitScheduleDialog } from "@/components/lead/visit-schedule-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,6 +107,7 @@ export function LeadDetail({
   const [showValueDialog, setShowValueDialog] = useState(false);
   const [showLostDialog, setShowLostDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason>("ghosted");
   const [lostNotes, setLostNotes] = useState("");
 
@@ -124,6 +126,13 @@ export function LeadDetail({
       return;
     }
     toast.success(`Etapa: ${STAGE_LABEL[newStage]}`);
+
+    // Quando lead vai pra visita_agendada, abre dialog pra capturar data+hora
+    // + oferecer botão Google Calendar.
+    if (newStage === "visita_agendada") {
+      setShowVisitDialog(true);
+    }
+
     router.refresh();
   }
 
@@ -554,6 +563,17 @@ export function LeadDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de agendamento de visita */}
+      <VisitScheduleDialog
+        lead={lead}
+        open={showVisitDialog}
+        onOpenChange={setShowVisitDialog}
+        onDone={() => {
+          setShowVisitDialog(false);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

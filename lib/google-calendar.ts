@@ -15,6 +15,8 @@
 type BuildArgs = {
   title: string;
   description?: string;
+  /** Endereço físico — vira campo "Onde" no evento Google Calendar. */
+  location?: string;
   /** Início — Date object ou string ISO. */
   startDate: Date | string;
   /** Duração em minutos. Default 30. */
@@ -44,6 +46,7 @@ function formatGcalDate(d: Date): string {
 export function buildGoogleCalendarUrl({
   title,
   description,
+  location,
   startDate,
   durationMinutes = 30,
 }: BuildArgs): string {
@@ -64,6 +67,10 @@ export function buildGoogleCalendarUrl({
 
   if (description) {
     params.set("details", description);
+  }
+
+  if (location) {
+    params.set("location", location);
   }
 
   return `${GCAL_BASE}?${params.toString()}`;
