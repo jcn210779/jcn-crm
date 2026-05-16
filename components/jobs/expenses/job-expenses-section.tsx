@@ -36,6 +36,8 @@ type Props = {
   job: Job;
   expenses: JobExpense[];
   receiptUrls: Record<string, string | null>;
+  /** Mão de obra total (vinda de job_hours) somada à margem. */
+  totalLaborCost?: number;
 };
 
 const CATEGORY_ACCENT: Record<ExpenseCategory, string> = {
@@ -48,7 +50,12 @@ const CATEGORY_ACCENT: Record<ExpenseCategory, string> = {
   other: "bg-stone-500/15 text-stone-300 border-stone-400/30",
 };
 
-export function JobExpensesSection({ job, expenses, receiptUrls }: Props) {
+export function JobExpensesSection({
+  job,
+  expenses,
+  receiptUrls,
+  totalLaborCost = 0,
+}: Props) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<JobExpense | null>(null);
@@ -78,7 +85,8 @@ export function JobExpensesSection({ job, expenses, receiptUrls }: Props) {
       .filter(([, v]) => v > 0)
       .sort((a, b) => b[1] - a[1])[0];
 
-    const margin = job.value - grandTotal;
+    const totalCosts = grandTotal + totalLaborCost;
+    const margin = job.value - totalCosts;
     const marginPercent = job.value > 0 ? (margin / job.value) * 100 : 0;
 
     return {
@@ -87,9 +95,10 @@ export function JobExpensesSection({ job, expenses, receiptUrls }: Props) {
       topCategory,
       margin,
       marginPercent,
+      totalCosts,
       count: expenses.length,
     };
-  }, [expenses, job.value]);
+  }, [expenses, job.value, totalLaborCost]);
 
   return (
     <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
@@ -141,15 +150,19 @@ export function JobExpensesSection({ job, expenses, receiptUrls }: Props) {
         <KpiCard
           label="Margem estimada"
           value={
-            stats.grandTotal === 0
+            stats.totalCosts === 0
               ? "—"
               : `${stats.marginPercent.toFixed(1)}%`
           }
           subValue={
-            stats.grandTotal === 0 ? undefined : formatCurrency(stats.margin)
+            stats.totalCosts === 0
+              ? undefined
+              : totalLaborCost > 0
+                ? `${formatCurrency(stats.margin)} (inclui mão de obra)`
+                : formatCurrency(stats.margin)
           }
           accent={
-            stats.grandTotal === 0
+            stats.totalCosts === 0
               ? "neutral"
               : stats.marginPercent >= 25
                 ? "green"
@@ -158,7 +171,7 @@ export function JobExpensesSection({ job, expenses, receiptUrls }: Props) {
                   : "red"
           }
           icon={
-            stats.grandTotal === 0
+            stats.totalCosts === 0
               ? undefined
               : stats.margin >= 0
                 ? TrendingUp

@@ -5,6 +5,7 @@ import { DecorBackground } from "@/components/decor-background";
 import { JobDetail } from "@/components/jobs/job-detail";
 import { requireUser } from "@/lib/auth";
 import { getSignedReceiptUrls } from "@/lib/job-expenses";
+import type { JobHoursWithMember, TeamMemberLite } from "@/lib/job-hours";
 import { getSignedPhotoUrls } from "@/lib/job-photos";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type {
@@ -36,37 +37,56 @@ export default async function JobDetailPage({ params }: Props) {
     notFound();
   }
 
-  const [leadRes, historyRes, paymentsRes, photosRes, expensesRes] =
-    await Promise.all([
-      supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
-      supabase
-        .from("job_phase_history")
-        .select("*")
-        .eq("job_id", job.id)
-        .order("started_at", { ascending: true }),
-      supabase
-        .from("job_payments")
-        .select("*")
-        .eq("job_id", job.id)
-        .order("display_order", { ascending: true }),
-      supabase
-        .from("job_photos")
-        .select("*")
-        .eq("job_id", job.id)
-        .order("display_order", { ascending: true })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("job_expenses")
-        .select("*")
-        .eq("job_id", job.id)
-        .order("expense_date", { ascending: false }),
-    ]);
+  const [
+    leadRes,
+    historyRes,
+    paymentsRes,
+    photosRes,
+    expensesRes,
+    hoursRes,
+    activeMembersRes,
+  ] = await Promise.all([
+    supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
+    supabase
+      .from("job_phase_history")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("started_at", { ascending: true }),
+    supabase
+      .from("job_payments")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("display_order", { ascending: true }),
+    supabase
+      .from("job_photos")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("job_expenses")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("expense_date", { ascending: false }),
+    supabase
+      .from("job_hours")
+      .select("*, member:team_members(id, name, role)")
+      .eq("job_id", job.id)
+      .order("work_date", { ascending: false }),
+    supabase
+      .from("team_members")
+      .select("id, name, role, hourly_rate")
+      .eq("active", true)
+      .order("name", { ascending: true }),
+  ]);
 
   const lead = leadRes.data ?? null;
   const history = (historyRes.data ?? []) as JobPhaseHistoryRow[];
   const payments = (paymentsRes.data ?? []) as JobPayment[];
   const photos = (photosRes.data ?? []) as JobPhoto[];
   const expenses = (expensesRes.data ?? []) as JobExpense[];
+  const hours = (hoursRes.data ?? []) as JobHoursWithMember[];
+  const activeMembers = (activeMembersRes.data ?? []) as TeamMemberLite[];
 
   // Signed URLs em batch (TTL 1h) — server-side pra primeira renderização
   const photoSignedUrls = await getSignedPhotoUrls({
@@ -95,6 +115,8 @@ export default async function JobDetailPage({ params }: Props) {
         photoSignedUrls={photoSignedUrls}
         expenses={expenses}
         receiptSignedUrls={receiptSignedUrls}
+        hours={hours}
+        activeMembers={activeMembers}
         userEmail={user.email ?? ""}
       />
     </main>

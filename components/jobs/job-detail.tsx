@@ -17,6 +17,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { JobExpensesSection } from "@/components/jobs/expenses/job-expenses-section";
+import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatPhone } from "@/lib/format";
+import type { JobHoursWithMember, TeamMemberLite } from "@/lib/job-hours";
 import { JOB_PHASE_LABEL } from "@/lib/labels";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
@@ -55,6 +57,8 @@ type Props = {
   photoSignedUrls: Record<string, string | null>;
   expenses: JobExpense[];
   receiptSignedUrls: Record<string, string | null>;
+  hours: JobHoursWithMember[];
+  activeMembers: TeamMemberLite[];
   userEmail: string;
 };
 
@@ -76,9 +80,15 @@ export function JobDetail({
   photoSignedUrls,
   expenses,
   receiptSignedUrls,
+  hours,
+  activeMembers,
   userEmail,
 }: Props) {
   const router = useRouter();
+  const totalLaborCost = hours.reduce(
+    (sum, h) => sum + Number(h.calculated_amount),
+    0,
+  );
 
   const [notes, setNotes] = useState<string>(job.notes ?? "");
   const [expectedStart, setExpectedStart] = useState<string>(
@@ -314,6 +324,14 @@ export function JobDetail({
         job={job}
         expenses={expenses}
         receiptUrls={receiptSignedUrls}
+        totalLaborCost={totalLaborCost}
+      />
+
+      {/* Horas trabalhadas */}
+      <JobHoursSection
+        jobId={job.id}
+        hours={hours}
+        activeMembers={activeMembers}
       />
 
       {/* Fotos da obra */}

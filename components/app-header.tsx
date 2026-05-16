@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarCheck2, ChevronDown, HardHat, KanbanSquare, LogOut, Plus } from "lucide-react";
+import { BarChart3, CalendarCheck2, ChevronDown, HardHat, KanbanSquare, LogOut, Plus, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -70,6 +70,13 @@ export function AppHeader({
             icon={CalendarCheck2}
           >
             Tasks
+          </NavLink>
+          <NavLink
+            href="/team"
+            active={pathname?.startsWith("/team") ?? false}
+            icon={Users}
+          >
+            Team
           </NavLink>
           <NavLink
             href="/dashboard"

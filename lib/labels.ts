@@ -11,6 +11,7 @@ import type {
   ServiceType,
   TaskStatus,
   TaskType,
+  TeamRole,
 } from "./types";
 
 /**
@@ -121,6 +122,14 @@ export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   equipment: "Equipamento",
   transport: "Transporte",
   other: "Outros",
+};
+
+export const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
+  helper: "Helper",
+  skilled: "Skilled (técnico)",
+  foreman: "Foreman (líder)",
+  subcontractor: "Subempreiteiro",
+  other: "Outro",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

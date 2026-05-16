@@ -188,6 +188,21 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   "other",
 ] as const;
 
+export type TeamRole =
+  | "helper"
+  | "skilled"
+  | "foreman"
+  | "subcontractor"
+  | "other";
+
+export const TEAM_ROLES: readonly TeamRole[] = [
+  "helper",
+  "skilled",
+  "foreman",
+  "subcontractor",
+  "other",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -473,8 +488,88 @@ export type JobMargin = {
   job_id: string;
   contract_value: number;
   total_expenses: number;
+  total_labor: number;
   estimated_margin: number;
   margin_percent: number | null;
+};
+
+export type TeamMember = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  name: string;
+  role: TeamRole;
+  hourly_rate: number;
+  phone: string | null;
+  email: string | null;
+  active: boolean;
+  notes: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em team_members. */
+export type TeamMemberInsert = Pick<TeamMember, "name" | "hourly_rate"> &
+  Partial<Omit<TeamMember, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial. */
+export type TeamMemberUpdate = Partial<
+  Omit<TeamMember, "id" | "created_at" | "updated_at">
+>;
+
+export type JobHours = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  job_id: string;
+  member_id: string;
+
+  work_date: string;
+  hours: number;
+
+  /** Snapshot da taxa do funcionário no momento do registro. */
+  hourly_rate_snapshot: number;
+
+  /** Coluna calculada pelo banco: hours × hourly_rate_snapshot. Read-only. */
+  calculated_amount: number;
+
+  notes: string | null;
+};
+
+/**
+ * Campos obrigatorios pra INSERT em job_hours.
+ * `calculated_amount` NUNCA entra no insert/update (GENERATED ALWAYS).
+ */
+export type JobHoursInsert = Pick<
+  JobHours,
+  "job_id" | "member_id" | "hours" | "hourly_rate_snapshot"
+> &
+  Partial<
+    Omit<
+      JobHours,
+      "id" | "created_at" | "updated_at" | "calculated_amount"
+    >
+  >;
+
+/** Update parcial (job_id, member_id e calculated_amount imutaveis). */
+export type JobHoursUpdate = Partial<
+  Omit<
+    JobHours,
+    | "id"
+    | "created_at"
+    | "updated_at"
+    | "job_id"
+    | "member_id"
+    | "calculated_amount"
+  >
+>;
+
+/** Linha agregada da view v_job_hours_summary. */
+export type JobHoursSummary = {
+  job_id: string;
+  entry_count: number;
+  total_hours: number;
+  total_labor_cost: number;
 };
 
 // ============================================================================
@@ -562,6 +657,18 @@ export type Database = {
         Update: JobExpenseUpdate;
         Relationships: [];
       };
+      team_members: {
+        Row: TeamMember;
+        Insert: TeamMemberInsert;
+        Update: TeamMemberUpdate;
+        Relationships: [];
+      };
+      job_hours: {
+        Row: JobHours;
+        Insert: JobHoursInsert;
+        Update: JobHoursUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -592,6 +699,10 @@ export type Database = {
         Row: JobMargin;
         Relationships: [];
       };
+      v_job_hours_summary: {
+        Row: JobHoursSummary;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -606,6 +717,7 @@ export type Database = {
       payment_status: PaymentStatus;
       photo_category: PhotoCategory;
       expense_category: ExpenseCategory;
+      team_role: TeamRole;
     };
     Functions: Record<string, never>;
   };
