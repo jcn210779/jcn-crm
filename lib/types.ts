@@ -161,6 +161,14 @@ export const PAYMENT_STATUSES: readonly PaymentStatus[] = [
   "cancelled",
 ] as const;
 
+export type PhotoCategory = "before" | "during" | "after";
+
+export const PHOTO_CATEGORIES: readonly PhotoCategory[] = [
+  "before",
+  "during",
+  "after",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -353,6 +361,46 @@ export type JobPaymentSummary = {
   total_planned: number;
 };
 
+export type JobPhoto = {
+  id: string;
+  created_at: string;
+
+  job_id: string;
+
+  /** Caminho no bucket Supabase Storage `job-photos`. */
+  storage_path: string;
+
+  category: PhotoCategory;
+  caption: string | null;
+  file_name: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+
+  uploaded_by: string;
+  display_order: number;
+};
+
+/** Campos obrigatorios pra INSERT em job_photos (defaults preenchem o resto). */
+export type JobPhotoInsert = Pick<
+  JobPhoto,
+  "job_id" | "storage_path" | "category"
+> &
+  Partial<Omit<JobPhoto, "id" | "created_at">>;
+
+/** Update parcial — qualquer campo opcional (job_id e storage_path imutáveis). */
+export type JobPhotoUpdate = Partial<
+  Omit<JobPhoto, "id" | "created_at" | "job_id" | "storage_path">
+>;
+
+/** Linha agregada da view v_job_photo_counts. */
+export type JobPhotoCounts = {
+  job_id: string;
+  before_count: number;
+  during_count: number;
+  after_count: number;
+  total_count: number;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -426,6 +474,12 @@ export type Database = {
         Update: JobPaymentUpdate;
         Relationships: [];
       };
+      job_photos: {
+        Row: JobPhoto;
+        Insert: JobPhotoInsert;
+        Update: JobPhotoUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -444,6 +498,10 @@ export type Database = {
         Row: JobPaymentSummary;
         Relationships: [];
       };
+      v_job_photo_counts: {
+        Row: JobPhotoCounts;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -456,6 +514,7 @@ export type Database = {
       payment_method: PaymentMethod;
       payment_kind: PaymentKind;
       payment_status: PaymentStatus;
+      photo_category: PhotoCategory;
     };
     Functions: Record<string, never>;
   };

@@ -4,8 +4,15 @@ import { AppHeader } from "@/components/app-header";
 import { DecorBackground } from "@/components/decor-background";
 import { JobDetail } from "@/components/jobs/job-detail";
 import { requireUser } from "@/lib/auth";
+import { getSignedPhotoUrls } from "@/lib/job-photos";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type { Job, JobPayment, JobPhaseHistoryRow, Lead } from "@/lib/types";
+import type {
+  Job,
+  JobPayment,
+  JobPhaseHistoryRow,
+  JobPhoto,
+  Lead,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +34,7 @@ export default async function JobDetailPage({ params }: Props) {
     notFound();
   }
 
-  const [leadRes, historyRes, paymentsRes] = await Promise.all([
+  const [leadRes, historyRes, paymentsRes, photosRes] = await Promise.all([
     supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
     supabase
       .from("job_phase_history")
@@ -39,11 +46,25 @@ export default async function JobDetailPage({ params }: Props) {
       .select("*")
       .eq("job_id", job.id)
       .order("display_order", { ascending: true }),
+    supabase
+      .from("job_photos")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false }),
   ]);
 
   const lead = leadRes.data ?? null;
   const history = (historyRes.data ?? []) as JobPhaseHistoryRow[];
   const payments = (paymentsRes.data ?? []) as JobPayment[];
+  const photos = (photosRes.data ?? []) as JobPhoto[];
+
+  // Signed URLs em batch (TTL 1h) — server-side pra primeira renderização
+  const photoSignedUrls = await getSignedPhotoUrls({
+    supabase,
+    storagePaths: photos.map((p) => p.storage_path),
+    expiresIn: 3600,
+  });
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -54,6 +75,9 @@ export default async function JobDetailPage({ params }: Props) {
         lead={lead}
         history={history}
         payments={payments}
+        photos={photos}
+        photoSignedUrls={photoSignedUrls}
+        userEmail={user.email ?? ""}
       />
     </main>
   );

@@ -17,6 +17,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
+import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,7 @@ import {
   type JobPayment,
   type JobPhase,
   type JobPhaseHistoryRow,
+  type JobPhoto,
   type JobUpdate,
   type Lead,
 } from "@/lib/types";
@@ -47,6 +49,9 @@ type Props = {
   lead: Lead | null;
   history: JobPhaseHistoryRow[];
   payments: JobPayment[];
+  photos: JobPhoto[];
+  photoSignedUrls: Record<string, string | null>;
+  userEmail: string;
 };
 
 const PHASE_BADGE_TONE: Record<JobPhase, string> = {
@@ -58,7 +63,15 @@ const PHASE_BADGE_TONE: Record<JobPhase, string> = {
   completed: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
 };
 
-export function JobDetail({ job, lead, history, payments }: Props) {
+export function JobDetail({
+  job,
+  lead,
+  history,
+  payments,
+  photos,
+  photoSignedUrls,
+  userEmail,
+}: Props) {
   const router = useRouter();
 
   const [notes, setNotes] = useState<string>(job.notes ?? "");
@@ -288,6 +301,14 @@ export function JobDetail({ job, lead, history, payments }: Props) {
         jobId={job.id}
         contractValue={job.value}
         payments={payments}
+      />
+
+      {/* Fotos da obra */}
+      <JobPhotosSection
+        jobId={job.id}
+        userEmail={userEmail}
+        photos={photos}
+        initialSignedUrls={photoSignedUrls}
       />
 
       {/* Histórico de fases */}

@@ -6,6 +6,7 @@ import type {
   PaymentKind,
   PaymentMethod,
   PaymentStatus,
+  PhotoCategory,
   ServiceType,
   TaskStatus,
   TaskType,
@@ -103,6 +104,12 @@ export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   paid: "Pago",
   overdue: "Atrasado",
   cancelled: "Cancelado",
+};
+
+export const PHOTO_CATEGORY_LABEL: Record<PhotoCategory, string> = {
+  before: "Antes",
+  during: "Durante",
+  after: "Depois",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */
