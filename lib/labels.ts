@@ -1,5 +1,6 @@
 import type {
   ExpenseCategory,
+  ExtraStatus,
   JobPhase,
   LeadSource,
   LeadStage,
@@ -130,6 +131,13 @@ export const TEAM_ROLE_LABEL: Record<TeamRole, string> = {
   foreman: "Foreman (líder)",
   subcontractor: "Subempreiteiro",
   other: "Outro",
+};
+
+export const EXTRA_STATUS_LABEL: Record<ExtraStatus, string> = {
+  proposed: "Proposto",
+  approved: "Aprovado",
+  rejected: "Rejeitado",
+  completed: "Concluído",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

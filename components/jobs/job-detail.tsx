@@ -17,6 +17,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { JobExpensesSection } from "@/components/jobs/expenses/job-expenses-section";
+import { JobExtrasSection } from "@/components/jobs/extras/job-extras-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
@@ -39,6 +40,7 @@ import {
   JOB_PHASES,
   type Job,
   type JobExpense,
+  type JobExtra,
   type JobPayment,
   type JobPhase,
   type JobPhaseHistoryRow,
@@ -59,6 +61,8 @@ type Props = {
   receiptSignedUrls: Record<string, string | null>;
   hours: JobHoursWithMember[];
   activeMembers: TeamMemberLite[];
+  extras: JobExtra[];
+  extraSignedUrls: Record<string, string | null>;
   userEmail: string;
 };
 
@@ -82,6 +86,8 @@ export function JobDetail({
   receiptSignedUrls,
   hours,
   activeMembers,
+  extras,
+  extraSignedUrls,
   userEmail,
 }: Props) {
   const router = useRouter();
@@ -89,6 +95,12 @@ export function JobDetail({
     (sum, h) => sum + Number(h.calculated_amount),
     0,
   );
+  const approvedExtrasValue = extras.reduce((sum, e) => {
+    if (e.status === "approved" || e.status === "completed") {
+      return sum + Number(e.additional_value);
+    }
+    return sum;
+  }, 0);
 
   const [notes, setNotes] = useState<string>(job.notes ?? "");
   const [expectedStart, setExpectedStart] = useState<string>(
@@ -325,6 +337,7 @@ export function JobDetail({
         expenses={expenses}
         receiptUrls={receiptSignedUrls}
         totalLaborCost={totalLaborCost}
+        approvedExtrasValue={approvedExtrasValue}
       />
 
       {/* Horas trabalhadas */}
@@ -332,6 +345,13 @@ export function JobDetail({
         jobId={job.id}
         hours={hours}
         activeMembers={activeMembers}
+      />
+
+      {/* Extras e change orders */}
+      <JobExtrasSection
+        jobId={job.id}
+        extras={extras}
+        attachmentUrls={extraSignedUrls}
       />
 
       {/* Fotos da obra */}

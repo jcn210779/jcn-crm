@@ -38,6 +38,8 @@ type Props = {
   receiptUrls: Record<string, string | null>;
   /** Mão de obra total (vinda de job_hours) somada à margem. */
   totalLaborCost?: number;
+  /** Soma de extras aprovados + concluídos (vinda de job_extras). */
+  approvedExtrasValue?: number;
 };
 
 const CATEGORY_ACCENT: Record<ExpenseCategory, string> = {
@@ -55,6 +57,7 @@ export function JobExpensesSection({
   expenses,
   receiptUrls,
   totalLaborCost = 0,
+  approvedExtrasValue = 0,
 }: Props) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
@@ -85,9 +88,12 @@ export function JobExpensesSection({
       .filter(([, v]) => v > 0)
       .sort((a, b) => b[1] - a[1])[0];
 
+    // Contrato efetivo = valor original + extras aprovados/concluídos
+    const effectiveContract = job.value + approvedExtrasValue;
     const totalCosts = grandTotal + totalLaborCost;
-    const margin = job.value - totalCosts;
-    const marginPercent = job.value > 0 ? (margin / job.value) * 100 : 0;
+    const margin = effectiveContract - totalCosts;
+    const marginPercent =
+      effectiveContract > 0 ? (margin / effectiveContract) * 100 : 0;
 
     return {
       totals,
@@ -96,9 +102,10 @@ export function JobExpensesSection({
       margin,
       marginPercent,
       totalCosts,
+      effectiveContract,
       count: expenses.length,
     };
-  }, [expenses, job.value, totalLaborCost]);
+  }, [expenses, job.value, totalLaborCost, approvedExtrasValue]);
 
   return (
     <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
@@ -157,9 +164,16 @@ export function JobExpensesSection({
           subValue={
             stats.totalCosts === 0
               ? undefined
-              : totalLaborCost > 0
-                ? `${formatCurrency(stats.margin)} (inclui mão de obra)`
-                : formatCurrency(stats.margin)
+              : (() => {
+                  const parts: string[] = [formatCurrency(stats.margin)];
+                  const extras: string[] = [];
+                  if (approvedExtrasValue > 0) extras.push("extras");
+                  if (totalLaborCost > 0) extras.push("mão de obra");
+                  if (extras.length > 0) {
+                    parts.push(`(inclui ${extras.join(" + ")})`);
+                  }
+                  return parts.join(" ");
+                })()
           }
           accent={
             stats.totalCosts === 0

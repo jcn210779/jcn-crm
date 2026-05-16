@@ -203,6 +203,15 @@ export const TEAM_ROLES: readonly TeamRole[] = [
   "other",
 ] as const;
 
+export type ExtraStatus = "proposed" | "approved" | "rejected" | "completed";
+
+export const EXTRA_STATUSES: readonly ExtraStatus[] = [
+  "proposed",
+  "approved",
+  "rejected",
+  "completed",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -487,6 +496,10 @@ export type JobExpenseSummary = {
 export type JobMargin = {
   job_id: string;
   contract_value: number;
+  /** Soma de extras com status approved + completed. */
+  approved_extras_value: number;
+  /** contract_value + approved_extras_value. */
+  effective_contract_value: number;
   total_expenses: number;
   total_labor: number;
   estimated_margin: number;
@@ -570,6 +583,61 @@ export type JobHoursSummary = {
   entry_count: number;
   total_hours: number;
   total_labor_cost: number;
+};
+
+export type JobExtra = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  job_id: string;
+
+  title: string;
+  description: string | null;
+  /** Valor adicional cobrado por esse extra (USD). 0 = cortesia. */
+  additional_value: number;
+
+  status: ExtraStatus;
+
+  proposed_at: string;
+  approved_at: string | null;
+  rejected_at: string | null;
+  completed_at: string | null;
+
+  approved_by_name: string | null;
+
+  /** Anexo de prova de aprovação no bucket `job-extras`. */
+  approval_attachment_path: string | null;
+  approval_file_name: string | null;
+  approval_mime: string | null;
+
+  /** Anexo de contrato adicional formal (PDF) no bucket `job-extras`. */
+  contract_attachment_path: string | null;
+  contract_file_name: string | null;
+  contract_mime: string | null;
+
+  notes: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em job_extras. */
+export type JobExtraInsert = Pick<JobExtra, "job_id" | "title"> &
+  Partial<Omit<JobExtra, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial (job_id imutável; created_at/updated_at gerenciados pelo banco). */
+export type JobExtraUpdate = Partial<
+  Omit<JobExtra, "id" | "created_at" | "updated_at" | "job_id">
+>;
+
+/** Linha agregada da view v_job_extras_summary. */
+export type JobExtrasSummary = {
+  job_id: string;
+  total_extras: number;
+  proposed_count: number;
+  approved_count: number;
+  rejected_count: number;
+  completed_count: number;
+  approved_value_total: number;
+  proposed_value_total: number;
 };
 
 // ============================================================================
@@ -669,6 +737,12 @@ export type Database = {
         Update: JobHoursUpdate;
         Relationships: [];
       };
+      job_extras: {
+        Row: JobExtra;
+        Insert: JobExtraInsert;
+        Update: JobExtraUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -703,6 +777,10 @@ export type Database = {
         Row: JobHoursSummary;
         Relationships: [];
       };
+      v_job_extras_summary: {
+        Row: JobExtrasSummary;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -718,6 +796,7 @@ export type Database = {
       photo_category: PhotoCategory;
       expense_category: ExpenseCategory;
       team_role: TeamRole;
+      extra_status: ExtraStatus;
     };
     Functions: Record<string, never>;
   };

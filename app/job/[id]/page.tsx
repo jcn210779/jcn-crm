@@ -5,12 +5,14 @@ import { DecorBackground } from "@/components/decor-background";
 import { JobDetail } from "@/components/jobs/job-detail";
 import { requireUser } from "@/lib/auth";
 import { getSignedReceiptUrls } from "@/lib/job-expenses";
+import { getSignedExtraUrls } from "@/lib/job-extras";
 import type { JobHoursWithMember, TeamMemberLite } from "@/lib/job-hours";
 import { getSignedPhotoUrls } from "@/lib/job-photos";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type {
   Job,
   JobExpense,
+  JobExtra,
   JobPayment,
   JobPhaseHistoryRow,
   JobPhoto,
@@ -45,6 +47,7 @@ export default async function JobDetailPage({ params }: Props) {
     expensesRes,
     hoursRes,
     activeMembersRes,
+    extrasRes,
   ] = await Promise.all([
     supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
     supabase
@@ -78,6 +81,11 @@ export default async function JobDetailPage({ params }: Props) {
       .select("id, name, role, hourly_rate")
       .eq("active", true)
       .order("name", { ascending: true }),
+    supabase
+      .from("job_extras")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("proposed_at", { ascending: false }),
   ]);
 
   const lead = leadRes.data ?? null;
@@ -87,6 +95,7 @@ export default async function JobDetailPage({ params }: Props) {
   const expenses = (expensesRes.data ?? []) as JobExpense[];
   const hours = (hoursRes.data ?? []) as JobHoursWithMember[];
   const activeMembers = (activeMembersRes.data ?? []) as TeamMemberLite[];
+  const extras = (extrasRes.data ?? []) as JobExtra[];
 
   // Signed URLs em batch (TTL 1h) — server-side pra primeira renderização
   const photoSignedUrls = await getSignedPhotoUrls({
@@ -99,6 +108,17 @@ export default async function JobDetailPage({ params }: Props) {
     storagePaths: expenses
       .map((e) => e.receipt_path)
       .filter((p): p is string => p !== null),
+    expiresIn: 3600,
+  });
+  // Extras podem ter ATÉ 2 anexos cada (approval + contract) — junta tudo
+  const extraAttachmentPaths = extras.flatMap((e) =>
+    [e.approval_attachment_path, e.contract_attachment_path].filter(
+      (p): p is string => p !== null,
+    ),
+  );
+  const extraSignedUrls = await getSignedExtraUrls({
+    supabase,
+    storagePaths: extraAttachmentPaths,
     expiresIn: 3600,
   });
 
@@ -117,6 +137,8 @@ export default async function JobDetailPage({ params }: Props) {
         receiptSignedUrls={receiptSignedUrls}
         hours={hours}
         activeMembers={activeMembers}
+        extras={extras}
+        extraSignedUrls={extraSignedUrls}
         userEmail={user.email ?? ""}
       />
     </main>
