@@ -316,6 +316,13 @@ export type Job = {
 
   current_phase: JobPhase;
   notes: string | null;
+
+  // Contrato assinado (Fase 4.2G — adicionado em migration 0013)
+  // Bucket: job-extras, path canônico contracts/<job_id>.<ext>
+  contract_path: string | null;
+  contract_file_name: string | null;
+  contract_mime: string | null;
+  contract_uploaded_at: string | null;
 };
 
 /** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */

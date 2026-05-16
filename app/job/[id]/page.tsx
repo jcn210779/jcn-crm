@@ -122,6 +122,15 @@ export default async function JobDetailPage({ params }: Props) {
     expiresIn: 3600,
   });
 
+  // Signed URL do contrato principal do job (se houver) — mesmo bucket job-extras
+  const contractSignedUrl = job.contract_path
+    ? ((
+        await supabase.storage
+          .from("job-extras")
+          .createSignedUrl(job.contract_path, 3600)
+      ).data?.signedUrl ?? null)
+    : null;
+
   return (
     <main className="relative min-h-screen pb-24">
       <DecorBackground />
@@ -138,6 +147,7 @@ export default async function JobDetailPage({ params }: Props) {
         hours={hours}
         activeMembers={activeMembers}
         extras={extras}
+        contractSignedUrl={contractSignedUrl}
         extraSignedUrls={extraSignedUrls}
         userEmail={user.email ?? ""}
       />

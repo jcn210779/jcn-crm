@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { JobExpensesSection } from "@/components/jobs/expenses/job-expenses-section";
 import { JobExtrasSection } from "@/components/jobs/extras/job-extras-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
+import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,7 @@ type Props = {
   activeMembers: TeamMemberLite[];
   extras: JobExtra[];
   extraSignedUrls: Record<string, string | null>;
+  contractSignedUrl: string | null;
   userEmail: string;
 };
 
@@ -88,6 +90,7 @@ export function JobDetail({
   activeMembers,
   extras,
   extraSignedUrls,
+  contractSignedUrl,
   userEmail,
 }: Props) {
   const router = useRouter();
@@ -323,6 +326,9 @@ export function JobDetail({
           </div>
         </SectionCard>
       </div>
+
+      {/* Contrato assinado */}
+      <JobContractCard job={job} initialSignedUrl={contractSignedUrl} />
 
       {/* Pagamentos */}
       <JobPaymentsSection
