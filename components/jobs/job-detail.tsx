@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { JobExpensesSection } from "@/components/jobs/expenses/job-expenses-section";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
   JOB_PHASES,
   type Job,
+  type JobExpense,
   type JobPayment,
   type JobPhase,
   type JobPhaseHistoryRow,
@@ -51,6 +53,8 @@ type Props = {
   payments: JobPayment[];
   photos: JobPhoto[];
   photoSignedUrls: Record<string, string | null>;
+  expenses: JobExpense[];
+  receiptSignedUrls: Record<string, string | null>;
   userEmail: string;
 };
 
@@ -70,6 +74,8 @@ export function JobDetail({
   payments,
   photos,
   photoSignedUrls,
+  expenses,
+  receiptSignedUrls,
   userEmail,
 }: Props) {
   const router = useRouter();
@@ -301,6 +307,13 @@ export function JobDetail({
         jobId={job.id}
         contractValue={job.value}
         payments={payments}
+      />
+
+      {/* Despesas e recibos */}
+      <JobExpensesSection
+        job={job}
+        expenses={expenses}
+        receiptUrls={receiptSignedUrls}
       />
 
       {/* Fotos da obra */}

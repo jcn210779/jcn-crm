@@ -1,4 +1,5 @@
 import type {
+  ExpenseCategory,
   JobPhase,
   LeadSource,
   LeadStage,
@@ -110,6 +111,16 @@ export const PHOTO_CATEGORY_LABEL: Record<PhotoCategory, string> = {
   before: "Antes",
   during: "Durante",
   after: "Depois",
+};
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  materials: "Material",
+  labor: "Mão de obra",
+  permit: "Permit / Taxas",
+  subcontractor: "Subempreiteiro",
+  equipment: "Equipamento",
+  transport: "Transporte",
+  other: "Outros",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

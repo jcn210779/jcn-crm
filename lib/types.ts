@@ -169,6 +169,25 @@ export const PHOTO_CATEGORIES: readonly PhotoCategory[] = [
   "after",
 ] as const;
 
+export type ExpenseCategory =
+  | "materials"
+  | "labor"
+  | "permit"
+  | "subcontractor"
+  | "equipment"
+  | "transport"
+  | "other";
+
+export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
+  "materials",
+  "labor",
+  "permit",
+  "subcontractor",
+  "equipment",
+  "transport",
+  "other",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -401,6 +420,63 @@ export type JobPhotoCounts = {
   total_count: number;
 };
 
+export type JobExpense = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  job_id: string;
+
+  category: ExpenseCategory;
+  vendor: string | null;
+  description: string;
+  amount: number;
+  expense_date: string;
+
+  /** Caminho no bucket Supabase Storage `job-receipts`. */
+  receipt_path: string | null;
+  receipt_file_name: string | null;
+  receipt_size: number | null;
+  receipt_mime: string | null;
+
+  notes: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em job_expenses. */
+export type JobExpenseInsert = Pick<
+  JobExpense,
+  "job_id" | "category" | "description" | "amount"
+> &
+  Partial<Omit<JobExpense, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial — qualquer campo opcional (job_id imutavel). */
+export type JobExpenseUpdate = Partial<
+  Omit<JobExpense, "id" | "created_at" | "updated_at" | "job_id">
+>;
+
+/** Linha agregada da view v_job_expense_summary. */
+export type JobExpenseSummary = {
+  job_id: string;
+  expense_count: number;
+  total_expenses: number;
+  materials_total: number;
+  labor_total: number;
+  permit_total: number;
+  subcontractor_total: number;
+  equipment_total: number;
+  transport_total: number;
+  other_total: number;
+};
+
+/** Linha agregada da view v_job_margin. */
+export type JobMargin = {
+  job_id: string;
+  contract_value: number;
+  total_expenses: number;
+  estimated_margin: number;
+  margin_percent: number | null;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -480,6 +556,12 @@ export type Database = {
         Update: JobPhotoUpdate;
         Relationships: [];
       };
+      job_expenses: {
+        Row: JobExpense;
+        Insert: JobExpenseInsert;
+        Update: JobExpenseUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -502,6 +584,14 @@ export type Database = {
         Row: JobPhotoCounts;
         Relationships: [];
       };
+      v_job_expense_summary: {
+        Row: JobExpenseSummary;
+        Relationships: [];
+      };
+      v_job_margin: {
+        Row: JobMargin;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -515,6 +605,7 @@ export type Database = {
       payment_kind: PaymentKind;
       payment_status: PaymentStatus;
       photo_category: PhotoCategory;
+      expense_category: ExpenseCategory;
     };
     Functions: Record<string, never>;
   };
