@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Image as ImageIcon, Upload, X } from "lucide-react";
+import { AlertTriangle, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -21,9 +21,17 @@ import {
   MAX_RECEIPT_SIZE_BYTES,
   uploadReceiptFile,
 } from "@/lib/job-expenses";
-import { EXPENSE_CATEGORY_LABEL } from "@/lib/labels";
+import {
+  EXPENSE_CATEGORY_LABEL,
+  PAYMENT_METHOD_LABEL,
+} from "@/lib/labels";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/lib/types";
+import {
+  EXPENSE_CATEGORIES,
+  PAYMENT_METHODS,
+  type ExpenseCategory,
+  type PaymentMethod,
+} from "@/lib/types";
 
 type Props = {
   jobId: string;
@@ -44,6 +52,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
   const [vendor, setVendor] = useState("");
   const [amount, setAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState<string>(defaultDate());
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -56,6 +65,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
     setVendor("");
     setAmount("");
     setExpenseDate(defaultDate());
+    setPaymentMethod("");
     setNotes("");
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -132,6 +142,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
       vendor: vendor.trim() || null,
       amount: amt,
       expense_date: expenseDate,
+      payment_method: paymentMethod || null,
       receipt_path: receiptPath,
       receipt_file_name: receiptFileName,
       receipt_size: receiptSize,
@@ -231,6 +242,36 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
                 onChange={(e) => setExpenseDate(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="exp-method">Método de pagamento</Label>
+            <select
+              id="exp-method"
+              className="flex h-10 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-jcn-ice outline-none focus:border-jcn-gold-400/40"
+              value={paymentMethod}
+              onChange={(e) =>
+                setPaymentMethod(e.target.value as PaymentMethod | "")
+              }
+            >
+              <option value="">Não informado</option>
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {PAYMENT_METHOD_LABEL[m]}
+                </option>
+              ))}
+            </select>
+            {paymentMethod === "credit_card" && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-[11px] text-amber-200">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Essa despesa <strong>NÃO</strong> conta no caixa real até
+                  você registrar o pagamento da fatura em &ldquo;Gastos da
+                  empresa&rdquo;. Continua entrando na margem do job
+                  normalmente.
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

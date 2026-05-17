@@ -300,6 +300,47 @@ export const DAILY_LOG_TYPES: readonly DailyLogType[] = [
   "client_visit",
 ] as const;
 
+export type BusinessExpenseCategory =
+  | "credit_card_payment"
+  | "insurance"
+  | "vehicle_fuel"
+  | "vehicle_maintenance"
+  | "vehicle_finance"
+  | "phone"
+  | "internet"
+  | "software"
+  | "accounting"
+  | "legal"
+  | "office_supplies"
+  | "rent"
+  | "utilities"
+  | "bank_fees"
+  | "taxes"
+  | "marketing_other"
+  | "training"
+  | "other";
+
+export const BUSINESS_EXPENSE_CATEGORIES: readonly BusinessExpenseCategory[] = [
+  "credit_card_payment",
+  "insurance",
+  "vehicle_fuel",
+  "vehicle_maintenance",
+  "vehicle_finance",
+  "phone",
+  "internet",
+  "software",
+  "accounting",
+  "legal",
+  "office_supplies",
+  "rent",
+  "utilities",
+  "bank_fees",
+  "taxes",
+  "marketing_other",
+  "training",
+  "other",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -551,6 +592,14 @@ export type JobExpense = {
   description: string;
   amount: number;
   expense_date: string;
+
+  /**
+   * Método de pagamento (Fase 4.2K — migration 0016).
+   * Quando = 'credit_card', a despesa NÃO conta no caixa real. O caixa só é
+   * impactado quando o pagamento da fatura é registrado em business_expenses
+   * (categoria credit_card_payment).
+   */
+  payment_method: PaymentMethod | null;
 
   /** Caminho no bucket Supabase Storage `job-receipts`. */
   receipt_path: string | null;
@@ -859,6 +908,52 @@ export type JobDailyLogsSummary = {
   first_log_date: string | null;
 };
 
+export type BusinessExpense = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  expense_date: string;
+  category: BusinessExpenseCategory;
+  vendor: string | null;
+  description: string;
+  amount: number;
+
+  payment_method: PaymentMethod | null;
+
+  recurring: boolean;
+  recurrence_note: string | null;
+
+  notes: string | null;
+};
+
+export type BusinessExpenseInsert = Pick<
+  BusinessExpense,
+  "category" | "description" | "amount"
+> &
+  Partial<Omit<BusinessExpense, "id" | "created_at" | "updated_at">>;
+
+export type BusinessExpenseUpdate = Partial<
+  Omit<BusinessExpense, "id" | "created_at" | "updated_at">
+>;
+
+/** Linha agregada da view v_finance_monthly. */
+export type FinanceMonthly = {
+  month: string;
+  month_label: string;
+  sold: number;
+  sold_count: number;
+  received: number;
+  received_count: number;
+  job_expenses_cash: number;
+  job_hours_cost: number;
+  job_subs_cost: number;
+  ads_spend: number;
+  business_expenses: number;
+  total_paid_out: number;
+  cash_balance: number;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -980,6 +1075,12 @@ export type Database = {
         Update: JobDailyLogUpdate;
         Relationships: [];
       };
+      business_expenses: {
+        Row: BusinessExpense;
+        Insert: BusinessExpenseInsert;
+        Update: BusinessExpenseUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -1030,6 +1131,10 @@ export type Database = {
         Row: JobDailyLogsSummary;
         Relationships: [];
       };
+      v_finance_monthly: {
+        Row: FinanceMonthly;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -1051,6 +1156,7 @@ export type Database = {
       job_subcontractor_status: JobSubcontractorStatus;
       weather_condition: WeatherCondition;
       daily_log_type: DailyLogType;
+      business_expense_category: BusinessExpenseCategory;
     };
     Functions: Record<string, never>;
   };

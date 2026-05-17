@@ -23,7 +23,7 @@ import { ReceiptViewer } from "@/components/jobs/expenses/receipt-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { EXPENSE_CATEGORY_LABEL } from "@/lib/labels";
+import { EXPENSE_CATEGORY_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/labels";
 import {
   EXPENSE_CATEGORIES,
   type ExpenseCategory,
@@ -350,6 +350,24 @@ function ExpenseRow({ expense, receiptUrl, onView, onDelete }: ExpenseRowProps) 
           >
             {EXPENSE_CATEGORY_LABEL[expense.category]}
           </Badge>
+          {expense.payment_method && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] font-semibold",
+                expense.payment_method === "credit_card"
+                  ? "border-amber-400/30 bg-amber-500/10 text-amber-300"
+                  : "border-white/[0.1] bg-white/[0.04] text-jcn-ice/65",
+              )}
+              title={
+                expense.payment_method === "credit_card"
+                  ? "Cartão de crédito — não conta no caixa até pagar a fatura"
+                  : undefined
+              }
+            >
+              {PAYMENT_METHOD_LABEL[expense.payment_method]}
+            </Badge>
+          )}
           <span className="text-sm font-semibold text-jcn-ice">
             {expense.description}
           </span>

@@ -1,4 +1,5 @@
 import type {
+  BusinessExpenseCategory,
   DailyLogType,
   ExpenseCategory,
   ExtraStatus,
@@ -222,6 +223,65 @@ export const DAILY_LOG_TYPE_EMOJI: Record<DailyLogType, string> = {
   inspection: "🔍",
   client_visit: "👤",
 };
+
+export const BUSINESS_EXPENSE_CATEGORY_LABEL: Record<
+  BusinessExpenseCategory,
+  string
+> = {
+  credit_card_payment: "Pagamento de cartão",
+  insurance: "Seguro",
+  vehicle_fuel: "Gasolina/combustível",
+  vehicle_maintenance: "Manutenção veículo",
+  vehicle_finance: "Parcela do veículo",
+  phone: "Telefone",
+  internet: "Internet",
+  software: "Software/SaaS",
+  accounting: "Contador",
+  legal: "Jurídico/licenças",
+  office_supplies: "Material de escritório",
+  rent: "Aluguel",
+  utilities: "Luz/água/gás",
+  bank_fees: "Tarifas bancárias",
+  taxes: "Impostos",
+  marketing_other: "Marketing (outros)",
+  training: "Cursos/certificações",
+  other: "Outros",
+};
+
+/** Agrupamento visual das categorias de business_expenses pro select. */
+export const BUSINESS_EXPENSE_CATEGORY_GROUPS: ReadonlyArray<{
+  label: string;
+  items: readonly BusinessExpenseCategory[];
+}> = [
+  {
+    label: "Cartão de crédito",
+    items: ["credit_card_payment"],
+  },
+  {
+    label: "Veículo",
+    items: ["vehicle_fuel", "vehicle_maintenance", "vehicle_finance"],
+  },
+  {
+    label: "Operacional",
+    items: ["rent", "utilities", "phone", "internet", "office_supplies"],
+  },
+  {
+    label: "Profissional",
+    items: ["insurance", "accounting", "legal", "software", "training"],
+  },
+  {
+    label: "Financeiro",
+    items: ["bank_fees", "taxes"],
+  },
+  {
+    label: "Marketing",
+    items: ["marketing_other"],
+  },
+  {
+    label: "Outros",
+    items: ["other"],
+  },
+];
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */
 export const TARGET_CITIES: readonly string[] = [
