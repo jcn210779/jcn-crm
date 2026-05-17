@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarCheck2, ChevronDown, HardHat, KanbanSquare, LogOut, Plus, Users, Wrench } from "lucide-react";
+import { BarChart3, CalendarCheck2, CalendarRange, ChevronDown, HardHat, KanbanSquare, LogOut, Plus, Users, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -84,6 +84,13 @@ export function AppHeader({
             icon={Wrench}
           >
             Subs
+          </NavLink>
+          <NavLink
+            href="/schedule"
+            active={pathname?.startsWith("/schedule") ?? false}
+            icon={CalendarRange}
+          >
+            Agenda
           </NavLink>
           <NavLink
             href="/dashboard"
