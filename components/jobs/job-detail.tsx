@@ -22,6 +22,7 @@ import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
+import { JobSubcontractorsSection } from "@/components/jobs/subcontractors/job-subcontractors-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +36,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatPhone } from "@/lib/format";
 import type { JobHoursWithMember, TeamMemberLite } from "@/lib/job-hours";
+import type {
+  ActiveSubOption,
+  JobSubcontractorWithSub,
+} from "@/lib/job-subs";
 import { JOB_PHASE_LABEL } from "@/lib/labels";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
@@ -65,6 +70,8 @@ type Props = {
   extras: JobExtra[];
   extraSignedUrls: Record<string, string | null>;
   contractSignedUrl: string | null;
+  jobSubs: JobSubcontractorWithSub[];
+  activeSubs: ActiveSubOption[];
   userEmail: string;
 };
 
@@ -91,6 +98,8 @@ export function JobDetail({
   extras,
   extraSignedUrls,
   contractSignedUrl,
+  jobSubs,
+  activeSubs,
   userEmail,
 }: Props) {
   const router = useRouter();
@@ -101,6 +110,13 @@ export function JobDetail({
   const approvedExtrasValue = extras.reduce((sum, e) => {
     if (e.status === "approved" || e.status === "completed") {
       return sum + Number(e.additional_value);
+    }
+    return sum;
+  }, 0);
+  // Subs em in_progress + completed entram no custo (mesmo critério da view)
+  const totalSubsCost = jobSubs.reduce((sum, js) => {
+    if (js.status === "in_progress" || js.status === "completed") {
+      return sum + Number(js.agreed_value);
     }
     return sum;
   }, 0);
@@ -344,6 +360,7 @@ export function JobDetail({
         receiptUrls={receiptSignedUrls}
         totalLaborCost={totalLaborCost}
         approvedExtrasValue={approvedExtrasValue}
+        totalSubsCost={totalSubsCost}
       />
 
       {/* Horas trabalhadas */}
@@ -358,6 +375,13 @@ export function JobDetail({
         jobId={job.id}
         extras={extras}
         attachmentUrls={extraSignedUrls}
+      />
+
+      {/* Subempreiteiros */}
+      <JobSubcontractorsSection
+        jobId={job.id}
+        jobSubs={jobSubs}
+        activeSubs={activeSubs}
       />
 
       {/* Fotos da obra */}

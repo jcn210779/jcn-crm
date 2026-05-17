@@ -40,6 +40,8 @@ type Props = {
   totalLaborCost?: number;
   /** Soma de extras aprovados + concluídos (vinda de job_extras). */
   approvedExtrasValue?: number;
+  /** Soma de subs em in_progress + completed (vinda de job_subcontractors). */
+  totalSubsCost?: number;
 };
 
 const CATEGORY_ACCENT: Record<ExpenseCategory, string> = {
@@ -58,6 +60,7 @@ export function JobExpensesSection({
   receiptUrls,
   totalLaborCost = 0,
   approvedExtrasValue = 0,
+  totalSubsCost = 0,
 }: Props) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
@@ -90,7 +93,7 @@ export function JobExpensesSection({
 
     // Contrato efetivo = valor original + extras aprovados/concluídos
     const effectiveContract = job.value + approvedExtrasValue;
-    const totalCosts = grandTotal + totalLaborCost;
+    const totalCosts = grandTotal + totalLaborCost + totalSubsCost;
     const margin = effectiveContract - totalCosts;
     const marginPercent =
       effectiveContract > 0 ? (margin / effectiveContract) * 100 : 0;
@@ -105,7 +108,13 @@ export function JobExpensesSection({
       effectiveContract,
       count: expenses.length,
     };
-  }, [expenses, job.value, totalLaborCost, approvedExtrasValue]);
+  }, [
+    expenses,
+    job.value,
+    totalLaborCost,
+    approvedExtrasValue,
+    totalSubsCost,
+  ]);
 
   return (
     <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
@@ -169,6 +178,7 @@ export function JobExpensesSection({
                   const extras: string[] = [];
                   if (approvedExtrasValue > 0) extras.push("extras");
                   if (totalLaborCost > 0) extras.push("mão de obra");
+                  if (totalSubsCost > 0) extras.push("subs");
                   if (extras.length > 0) {
                     parts.push(`(inclui ${extras.join(" + ")})`);
                   }

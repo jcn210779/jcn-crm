@@ -8,6 +8,10 @@ import { getSignedReceiptUrls } from "@/lib/job-expenses";
 import { getSignedExtraUrls } from "@/lib/job-extras";
 import type { JobHoursWithMember, TeamMemberLite } from "@/lib/job-hours";
 import { getSignedPhotoUrls } from "@/lib/job-photos";
+import type {
+  ActiveSubOption,
+  JobSubcontractorWithSub,
+} from "@/lib/job-subs";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type {
   Job,
@@ -48,6 +52,8 @@ export default async function JobDetailPage({ params }: Props) {
     hoursRes,
     activeMembersRes,
     extrasRes,
+    jobSubsRes,
+    activeSubsRes,
   ] = await Promise.all([
     supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
     supabase
@@ -86,6 +92,19 @@ export default async function JobDetailPage({ params }: Props) {
       .select("*")
       .eq("job_id", job.id)
       .order("proposed_at", { ascending: false }),
+    supabase
+      .from("job_subcontractors")
+      .select(
+        "*, sub:subcontractors(id, name, company_name, specialty)",
+      )
+      .eq("job_id", job.id)
+      .order("hired_at", { ascending: false }),
+    supabase
+      .from("subcontractors")
+      .select("id, name, company_name, specialty, default_rate, preferred")
+      .eq("active", true)
+      .order("preferred", { ascending: false })
+      .order("name", { ascending: true }),
   ]);
 
   const lead = leadRes.data ?? null;
@@ -96,6 +115,8 @@ export default async function JobDetailPage({ params }: Props) {
   const hours = (hoursRes.data ?? []) as JobHoursWithMember[];
   const activeMembers = (activeMembersRes.data ?? []) as TeamMemberLite[];
   const extras = (extrasRes.data ?? []) as JobExtra[];
+  const jobSubs = (jobSubsRes.data ?? []) as JobSubcontractorWithSub[];
+  const activeSubs = (activeSubsRes.data ?? []) as ActiveSubOption[];
 
   // Signed URLs em batch (TTL 1h) — server-side pra primeira renderização
   const photoSignedUrls = await getSignedPhotoUrls({
@@ -149,6 +170,8 @@ export default async function JobDetailPage({ params }: Props) {
         extras={extras}
         contractSignedUrl={contractSignedUrl}
         extraSignedUrls={extraSignedUrls}
+        jobSubs={jobSubs}
+        activeSubs={activeSubs}
         userEmail={user.email ?? ""}
       />
     </main>

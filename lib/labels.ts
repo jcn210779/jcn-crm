@@ -2,6 +2,7 @@ import type {
   ExpenseCategory,
   ExtraStatus,
   JobPhase,
+  JobSubcontractorStatus,
   LeadSource,
   LeadStage,
   LostReason,
@@ -10,6 +11,8 @@ import type {
   PaymentStatus,
   PhotoCategory,
   ServiceType,
+  SubcontractorRateType,
+  SubcontractorSpecialty,
   TaskStatus,
   TaskType,
   TeamRole,
@@ -138,6 +141,42 @@ export const EXTRA_STATUS_LABEL: Record<ExtraStatus, string> = {
   approved: "Aprovado",
   rejected: "Rejeitado",
   completed: "Concluído",
+};
+
+export const SUBCONTRACTOR_SPECIALTY_LABEL: Record<
+  SubcontractorSpecialty,
+  string
+> = {
+  electrical: "Elétrica",
+  plumbing: "Encanamento",
+  painting: "Pintura",
+  roofing: "Telhado",
+  concrete: "Concreto",
+  framing: "Estrutura",
+  hvac: "HVAC (ar/aquecimento)",
+  landscaping: "Paisagismo",
+  flooring: "Piso",
+  masonry: "Alvenaria",
+  other: "Outro",
+};
+
+export const SUBCONTRACTOR_RATE_TYPE_LABEL: Record<
+  SubcontractorRateType,
+  string
+> = {
+  per_service: "Por serviço",
+  hourly: "Por hora",
+  per_unit: "Por unidade",
+};
+
+export const JOB_SUBCONTRACTOR_STATUS_LABEL: Record<
+  JobSubcontractorStatus,
+  string
+> = {
+  pending: "Pendente",
+  in_progress: "Em andamento",
+  completed: "Concluído",
+  cancelled: "Cancelado",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

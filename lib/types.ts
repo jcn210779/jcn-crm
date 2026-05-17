@@ -212,6 +212,54 @@ export const EXTRA_STATUSES: readonly ExtraStatus[] = [
   "completed",
 ] as const;
 
+export type SubcontractorSpecialty =
+  | "electrical"
+  | "plumbing"
+  | "painting"
+  | "roofing"
+  | "concrete"
+  | "framing"
+  | "hvac"
+  | "landscaping"
+  | "flooring"
+  | "masonry"
+  | "other";
+
+export const SUBCONTRACTOR_SPECIALTIES: readonly SubcontractorSpecialty[] = [
+  "electrical",
+  "plumbing",
+  "painting",
+  "roofing",
+  "concrete",
+  "framing",
+  "hvac",
+  "landscaping",
+  "flooring",
+  "masonry",
+  "other",
+] as const;
+
+export type SubcontractorRateType = "per_service" | "hourly" | "per_unit";
+
+export const SUBCONTRACTOR_RATE_TYPES: readonly SubcontractorRateType[] = [
+  "per_service",
+  "hourly",
+  "per_unit",
+] as const;
+
+export type JobSubcontractorStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+export const JOB_SUBCONTRACTOR_STATUSES: readonly JobSubcontractorStatus[] = [
+  "pending",
+  "in_progress",
+  "completed",
+  "cancelled",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -509,6 +557,8 @@ export type JobMargin = {
   effective_contract_value: number;
   total_expenses: number;
   total_labor: number;
+  /** Soma de agreed_value dos subs em in_progress + completed. */
+  total_subs: number;
   estimated_margin: number;
   margin_percent: number | null;
 };
@@ -647,6 +697,96 @@ export type JobExtrasSummary = {
   proposed_value_total: number;
 };
 
+export type Subcontractor = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  name: string;
+  company_name: string | null;
+  specialty: SubcontractorSpecialty;
+  specialty_detail: string | null;
+
+  default_rate_type: SubcontractorRateType;
+  default_rate: number | null;
+
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+
+  active: boolean;
+  preferred: boolean;
+
+  license_number: string | null;
+  license_expires_at: string | null;
+  insurance_expires_at: string | null;
+
+  notes: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em subcontractors. */
+export type SubcontractorInsert = Pick<Subcontractor, "name"> &
+  Partial<Omit<Subcontractor, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial. */
+export type SubcontractorUpdate = Partial<
+  Omit<Subcontractor, "id" | "created_at" | "updated_at">
+>;
+
+export type JobSubcontractor = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  job_id: string;
+  subcontractor_id: string;
+
+  service_description: string;
+  agreed_value: number;
+
+  status: JobSubcontractorStatus;
+
+  hired_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+
+  notes: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em job_subcontractors. */
+export type JobSubcontractorInsert = Pick<
+  JobSubcontractor,
+  "job_id" | "subcontractor_id" | "service_description" | "agreed_value"
+> &
+  Partial<Omit<JobSubcontractor, "id" | "created_at" | "updated_at">>;
+
+/** Update parcial (job_id e subcontractor_id imutáveis). */
+export type JobSubcontractorUpdate = Partial<
+  Omit<
+    JobSubcontractor,
+    "id" | "created_at" | "updated_at" | "job_id" | "subcontractor_id"
+  >
+>;
+
+/** Linha agregada da view v_job_subs_summary. */
+export type JobSubsSummary = {
+  job_id: string;
+  sub_count: number;
+  completed_count: number;
+  active_sub_cost: number;
+  completed_sub_cost: number;
+};
+
+/** Linha agregada da view v_subcontractor_stats. */
+export type SubcontractorStats = {
+  subcontractor_id: string;
+  total_jobs: number;
+  completed_jobs: number;
+  total_value_paid: number;
+  last_hired_at: string | null;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -750,6 +890,18 @@ export type Database = {
         Update: JobExtraUpdate;
         Relationships: [];
       };
+      subcontractors: {
+        Row: Subcontractor;
+        Insert: SubcontractorInsert;
+        Update: SubcontractorUpdate;
+        Relationships: [];
+      };
+      job_subcontractors: {
+        Row: JobSubcontractor;
+        Insert: JobSubcontractorInsert;
+        Update: JobSubcontractorUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -788,6 +940,14 @@ export type Database = {
         Row: JobExtrasSummary;
         Relationships: [];
       };
+      v_job_subs_summary: {
+        Row: JobSubsSummary;
+        Relationships: [];
+      };
+      v_subcontractor_stats: {
+        Row: SubcontractorStats;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -804,6 +964,9 @@ export type Database = {
       expense_category: ExpenseCategory;
       team_role: TeamRole;
       extra_status: ExtraStatus;
+      subcontractor_specialty: SubcontractorSpecialty;
+      subcontractor_rate_type: SubcontractorRateType;
+      job_subcontractor_status: JobSubcontractorStatus;
     };
     Functions: Record<string, never>;
   };
