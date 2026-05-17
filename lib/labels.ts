@@ -1,4 +1,5 @@
 import type {
+  DailyLogType,
   ExpenseCategory,
   ExtraStatus,
   JobPhase,
@@ -16,6 +17,7 @@ import type {
   TaskStatus,
   TaskType,
   TeamRole,
+  WeatherCondition,
 } from "./types";
 
 /**
@@ -177,6 +179,48 @@ export const JOB_SUBCONTRACTOR_STATUS_LABEL: Record<
   in_progress: "Em andamento",
   completed: "Concluído",
   cancelled: "Cancelado",
+};
+
+export const WEATHER_LABEL: Record<WeatherCondition, string> = {
+  sunny: "Sol",
+  cloudy: "Nublado",
+  rainy: "Chuva",
+  stormy: "Tempestade",
+  snowy: "Neve",
+  windy: "Vento",
+  hot: "Calor extremo",
+  cold: "Frio extremo",
+  other: "Outro",
+};
+
+export const WEATHER_EMOJI: Record<WeatherCondition, string> = {
+  sunny: "☀️",
+  cloudy: "☁️",
+  rainy: "🌧️",
+  stormy: "⛈️",
+  snowy: "❄️",
+  windy: "💨",
+  hot: "🥵",
+  cold: "🥶",
+  other: "🌤️",
+};
+
+export const DAILY_LOG_TYPE_LABEL: Record<DailyLogType, string> = {
+  progress: "Progresso",
+  problem: "Problema",
+  blocker: "Bloqueio",
+  observation: "Observação",
+  inspection: "Inspeção",
+  client_visit: "Visita do cliente",
+};
+
+export const DAILY_LOG_TYPE_EMOJI: Record<DailyLogType, string> = {
+  progress: "✅",
+  problem: "⚠️",
+  blocker: "🛑",
+  observation: "💡",
+  inspection: "🔍",
+  client_visit: "👤",
 };
 
 /** Cidades-alvo (top 15 + 6 vizinhas) pra autocomplete em /lead/novo. */

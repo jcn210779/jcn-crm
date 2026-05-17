@@ -260,6 +260,46 @@ export const JOB_SUBCONTRACTOR_STATUSES: readonly JobSubcontractorStatus[] = [
   "cancelled",
 ] as const;
 
+export type WeatherCondition =
+  | "sunny"
+  | "cloudy"
+  | "rainy"
+  | "stormy"
+  | "snowy"
+  | "windy"
+  | "hot"
+  | "cold"
+  | "other";
+
+export const WEATHER_CONDITIONS: readonly WeatherCondition[] = [
+  "sunny",
+  "cloudy",
+  "rainy",
+  "stormy",
+  "snowy",
+  "windy",
+  "hot",
+  "cold",
+  "other",
+] as const;
+
+export type DailyLogType =
+  | "progress"
+  | "problem"
+  | "blocker"
+  | "observation"
+  | "inspection"
+  | "client_visit";
+
+export const DAILY_LOG_TYPES: readonly DailyLogType[] = [
+  "progress",
+  "problem",
+  "blocker",
+  "observation",
+  "inspection",
+  "client_visit",
+] as const;
+
 // ============================================================================
 // Tipos de linha (espelho de CREATE TABLE)
 // ============================================================================
@@ -787,6 +827,38 @@ export type SubcontractorStats = {
   last_hired_at: string | null;
 };
 
+export type JobDailyLog = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  job_id: string;
+
+  log_date: string;
+  content: string;
+
+  weather: WeatherCondition | null;
+  entry_type: DailyLogType;
+
+  created_by: string;
+};
+
+export type JobDailyLogInsert = Pick<JobDailyLog, "job_id" | "content"> &
+  Partial<Omit<JobDailyLog, "id" | "created_at" | "updated_at">>;
+
+export type JobDailyLogUpdate = Partial<
+  Omit<JobDailyLog, "id" | "created_at" | "updated_at" | "job_id">
+>;
+
+export type JobDailyLogsSummary = {
+  job_id: string;
+  total_entries: number;
+  problem_count: number;
+  blocker_count: number;
+  last_log_date: string | null;
+  first_log_date: string | null;
+};
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -902,6 +974,12 @@ export type Database = {
         Update: JobSubcontractorUpdate;
         Relationships: [];
       };
+      job_daily_logs: {
+        Row: JobDailyLog;
+        Insert: JobDailyLogInsert;
+        Update: JobDailyLogUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -948,6 +1026,10 @@ export type Database = {
         Row: SubcontractorStats;
         Relationships: [];
       };
+      v_job_daily_logs_summary: {
+        Row: JobDailyLogsSummary;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -967,6 +1049,8 @@ export type Database = {
       subcontractor_specialty: SubcontractorSpecialty;
       subcontractor_rate_type: SubcontractorRateType;
       job_subcontractor_status: JobSubcontractorStatus;
+      weather_condition: WeatherCondition;
+      daily_log_type: DailyLogType;
     };
     Functions: Record<string, never>;
   };

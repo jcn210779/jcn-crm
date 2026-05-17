@@ -15,6 +15,7 @@ import type {
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type {
   Job,
+  JobDailyLog,
   JobExpense,
   JobExtra,
   JobPayment,
@@ -54,6 +55,7 @@ export default async function JobDetailPage({ params }: Props) {
     extrasRes,
     jobSubsRes,
     activeSubsRes,
+    dailyLogsRes,
   ] = await Promise.all([
     supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
     supabase
@@ -105,6 +107,12 @@ export default async function JobDetailPage({ params }: Props) {
       .eq("active", true)
       .order("preferred", { ascending: false })
       .order("name", { ascending: true }),
+    supabase
+      .from("job_daily_logs")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("log_date", { ascending: false })
+      .order("created_at", { ascending: false }),
   ]);
 
   const lead = leadRes.data ?? null;
@@ -117,6 +125,7 @@ export default async function JobDetailPage({ params }: Props) {
   const extras = (extrasRes.data ?? []) as JobExtra[];
   const jobSubs = (jobSubsRes.data ?? []) as JobSubcontractorWithSub[];
   const activeSubs = (activeSubsRes.data ?? []) as ActiveSubOption[];
+  const dailyLogs = (dailyLogsRes.data ?? []) as JobDailyLog[];
 
   // Signed URLs em batch (TTL 1h) — server-side pra primeira renderização
   const photoSignedUrls = await getSignedPhotoUrls({
@@ -172,6 +181,7 @@ export default async function JobDetailPage({ params }: Props) {
         extraSignedUrls={extraSignedUrls}
         jobSubs={jobSubs}
         activeSubs={activeSubs}
+        dailyLogs={dailyLogs}
         userEmail={user.email ?? ""}
       />
     </main>

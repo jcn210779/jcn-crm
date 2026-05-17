@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { JobDailyLogSection } from "@/components/jobs/daily-log/job-daily-log-section";
 import { JobExpensesSection } from "@/components/jobs/expenses/job-expenses-section";
 import { JobExtrasSection } from "@/components/jobs/extras/job-extras-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
@@ -45,6 +46,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
   JOB_PHASES,
   type Job,
+  type JobDailyLog,
   type JobExpense,
   type JobExtra,
   type JobPayment,
@@ -72,6 +74,7 @@ type Props = {
   contractSignedUrl: string | null;
   jobSubs: JobSubcontractorWithSub[];
   activeSubs: ActiveSubOption[];
+  dailyLogs: JobDailyLog[];
   userEmail: string;
 };
 
@@ -100,6 +103,7 @@ export function JobDetail({
   contractSignedUrl,
   jobSubs,
   activeSubs,
+  dailyLogs,
   userEmail,
 }: Props) {
   const router = useRouter();
@@ -390,6 +394,15 @@ export function JobDetail({
         userEmail={userEmail}
         photos={photos}
         initialSignedUrls={photoSignedUrls}
+      />
+
+      {/* Diário de obra */}
+      <JobDailyLogSection
+        jobId={job.id}
+        logs={dailyLogs}
+        hours={hours}
+        expenses={expenses}
+        photos={photos}
       />
 
       {/* Histórico de fases */}
