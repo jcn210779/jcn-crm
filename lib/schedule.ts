@@ -75,15 +75,19 @@ export function isJobActiveInMonth(
 
   const [first, last] = monthRange(year, monthIndex);
 
-  // Se só tem start, considera ativo do start em diante (até fase=completed)
+  // Se só tem start, considera ativo só no mês do start
+  // (job sem data de fim definida — assume execução curta no mês do começo)
   if (start && !end) {
-    return new Date(start) <= last;
+    const startDate = new Date(start);
+    return startDate >= first && startDate <= last;
   }
-  // Se só tem end, considera ativo até o end
+  // Se só tem end, considera ativo só no mês do end
+  // (job sem data de início definida — assume execução curta terminando no mês)
   if (!start && end) {
-    return new Date(end) >= first;
+    const endDate = new Date(end);
+    return endDate >= first && endDate <= last;
   }
-  // Tem ambos
+  // Tem ambos — intervalo padrão
   return new Date(start!) <= last && new Date(end!) >= first;
 }
 
