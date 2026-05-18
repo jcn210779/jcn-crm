@@ -480,6 +480,9 @@ export type AdSpend = {
   source: LeadSource;
   amount: number;
   notes: string | null;
+  /** Como foi pago. NULL = legado (entra no caixa). credit_card = NÃO entra no caixa
+   *  até a fatura ser paga via business_expenses. */
+  payment_method: PaymentMethod | null;
 };
 
 /** Campos obrigatorios pra INSERT em ad_spend (defaults preenchem o resto). */

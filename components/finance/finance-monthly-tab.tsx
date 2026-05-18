@@ -784,20 +784,29 @@ async function loadMonthData(monthLabel: string): Promise<{
       return d >= start && d <= end;
     });
 
-  // 4) ad_spend
+  // 4) ad_spend — exclui credit_card (igual job_expenses; entra só via fatura paga)
   const { data: adsData } = await supabase
     .from("ad_spend")
-    .select("id, source, amount, month")
+    .select("id, source, amount, month, payment_method")
     .eq("month", start);
 
-  const adsPaid: PaidEntry[] = (adsData ?? []).map((a) => ({
-    id: a.id as string,
-    date: a.month as string,
-    label: `Ad spend ${SOURCE_LABEL[a.source as LeadSource]}`,
-    detail: null,
-    amount: Number(a.amount),
-    source: "ads" as const,
-  }));
+  type AdRow = {
+    id: string;
+    source: LeadSource;
+    amount: number;
+    month: string;
+    payment_method: PaymentMethod | null;
+  };
+  const adsPaid: PaidEntry[] = ((adsData ?? []) as AdRow[])
+    .filter((a) => a.payment_method !== "credit_card")
+    .map((a) => ({
+      id: a.id,
+      date: a.month,
+      label: `Ad spend ${SOURCE_LABEL[a.source]}`,
+      detail: a.payment_method ? PAYMENT_METHOD_LABEL[a.payment_method] : null,
+      amount: Number(a.amount),
+      source: "ads" as const,
+    }));
 
   // 5) business_expenses
   const { data: bizData } = await supabase

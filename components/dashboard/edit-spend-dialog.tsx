@@ -17,13 +17,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { lastNMonths, monthLabelPT } from "@/lib/dashboard-metrics";
-import { SOURCE_LABEL } from "@/lib/labels";
+import { PAYMENT_METHOD_LABEL, SOURCE_LABEL } from "@/lib/labels";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
   LEAD_SOURCES,
+  PAYMENT_METHODS,
   type AdSpend,
   type AdSpendInsert,
   type LeadSource,
+  type PaymentMethod,
 } from "@/lib/types";
 
 type Props = {
@@ -56,6 +58,9 @@ export function EditSpendDialog({
   const [amounts, setAmounts] = useState<Record<LeadSource, string>>(
     () => emptyAmounts(),
   );
+  const [methods, setMethods] = useState<Record<LeadSource, PaymentMethod>>(
+    () => defaultMethods(),
+  );
 
   // Lista de meses pro seletor: últimos 12 (mais recente primeiro)
   const monthOptions = useMemo(() => lastNMonths(12), []);
@@ -64,12 +69,17 @@ export function EditSpendDialog({
   useEffect(() => {
     if (!open) return;
     const next: Record<LeadSource, string> = emptyAmounts();
+    const nextMethods: Record<LeadSource, PaymentMethod> = defaultMethods();
     for (const s of existingSpends) {
       if (s.month.slice(0, 7) === month) {
         next[s.source] = String(s.amount);
+        if (s.payment_method) {
+          nextMethods[s.source] = s.payment_method;
+        }
       }
     }
     setAmounts(next);
+    setMethods(nextMethods);
   }, [open, month, existingSpends]);
 
   // Quando abre, sincroniza com initialMonth (se o pai trocou o mês selecionado)
@@ -97,6 +107,7 @@ export function EditSpendDialog({
           month: `${month}-01`,
           source: src,
           amount: parsed,
+          payment_method: methods[src],
         });
       }
 
@@ -168,7 +179,7 @@ export function EditSpendDialog({
             {LEAD_SOURCES.map((src) => (
               <div
                 key={src}
-                className="grid grid-cols-[1fr_auto] items-center gap-3"
+                className="grid grid-cols-[1fr_auto_auto] items-center gap-2"
               >
                 <Label
                   htmlFor={`spend-${src}`}
@@ -176,6 +187,23 @@ export function EditSpendDialog({
                 >
                   {SOURCE_LABEL[src]}
                 </Label>
+                <select
+                  value={methods[src]}
+                  onChange={(e) =>
+                    setMethods((prev) => ({
+                      ...prev,
+                      [src]: e.target.value as PaymentMethod,
+                    }))
+                  }
+                  className="h-10 w-36 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  title="Como esta linha foi paga"
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {PAYMENT_METHOD_LABEL[m]}
+                    </option>
+                  ))}
+                </select>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-white/45">
                     $
@@ -192,11 +220,16 @@ export function EditSpendDialog({
                         [src]: e.target.value,
                       }))
                     }
-                    className="w-32 pl-7 text-right font-mono"
+                    className="w-28 pl-7 text-right font-mono"
                   />
                 </div>
               </div>
             ))}
+            <p className="mt-2 text-[11px] leading-relaxed text-white/45">
+              Pago no cartão de crédito? Marque <b>Cartão de crédito</b> — esse
+              spend NÃO entra no caixa real até você lançar a fatura paga em
+              <b> Gastos da empresa</b>.
+            </p>
           </div>
         </div>
 
@@ -234,5 +267,16 @@ function emptyAmounts(): Record<LeadSource, string> {
       return acc;
     },
     {} as Record<LeadSource, string>,
+  );
+}
+
+/** Default = credit_card (José usa cartão pra maior parte dos Ads). */
+function defaultMethods(): Record<LeadSource, PaymentMethod> {
+  return LEAD_SOURCES.reduce(
+    (acc, src) => {
+      acc[src] = "credit_card";
+      return acc;
+    },
+    {} as Record<LeadSource, PaymentMethod>,
   );
 }
