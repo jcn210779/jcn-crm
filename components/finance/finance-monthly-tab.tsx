@@ -76,9 +76,12 @@ type ReceivedEntry = {
 
 type SoldEntry = {
   id: string;
+  job_id: string;
   date: string;
   lead_name: string;
   value: number;
+  kind: "contract" | "extra";
+  detail?: string;
 };
 
 export function FinanceMonthlyTab({ monthly }: Props) {
@@ -497,23 +500,45 @@ function MonthDetails({
         {sold.map((s) => (
           <Link
             key={s.id}
-            href={`/job/${s.id}`}
+            href={`/job/${s.job_id}`}
             className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:bg-white/[0.05] md:flex-row md:items-center md:justify-between"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-jcn-gold-500/15 text-jcn-gold-300">
+              <div
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg",
+                  s.kind === "extra"
+                    ? "bg-violet-500/15 text-violet-300"
+                    : "bg-jcn-gold-500/15 text-jcn-gold-300",
+                )}
+              >
                 <Briefcase className="h-4 w-4" />
               </div>
               <div>
-                <div className="text-sm font-bold text-jcn-ice">
+                <div className="flex items-center gap-2 text-sm font-bold text-jcn-ice">
                   {s.lead_name}
+                  {s.kind === "extra" && (
+                    <Badge
+                      variant="outline"
+                      className="border-violet-400/40 bg-violet-500/15 text-[10px] font-bold text-violet-200"
+                    >
+                      EXTRA
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-xs text-jcn-ice/55">
-                  Assinado em {formatDateBR(s.date)}
+                  {s.kind === "extra"
+                    ? `${s.detail ?? "Change order"} • aprovado em ${formatDateBR(s.date)}`
+                    : `Assinado em ${formatDateBR(s.date)}`}
                 </div>
               </div>
             </div>
-            <div className="text-right text-base font-black text-jcn-gold-300">
+            <div
+              className={cn(
+                "text-right text-base font-black",
+                s.kind === "extra" ? "text-violet-300" : "text-jcn-gold-300",
+              )}
+            >
               {formatUSD(Number(s.value))}
             </div>
           </Link>
@@ -643,7 +668,7 @@ async function loadMonthData(monthLabel: string): Promise<{
     };
   });
 
-  // VENDIDOS — jobs com contract_signed_at no mês
+  // VENDIDOS — jobs com contract_signed_at no mês + extras aprovados no mês
   const { data: jobsData } = await supabase
     .from("jobs")
     .select("id, value, contract_signed_at, leads(name)")
@@ -657,12 +682,45 @@ async function loadMonthData(monthLabel: string): Promise<{
     contract_signed_at: string;
     leads?: { name?: string } | null;
   };
-  const sold: SoldEntry[] = ((jobsData ?? []) as unknown as JobRow[]).map((j) => ({
-    id: j.id,
+  const soldContracts: SoldEntry[] = ((jobsData ?? []) as unknown as JobRow[]).map((j) => ({
+    id: `c-${j.id}`,
+    job_id: j.id,
     date: j.contract_signed_at ?? "",
     lead_name: j.leads?.name ?? "Cliente",
     value: Number(j.value),
+    kind: "contract" as const,
   }));
+
+  // Extras aprovados no mês (entram como receita "vendida" do mês da aprovação)
+  const { data: extrasData } = await supabase
+    .from("job_extras")
+    .select("id, job_id, title, additional_value, approved_at, status, jobs(leads(name))")
+    .in("status", ["approved", "completed"])
+    .gte("approved_at", start)
+    .lte("approved_at", `${end}T23:59:59`)
+    .order("approved_at", { ascending: false });
+
+  type ExtraRow = {
+    id: string;
+    job_id: string;
+    title: string;
+    additional_value: number;
+    approved_at: string;
+    jobs?: { leads?: { name?: string } | null } | null;
+  };
+  const soldExtras: SoldEntry[] = ((extrasData ?? []) as unknown as ExtraRow[]).map((e) => ({
+    id: `e-${e.id}`,
+    job_id: e.job_id,
+    date: e.approved_at,
+    lead_name: e.jobs?.leads?.name ?? "Cliente",
+    value: Number(e.additional_value),
+    kind: "extra" as const,
+    detail: e.title,
+  }));
+
+  const sold: SoldEntry[] = [...soldContracts, ...soldExtras].sort((a, b) =>
+    b.date.localeCompare(a.date),
+  );
 
   // PAGOS — agrega 5 fontes
   // 1) job_expenses (não credit_card)
