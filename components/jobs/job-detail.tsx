@@ -369,7 +369,9 @@ export function JobDetail({
       {/* Pagamentos */}
       <JobPaymentsSection
         jobId={job.id}
-        contractValue={job.value}
+        contractValue={job.value + approvedExtrasValue}
+        approvedExtrasValue={approvedExtrasValue}
+        baseContractValue={job.value}
         payments={payments}
       />
 

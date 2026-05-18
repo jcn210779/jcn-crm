@@ -30,7 +30,12 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   jobId: string;
+  /** Valor efetivo do contrato (base + extras aprovados). Usado em todos os cálculos. */
   contractValue: number;
+  /** Valor base do contrato (sem extras), pra mostrar breakdown. Opcional. */
+  baseContractValue?: number;
+  /** Valor dos extras aprovados, pra mostrar badge. Opcional. */
+  approvedExtrasValue?: number;
   payments: JobPayment[];
 };
 
@@ -48,7 +53,13 @@ const KIND_TONE: Record<JobPayment["kind"], string> = {
   extra: "bg-cyan-500/15 text-cyan-300 border-cyan-400/30",
 };
 
-export function JobPaymentsSection({ jobId, contractValue, payments }: Props) {
+export function JobPaymentsSection({
+  jobId,
+  contractValue,
+  baseContractValue,
+  approvedExtrasValue,
+  payments,
+}: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [paidOpen, setPaidOpen] = useState(false);
@@ -156,6 +167,14 @@ export function JobPaymentsSection({ jobId, contractValue, payments }: Props) {
             <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-primary">
               {paidPercent}% pago
             </span>
+            {(approvedExtrasValue ?? 0) > 0 && baseContractValue !== undefined && (
+              <span
+                className="rounded-full border border-jcn-gold-400/30 bg-jcn-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-gold-200"
+                title={`Contrato ${formatCurrency(baseContractValue)} + extras aprovados ${formatCurrency(approvedExtrasValue ?? 0)}`}
+              >
+                + {formatCurrency(approvedExtrasValue ?? 0)} extras
+              </span>
+            )}
           </div>
           {totalPending > 0 ? (
             <p className="mt-1 text-xs font-semibold text-white/55">
