@@ -318,6 +318,7 @@ export type BusinessExpenseCategory =
   | "taxes"
   | "marketing_other"
   | "training"
+  | "payroll"
   | "other";
 
 export const BUSINESS_EXPENSE_CATEGORIES: readonly BusinessExpenseCategory[] = [
@@ -338,6 +339,7 @@ export const BUSINESS_EXPENSE_CATEGORIES: readonly BusinessExpenseCategory[] = [
   "taxes",
   "marketing_other",
   "training",
+  "payroll",
   "other",
 ] as const;
 

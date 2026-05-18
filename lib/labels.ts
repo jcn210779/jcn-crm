@@ -247,6 +247,7 @@ export const BUSINESS_EXPENSE_CATEGORY_LABEL: Record<
   taxes: "Impostos",
   marketing_other: "Marketing (outros)",
   training: "Cursos/certificações",
+  payroll: "Folha de pagamento",
   other: "Outros",
 };
 

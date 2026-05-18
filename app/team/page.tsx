@@ -1,23 +1,64 @@
 import { AppHeader } from "@/components/app-header";
 import { DecorBackground } from "@/components/decor-background";
-import { TeamList } from "@/components/team/team-list";
+import { TeamPage } from "@/components/team/team-page";
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type { TeamMember } from "@/lib/types";
+import type { JobHours, Lead, TeamMember } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function TeamPage() {
+type HoursRow = JobHours & {
+  job?: {
+    id: string;
+    lead?: Pick<Lead, "id" | "name"> | null;
+  } | null;
+};
+
+type JobRow = {
+  id: string;
+  current_phase: string;
+  lead?: Pick<Lead, "id" | "name"> | null;
+};
+
+export default async function Page() {
   const user = await requireUser();
   const supabase = createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("team_members")
-    .select("*")
-    .order("active", { ascending: false })
-    .order("name", { ascending: true });
+  // Últimas 8 semanas de horas (filtra client-side)
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
 
-  const members = (data ?? []) as TeamMember[];
+  const [
+    { data: membersData, error: membersError },
+    { data: hoursData, error: hoursError },
+    { data: jobsData, error: jobsError },
+  ] = await Promise.all([
+    supabase
+      .from("team_members")
+      .select("*")
+      .order("active", { ascending: false })
+      .order("name", { ascending: true }),
+    supabase
+      .from("job_hours")
+      .select("*, job:jobs(id, lead:leads(id, name))")
+      .gte("work_date", cutoffStr)
+      .order("work_date", { ascending: false }),
+    supabase
+      .from("jobs")
+      .select("id, current_phase, lead:leads(id, name)")
+      .neq("current_phase", "completed")
+      .order("contract_signed_at", { ascending: false }),
+  ]);
+
+  const members = (membersData ?? []) as TeamMember[];
+  const hours = (hoursData ?? []) as unknown as HoursRow[];
+  const jobs = ((jobsData ?? []) as unknown as JobRow[]).map((j) => ({
+    id: j.id,
+    label: j.lead?.name ?? "Sem cliente",
+  }));
+
+  const error = membersError ?? hoursError ?? jobsError;
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -30,12 +71,12 @@ export default async function TeamPage() {
       {error ? (
         <div className="mx-auto mt-16 max-w-md px-6 text-center">
           <h2 className="text-xl font-bold text-jcn-ice">
-            Erro ao carregar funcionários
+            Erro ao carregar
           </h2>
           <p className="mt-2 text-sm text-jcn-ice/55">{error.message}</p>
         </div>
       ) : (
-        <TeamList members={members} />
+        <TeamPage members={members} hours={hours} jobs={jobs} />
       )}
     </main>
   );
