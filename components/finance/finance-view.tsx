@@ -450,6 +450,15 @@ function ExpenseRow({
                 {expense.recurrence_note ?? "Recorrente"}
               </Badge>
             )}
+            {expense.receipt_path && (
+              <Badge
+                variant="outline"
+                className="border-emerald-400/30 bg-emerald-500/10 text-[10px] font-semibold text-emerald-300"
+                title="Recibo anexado"
+              >
+                📎 Recibo
+              </Badge>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-jcn-ice/55">
             <span className="flex items-center gap-1">

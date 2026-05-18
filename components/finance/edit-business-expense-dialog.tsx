@@ -15,7 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReceiptInput } from "@/components/ui/receipt-input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  getSignedReceiptUrl,
+  uploadReceiptGeneric,
+} from "@/lib/job-expenses";
 import {
   BUSINESS_EXPENSE_CATEGORY_GROUPS,
   BUSINESS_EXPENSE_CATEGORY_LABEL,
@@ -26,6 +31,7 @@ import {
   PAYMENT_METHODS,
   type BusinessExpense,
   type BusinessExpenseCategory,
+  type BusinessExpenseUpdate,
   type PaymentMethod,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -60,9 +66,23 @@ export function EditBusinessExpenseDialog({
     expense.recurrence_note ?? "",
   );
   const [notes, setNotes] = useState(expense.notes ?? "");
+  const [newReceiptFile, setNewReceiptFile] = useState<File | null>(null);
+  const [removeExistingReceipt, setRemoveExistingReceipt] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<Mode>("edit");
   const [confirmText, setConfirmText] = useState("");
+
+  const hasExistingReceipt = !!expense.receipt_path && !removeExistingReceipt;
+
+  async function openExistingReceipt() {
+    if (!expense.receipt_path) return;
+    const supabase = createSupabaseBrowserClient();
+    const url = await getSignedReceiptUrl({
+      supabase,
+      storagePath: expense.receipt_path,
+    });
+    if (url) window.open(url, "_blank");
+  }
 
   async function handleSave() {
     if (!description.trim()) {
@@ -77,28 +97,83 @@ export function EditBusinessExpenseDialog({
 
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
+
+    // Upload novo recibo (se houver)
+    let newReceiptPath: string | null = null;
+    let newReceiptFileName: string | null = null;
+    let newReceiptSize: number | null = null;
+    let newReceiptMime: string | null = null;
+
+    if (newReceiptFile) {
+      const result = await uploadReceiptGeneric({
+        supabase,
+        pathPrefix: "business",
+        file: newReceiptFile,
+      });
+      if (result.error) {
+        setSaving(false);
+        toast.error(result.error);
+        return;
+      }
+      newReceiptPath = result.path ?? null;
+      newReceiptFileName = result.fileName ?? null;
+      newReceiptSize = result.fileSize ?? null;
+      newReceiptMime = result.mimeType ?? null;
+    }
+
+    // Decide o que vai no UPDATE em relação a recibo:
+    // - novo upload → substitui (e deleta o antigo no Storage)
+    // - remover marcado e sem novo → zera campos
+    // - sem mudança → mantém
+    const updatePayload: BusinessExpenseUpdate = {
+      expense_date: expenseDate,
+      category,
+      vendor: vendor.trim() || null,
+      description: description.trim(),
+      amount: amt,
+      payment_method: paymentMethod || null,
+      recurring,
+      recurrence_note: recurring ? recurrenceNote.trim() || null : null,
+      notes: notes.trim() || null,
+    };
+
+    const shouldClearReceipt =
+      removeExistingReceipt && !newReceiptFile && expense.receipt_path;
+    const shouldReplaceReceipt = !!newReceiptFile;
+
+    if (shouldClearReceipt || shouldReplaceReceipt) {
+      updatePayload.receipt_path = newReceiptPath;
+      updatePayload.receipt_file_name = newReceiptFileName;
+      updatePayload.receipt_size = newReceiptSize;
+      updatePayload.receipt_mime = newReceiptMime;
+    }
+
     const { error } = await supabase
       .from("business_expenses")
-      .update({
-        expense_date: expenseDate,
-        category,
-        vendor: vendor.trim() || null,
-        description: description.trim(),
-        amount: amt,
-        payment_method: paymentMethod || null,
-        recurring,
-        recurrence_note: recurring ? recurrenceNote.trim() || null : null,
-        notes: notes.trim() || null,
-      })
+      .update(updatePayload)
       .eq("id", expense.id);
 
-    setSaving(false);
-
     if (error) {
+      // Rollback do novo upload se UPDATE falhou
+      if (newReceiptPath) {
+        await supabase.storage.from("job-receipts").remove([newReceiptPath]);
+      }
+      setSaving(false);
       toast.error("Erro ao salvar", { description: error.message });
       return;
     }
 
+    // Sucesso — deleta o recibo antigo do Storage se foi substituído ou removido
+    if (
+      expense.receipt_path &&
+      (shouldClearReceipt || shouldReplaceReceipt)
+    ) {
+      await supabase.storage
+        .from("job-receipts")
+        .remove([expense.receipt_path]);
+    }
+
+    setSaving(false);
     toast.success("Gasto atualizado");
     if (onDone) onDone();
   }
@@ -328,6 +403,65 @@ export function EditBusinessExpenseDialog({
               />
             </div>
           )}
+
+          {/* Recibo */}
+          <div className="space-y-1.5">
+            <Label>Recibo</Label>
+            {hasExistingReceipt && !newReceiptFile ? (
+              <div className="flex items-center gap-2 rounded-xl border border-jcn-gold-400/30 bg-jcn-gold-500/[0.08] p-2.5">
+                <button
+                  type="button"
+                  onClick={openExistingReceipt}
+                  className="min-w-0 flex-1 text-left text-sm font-semibold text-jcn-gold-300 underline-offset-2 hover:underline"
+                >
+                  📎 {expense.receipt_file_name ?? "Ver recibo"}
+                </button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setRemoveExistingReceipt(true)}
+                  disabled={saving}
+                  className="h-7 text-xs text-jcn-ice/55 hover:text-rose-300"
+                >
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <ReceiptInput
+                file={newReceiptFile}
+                onChange={(f) => {
+                  setNewReceiptFile(f);
+                  if (f) setRemoveExistingReceipt(false);
+                }}
+                label={
+                  removeExistingReceipt
+                    ? "Anexar novo recibo"
+                    : "Anexar foto ou PDF"
+                }
+                disabled={saving}
+              />
+            )}
+            {hasExistingReceipt &&
+              !newReceiptFile &&
+              !removeExistingReceipt && (
+                <p className="text-[11px] text-jcn-ice/45">
+                  Clique no nome pra abrir. Pra trocar, remova primeiro.
+                </p>
+              )}
+            {removeExistingReceipt && (
+              <p className="text-[11px] text-amber-300/80">
+                Recibo será removido ao salvar.{" "}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => setRemoveExistingReceipt(false)}
+                >
+                  Desfazer
+                </button>
+              </p>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="be-edit-notes">Notas</Label>

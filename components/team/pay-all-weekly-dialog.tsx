@@ -13,7 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ReceiptInput } from "@/components/ui/receipt-input";
 import { formatCurrency } from "@/lib/format";
+import { uploadReceiptGeneric } from "@/lib/job-expenses";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type { PaymentMethod, TeamMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -43,16 +45,20 @@ export function PayAllWeeklyDialog({
   onDone,
 }: Props) {
   const [methods, setMethods] = useState<Record<string, Selection>>({});
+  const [receipts, setReceipts] = useState<Record<string, File | null>>({});
   const [saving, setSaving] = useState(false);
 
   // Inicializa todos como 'check' default ao abrir
   useEffect(() => {
     if (!open) return;
     const next: Record<string, Selection> = {};
+    const nextR: Record<string, File | null> = {};
     for (const e of entries) {
       next[e.member.id] = methods[e.member.id] ?? "check";
+      nextR[e.member.id] = null;
     }
     setMethods(next);
+    setReceipts(nextR);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, entries]);
 
@@ -68,27 +74,96 @@ export function PayAllWeeklyDialog({
     setSaving(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const rows = entries.map((e) => ({
-        expense_date: fridayDate,
-        category: "payroll" as const,
-        description: `Folha semana ${weekLabel} — ${e.member.name}`,
-        vendor: e.member.name,
-        amount: e.total,
-        payment_method: methods[e.member.id] as PaymentMethod,
-      }));
+
+      // 1) Upload de recibos por funcionário (em paralelo)
+      const uploadedPaths: string[] = []; // pra rollback
+      const receiptByMember: Record<
+        string,
+        {
+          path: string | null;
+          name: string | null;
+          size: number | null;
+          mime: string | null;
+        }
+      > = {};
+
+      for (const e of entries) {
+        const file = receipts[e.member.id];
+        if (!file) {
+          receiptByMember[e.member.id] = {
+            path: null,
+            name: null,
+            size: null,
+            mime: null,
+          };
+          continue;
+        }
+        const result = await uploadReceiptGeneric({
+          supabase,
+          pathPrefix: `payroll/${e.member.id}`,
+          file,
+        });
+        if (result.error) {
+          // Rollback dos uploads já feitos
+          if (uploadedPaths.length > 0) {
+            await supabase.storage.from("job-receipts").remove(uploadedPaths);
+          }
+          toast.error(`Erro upload (${e.member.name}): ${result.error}`);
+          setSaving(false);
+          return;
+        }
+        if (result.path) uploadedPaths.push(result.path);
+        receiptByMember[e.member.id] = {
+          path: result.path ?? null,
+          name: result.fileName ?? null,
+          size: result.fileSize ?? null,
+          mime: result.mimeType ?? null,
+        };
+      }
+
+      // 2) INSERT business_expenses (1 por funcionário)
+      const rows = entries.map((e) => {
+        const r = receiptByMember[e.member.id] ?? {
+          path: null,
+          name: null,
+          size: null,
+          mime: null,
+        };
+        return {
+          expense_date: fridayDate,
+          category: "payroll" as const,
+          description: `Folha semana ${weekLabel} — ${e.member.name}`,
+          vendor: e.member.name,
+          amount: e.total,
+          payment_method: methods[e.member.id] as PaymentMethod,
+          receipt_path: r.path,
+          receipt_file_name: r.name,
+          receipt_size: r.size,
+          receipt_mime: r.mime,
+        };
+      });
 
       const { error } = await supabase.from("business_expenses").insert(rows);
       if (error) {
+        // Rollback dos uploads
+        if (uploadedPaths.length > 0) {
+          await supabase.storage.from("job-receipts").remove(uploadedPaths);
+        }
         toast.error(`Erro ao lançar folha: ${error.message}`);
         return;
       }
 
       const checkCount = rows.filter((r) => r.payment_method === "check").length;
       const cashCount = rows.filter((r) => r.payment_method === "cash").length;
+      const withReceiptCount = rows.filter((r) => r.receipt_path).length;
 
       toast.success(
-        `Folha lançada: ${formatCurrency(total)} total ` +
-          `(${checkCount} cheque${checkCount !== 1 ? "s" : ""}, ${cashCount} cash)`,
+        `Folha lançada: ${formatCurrency(total)} ` +
+          `(${checkCount} cheque${checkCount !== 1 ? "s" : ""}, ${cashCount} cash` +
+          (withReceiptCount > 0
+            ? `, ${withReceiptCount} com recibo`
+            : "") +
+          `)`,
       );
       onDone();
     } finally {
@@ -140,39 +215,59 @@ export function PayAllWeeklyDialog({
         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
           {entries.map((e) => {
             const m = methods[e.member.id] ?? "check";
+            const file = receipts[e.member.id] ?? null;
             return (
               <div
                 key={e.member.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
+                className="space-y-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold text-jcn-ice truncate">
-                    {e.member.name}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-bold text-jcn-ice truncate">
+                      {e.member.name}
+                    </div>
+                    <div className="text-xs font-black text-jcn-gold-300">
+                      {formatCurrency(e.total)}
+                    </div>
                   </div>
-                  <div className="text-xs font-black text-jcn-gold-300">
-                    {formatCurrency(e.total)}
+                  <div className="flex items-center gap-1.5">
+                    <MethodChip
+                      active={m === "check"}
+                      onClick={() =>
+                        setMethods((prev) => ({
+                          ...prev,
+                          [e.member.id]: "check",
+                        }))
+                      }
+                      icon={Landmark}
+                      label="Cheque"
+                      activeClass="border-sky-400/40 bg-sky-500/15 text-sky-300"
+                    />
+                    <MethodChip
+                      active={m === "cash"}
+                      onClick={() =>
+                        setMethods((prev) => ({
+                          ...prev,
+                          [e.member.id]: "cash",
+                        }))
+                      }
+                      icon={Banknote}
+                      label="Cash"
+                      activeClass="border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
+                    />
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <MethodChip
-                    active={m === "check"}
-                    onClick={() =>
-                      setMethods((prev) => ({ ...prev, [e.member.id]: "check" }))
-                    }
-                    icon={Landmark}
-                    label="Cheque"
-                    activeClass="border-sky-400/40 bg-sky-500/15 text-sky-300"
-                  />
-                  <MethodChip
-                    active={m === "cash"}
-                    onClick={() =>
-                      setMethods((prev) => ({ ...prev, [e.member.id]: "cash" }))
-                    }
-                    icon={Banknote}
-                    label="Cash"
-                    activeClass="border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
-                  />
-                </div>
+                <ReceiptInput
+                  file={file}
+                  onChange={(f) =>
+                    setReceipts((prev) => ({ ...prev, [e.member.id]: f }))
+                  }
+                  label={
+                    m === "check" ? "Foto do cheque" : "Foto do recibo (opcional)"
+                  }
+                  compact
+                  disabled={saving}
+                />
               </div>
             );
           })}

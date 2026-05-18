@@ -929,6 +929,12 @@ export type BusinessExpense = {
   recurring: boolean;
   recurrence_note: string | null;
 
+  /** Recibo opcional (bucket job-receipts, path business/<id>/<uuid>.<ext>). */
+  receipt_path: string | null;
+  receipt_file_name: string | null;
+  receipt_size: number | null;
+  receipt_mime: string | null;
+
   notes: string | null;
 };
 

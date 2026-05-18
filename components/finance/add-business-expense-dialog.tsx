@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReceiptInput } from "@/components/ui/receipt-input";
 import { Textarea } from "@/components/ui/textarea";
+import { uploadReceiptGeneric } from "@/lib/job-expenses";
 import {
   BUSINESS_EXPENSE_CATEGORY_GROUPS,
   BUSINESS_EXPENSE_CATEGORY_LABEL,
@@ -73,6 +75,7 @@ export function AddBusinessExpenseDialog({
   const [recurring, setRecurring] = useState(false);
   const [recurrenceNote, setRecurrenceNote] = useState("");
   const [notes, setNotes] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   function reset() {
@@ -85,6 +88,7 @@ export function AddBusinessExpenseDialog({
     setRecurring(false);
     setRecurrenceNote("");
     setNotes("");
+    setReceiptFile(null);
     setSaving(false);
   }
 
@@ -101,6 +105,31 @@ export function AddBusinessExpenseDialog({
 
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
+
+    // 1) Upload recibo (se houver)
+    let receiptPath: string | null = null;
+    let receiptFileName: string | null = null;
+    let receiptSize: number | null = null;
+    let receiptMime: string | null = null;
+
+    if (receiptFile) {
+      const result = await uploadReceiptGeneric({
+        supabase,
+        pathPrefix: "business",
+        file: receiptFile,
+      });
+      if (result.error) {
+        setSaving(false);
+        toast.error(result.error);
+        return;
+      }
+      receiptPath = result.path ?? null;
+      receiptFileName = result.fileName ?? null;
+      receiptSize = result.fileSize ?? null;
+      receiptMime = result.mimeType ?? null;
+    }
+
+    // 2) INSERT business_expense
     const { error } = await supabase.from("business_expenses").insert({
       expense_date: expenseDate,
       category,
@@ -110,12 +139,20 @@ export function AddBusinessExpenseDialog({
       payment_method: paymentMethod || null,
       recurring,
       recurrence_note: recurring ? recurrenceNote.trim() || null : null,
+      receipt_path: receiptPath,
+      receipt_file_name: receiptFileName,
+      receipt_size: receiptSize,
+      receipt_mime: receiptMime,
       notes: notes.trim() || null,
     });
 
     setSaving(false);
 
     if (error) {
+      // Rollback do arquivo se INSERT falhou
+      if (receiptPath) {
+        await supabase.storage.from("job-receipts").remove([receiptPath]);
+      }
       toast.error("Erro ao salvar gasto", { description: error.message });
       return;
     }
@@ -273,6 +310,20 @@ export function AddBusinessExpenseDialog({
               </p>
             </div>
           )}
+
+          {/* Recibo */}
+          <div className="space-y-1.5">
+            <Label>Recibo (opcional)</Label>
+            <ReceiptInput
+              file={receiptFile}
+              onChange={setReceiptFile}
+              label="Anexar foto ou PDF do recibo"
+              disabled={saving}
+            />
+            <p className="text-[11px] text-jcn-ice/45">
+              JPG, PNG, WEBP, HEIC ou PDF. Máx 20 MB.
+            </p>
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="be-notes">Notas</Label>

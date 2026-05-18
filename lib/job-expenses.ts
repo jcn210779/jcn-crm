@@ -152,3 +152,53 @@ export async function deleteReceiptFile(args: {
   }
   return {};
 }
+
+/**
+ * Upload genérico de recibo. Usado pra business_expenses, payroll, etc.
+ * Path prefixo customizável (ex: 'business', 'payroll/2026-W20', etc).
+ * Reusa o mesmo bucket job-receipts (RLS owner-only).
+ */
+export async function uploadReceiptGeneric(args: {
+  supabase: Client;
+  pathPrefix: string; // ex: "business", "payroll/<member_id>"
+  file: File;
+}): Promise<UploadResult> {
+  const { supabase, pathPrefix, file } = args;
+
+  if (file.size > MAX_RECEIPT_SIZE_BYTES) {
+    return { error: `Arquivo grande demais (máximo 20 MB).` };
+  }
+
+  const mime = file.type || "application/octet-stream";
+  if (
+    !ALLOWED_RECEIPT_MIME_TYPES.some(
+      (allowed) => mime.toLowerCase() === allowed,
+    )
+  ) {
+    return {
+      error: `Formato não aceito (${mime}). Use JPG, PNG, WEBP, HEIC ou PDF.`,
+    };
+  }
+
+  const ext = extractExtension(file);
+  const storagePath = `${pathPrefix}/${generateUuid()}.${ext}`;
+
+  const uploadRes = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: mime,
+    });
+
+  if (uploadRes.error) {
+    return { error: `Falha no upload: ${uploadRes.error.message}` };
+  }
+
+  return {
+    path: storagePath,
+    fileName: file.name || undefined,
+    fileSize: file.size,
+    mimeType: mime,
+  };
+}
