@@ -63,7 +63,10 @@ function monthRange(year: number, monthIndex: number): [Date, Date] {
   return [first, last];
 }
 
-/** Job está ativo no mês X se intervalo [start, end] toca o mês X. */
+/** Job aparece SÓ no mês em que começou (decisão do José em 2026-05-18).
+ *  Mesmo se atravessar pra mês seguinte, fica registrado no mês do início.
+ *  Lógica: prioriza start (actual ou expected). Se não tem start, usa end
+ *  como fallback (raro — mas preserva o job de sumir). */
 export function isJobActiveInMonth(
   job: Job,
   year: number,
@@ -75,20 +78,17 @@ export function isJobActiveInMonth(
 
   const [first, last] = monthRange(year, monthIndex);
 
-  // Se só tem start, considera ativo só no mês do start
-  // (job sem data de fim definida — assume execução curta no mês do começo)
-  if (start && !end) {
+  // Prioridade 1: data de início (actual_start ou expected_start)
+  if (start) {
     const startDate = new Date(start);
     return startDate >= first && startDate <= last;
   }
-  // Se só tem end, considera ativo só no mês do end
-  // (job sem data de início definida — assume execução curta terminando no mês)
-  if (!start && end) {
+  // Fallback: só tem end (sem start) — usa mês do end
+  if (end) {
     const endDate = new Date(end);
     return endDate >= first && endDate <= last;
   }
-  // Tem ambos — intervalo padrão
-  return new Date(start!) <= last && new Date(end!) >= first;
+  return false;
 }
 
 /** Calcula % completo do job no mês de referência (passado/atual/futuro). */
