@@ -41,7 +41,6 @@ import type {
   ExpenseCategory,
   FinanceMonthly,
   JobExpense,
-  JobHours,
   JobSubcontractor,
   LeadSource,
   PaymentKind,
@@ -338,10 +337,9 @@ function PaidBreakdown({ row }: { row: FinanceMonthly }) {
       value: Number(row.job_expenses_cash),
       icon: Hammer,
     },
-    { label: "Mão de obra (horas)", value: Number(row.job_hours_cost), icon: HardHat },
     { label: "Subempreiteiros completos", value: Number(row.job_subs_cost), icon: Wrench },
     { label: "Ad spend", value: Number(row.ads_spend), icon: Megaphone },
-    { label: "Gastos da empresa", value: Number(row.business_expenses), icon: Briefcase },
+    { label: "Gastos da empresa (inclui folha paga)", value: Number(row.business_expenses), icon: Briefcase },
   ];
   return (
     <div className="space-y-1.5">
@@ -742,23 +740,10 @@ async function loadMonthData(monthLabel: string): Promise<{
       source: "job_expense" as const,
     }));
 
-  // 2) job_hours
-  const { data: hoursData } = await supabase
-    .from("job_hours")
-    .select("id, hours, hourly_rate_snapshot, calculated_amount, work_date, team_members(name)")
-    .gte("work_date", start)
-    .lte("work_date", end);
-
-  const hoursPaid: PaidEntry[] = ((hoursData ?? []) as Array<
-    JobHours & { team_members: { name?: string } | null }
-  >).map((h) => ({
-    id: h.id,
-    date: h.work_date,
-    label: `${h.team_members?.name ?? "Funcionário"} • ${Number(h.hours).toFixed(1)}h`,
-    detail: `$${Number(h.hourly_rate_snapshot).toFixed(2)}/h`,
-    amount: Number(h.calculated_amount),
-    source: "job_hours" as const,
-  }));
+  // 2) job_hours NÃO entra mais em paid (decisão José 2026-05-18: horas só
+  //    contam no caixa quando você clica 'Pagar tudo' na sexta = vira
+  //    business_expense payroll. Aqui só lista a folha paga, não as horas
+  //    individuais).
 
   // 3) job_subcontractors completos — filtra em JS (data = completed_at OU hired_at)
   const { data: subsData } = await supabase
@@ -829,7 +814,6 @@ async function loadMonthData(monthLabel: string): Promise<{
 
   const paid: PaidEntry[] = [
     ...expensesPaid,
-    ...hoursPaid,
     ...subsPaid,
     ...adsPaid,
     ...bizPaid,
