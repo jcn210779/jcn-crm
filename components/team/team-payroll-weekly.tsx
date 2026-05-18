@@ -16,10 +16,13 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AddHoursWeeklyDialog } from "@/components/team/add-hours-weekly-dialog";
+import {
+  PayAllWeeklyDialog,
+  type PayoutEntry,
+} from "@/components/team/pay-all-weekly-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type { JobHours, Lead, TeamMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +72,7 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const [presetMember, setPresetMember] = useState<TeamMember | null>(null);
   const [presetDate, setPresetDate] = useState<string | null>(null);
-  const [payingAll, setPayingAll] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const days = useMemo<Date[]>(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -131,14 +134,9 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
     setAddOpen(true);
   }
 
-  async function handlePayAll() {
-    if (weekTotalAmount === 0) {
-      toast.info("Sem horas na semana pra pagar.");
-      return;
-    }
-
-    // Agrupa por member: total a pagar
-    const totalsByMember = new Map<string, { member: TeamMember; total: number }>();
+  // Agrupa por member pro dialog de pagar
+  const payoutEntries = useMemo<PayoutEntry[]>(() => {
+    const totalsByMember = new Map<string, PayoutEntry>();
     for (const h of weekHours) {
       const m = members.find((mm) => mm.id === h.member_id);
       if (!m) continue;
@@ -149,45 +147,17 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
         totalsByMember.set(m.id, { member: m, total: Number(h.calculated_amount) });
       }
     }
+    return Array.from(totalsByMember.values()).sort((a, b) =>
+      a.member.name.localeCompare(b.member.name),
+    );
+  }, [weekHours, members]);
 
-    const friday = dateKey(fridayDate);
-    if (
-      !confirm(
-        `Lançar pagamento de folha da semana ${weekLabel}?\n\n` +
-          Array.from(totalsByMember.values())
-            .map((t) => `${t.member.name}: ${formatCurrency(t.total)}`)
-            .join("\n") +
-          `\n\nTotal: ${formatCurrency(weekTotalAmount)}\n\n` +
-          `Vai criar 1 business_expense por funcionário, categoria 'payroll', data ${friday}.`,
-      )
-    ) {
+  function handlePayAll() {
+    if (weekTotalAmount === 0) {
+      toast.info("Sem horas na semana pra pagar.");
       return;
     }
-
-    setPayingAll(true);
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const rows = Array.from(totalsByMember.values()).map((t) => ({
-        expense_date: friday,
-        category: "payroll" as const,
-        description: `Folha semana ${weekLabel} — ${t.member.name}`,
-        vendor: t.member.name,
-        amount: t.total,
-        payment_method: "check" as const,
-      }));
-
-      const { error } = await supabase.from("business_expenses").insert(rows);
-      if (error) {
-        toast.error(`Erro ao lançar folha: ${error.message}`);
-        return;
-      }
-      toast.success(
-        `Folha lançada: ${rows.length} pagamento${rows.length === 1 ? "" : "s"}, ${formatCurrency(weekTotalAmount)}`,
-      );
-      router.refresh();
-    } finally {
-      setPayingAll(false);
-    }
+    setPayOpen(true);
   }
 
   return (
@@ -247,16 +217,14 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
         <Button
           variant="outline"
           onClick={handlePayAll}
-          disabled={payingAll || weekTotalAmount === 0}
+          disabled={weekTotalAmount === 0}
           className={cn(
             "border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20",
-            (payingAll || weekTotalAmount === 0) && "opacity-50",
+            weekTotalAmount === 0 && "opacity-50",
           )}
         >
           <Wallet className="h-4 w-4" />
-          {payingAll
-            ? "Lançando..."
-            : `Pagar tudo (sex ${format(fridayDate, "d MMM", { locale: ptBR })}) — ${formatCurrency(weekTotalAmount)}`}
+          {`Pagar tudo (sex ${format(fridayDate, "d MMM", { locale: ptBR })}) — ${formatCurrency(weekTotalAmount)}`}
         </Button>
       </div>
 
@@ -456,6 +424,19 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
         presetDate={presetDate}
         onDone={() => {
           setAddOpen(false);
+          router.refresh();
+        }}
+      />
+
+      {/* Dialog pagar tudo (cheque vs cash por funcionário) */}
+      <PayAllWeeklyDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        weekLabel={weekLabel}
+        fridayDate={dateKey(fridayDate)}
+        entries={payoutEntries}
+        onDone={() => {
+          setPayOpen(false);
           router.refresh();
         }}
       />
