@@ -256,8 +256,20 @@ function JobMonthCard({ job }: { job: JobWithLead }) {
       </div>
 
       <div className="mt-3 flex items-center gap-3 text-xs text-jcn-ice/65">
-        <span className="font-bold text-jcn-gold-300">
-          {formatCurrency(job.value)}
+        <span
+          className="font-bold text-jcn-gold-300"
+          title={
+            (job.approved_extras_value ?? 0) > 0
+              ? `Contrato ${formatCurrency(job.value)} + extras ${formatCurrency(job.approved_extras_value ?? 0)}`
+              : undefined
+          }
+        >
+          {formatCurrency(job.value + (job.approved_extras_value ?? 0))}
+          {(job.approved_extras_value ?? 0) > 0 && (
+            <span className="ml-1 text-[10px] text-jcn-gold-200/80">
+              +extras
+            </span>
+          )}
         </span>
         {start && end && (
           <span>

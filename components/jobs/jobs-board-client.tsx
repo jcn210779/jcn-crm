@@ -22,7 +22,10 @@ import { JOB_PHASE_LABEL } from "@/lib/labels";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import { JOB_PHASES, type Job, type JobPhase, type Lead } from "@/lib/types";
 
-export type JobWithLead = Job & { lead: Lead | null };
+export type JobWithLead = Job & {
+  lead: Lead | null;
+  approved_extras_value?: number;
+};
 
 type Props = {
   initialJobs: JobWithLead[];

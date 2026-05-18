@@ -41,6 +41,21 @@ export default async function SchedulePage() {
 
   const jobs = (data ?? []) as JobRow[];
 
+  // Busca approved_extras_value por job pra somar valor efetivo na agenda
+  const { data: margins } = await supabase
+    .from("v_job_margin")
+    .select("job_id, approved_extras_value");
+  const extrasByJob = new Map<string, number>(
+    (margins ?? []).map((m) => [
+      m.job_id as string,
+      Number(m.approved_extras_value ?? 0),
+    ]),
+  );
+  const jobsWithExtras = jobs.map((j) => ({
+    ...j,
+    approved_extras_value: extrasByJob.get(j.id) ?? 0,
+  }));
+
   return (
     <main className="relative min-h-screen pb-24">
       <DecorBackground />
@@ -49,7 +64,7 @@ export default async function SchedulePage() {
         showNewLead={false}
         title="Agenda"
       />
-      <ScheduleView jobs={jobs} />
+      <ScheduleView jobs={jobsWithExtras} />
     </main>
   );
 }

@@ -219,8 +219,16 @@ export function JobDetail({
               <>
                 <span>·</span>
                 <span className="font-bold text-primary">
-                  {formatCurrency(job.value)}
+                  {formatCurrency(job.value + approvedExtrasValue)}
                 </span>
+                {approvedExtrasValue > 0 && (
+                  <span
+                    className="rounded-full border border-jcn-gold-400/30 bg-jcn-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-jcn-gold-200"
+                    title={`Contrato ${formatCurrency(job.value)} + extras aprovados ${formatCurrency(approvedExtrasValue)}`}
+                  >
+                    + {formatCurrency(approvedExtrasValue)} extras
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -307,9 +315,17 @@ export function JobDetail({
         <SectionCard title="Contrato e cronograma">
           <dl className="grid gap-3 text-sm">
             <Row label="Valor">
-              <span className="font-bold text-primary">
-                {formatCurrency(job.value)}
-              </span>
+              <div className="flex flex-wrap items-baseline gap-1.5">
+                <span className="font-bold text-primary">
+                  {formatCurrency(job.value + approvedExtrasValue)}
+                </span>
+                {approvedExtrasValue > 0 && (
+                  <span className="text-xs text-jcn-ice/55">
+                    (contrato {formatCurrency(job.value)} + extras{" "}
+                    {formatCurrency(approvedExtrasValue)})
+                  </span>
+                )}
+              </div>
             </Row>
             <Row label="Contrato assinado">
               {format(new Date(job.contract_signed_at), "dd 'de' MMM 'de' yyyy", {

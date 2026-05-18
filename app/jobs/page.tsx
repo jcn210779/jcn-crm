@@ -62,9 +62,21 @@ async function JobsLoader() {
     leadsById = new Map((leads ?? []).map((l) => [l.id, l as Lead]));
   }
 
+  // Busca approved_extras_value por job pra somar no valor efetivo do card
+  const { data: margins } = await supabase
+    .from("v_job_margin")
+    .select("job_id, approved_extras_value");
+  const extrasByJob = new Map<string, number>(
+    (margins ?? []).map((m) => [
+      m.job_id as string,
+      Number(m.approved_extras_value ?? 0),
+    ]),
+  );
+
   const enriched: JobWithLead[] = jobList.map((j) => ({
     ...j,
     lead: leadsById.get(j.lead_id) ?? null,
+    approved_extras_value: extrasByJob.get(j.id) ?? 0,
   }));
 
   return <JobsBoardClient initialJobs={enriched} />;

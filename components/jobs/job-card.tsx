@@ -55,9 +55,19 @@ export function JobCard({ job, dragging }: Props) {
           {clientName}
         </h4>
         {job.value > 0 ? (
-          <span className="shrink-0 text-xs font-bold text-primary">
-            {formatCurrency(job.value)}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <span className="text-xs font-bold text-primary">
+              {formatCurrency(job.value + (job.approved_extras_value ?? 0))}
+            </span>
+            {(job.approved_extras_value ?? 0) > 0 && (
+              <span
+                className="rounded-full bg-jcn-gold-500/15 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-jcn-gold-300"
+                title={`Contrato ${formatCurrency(job.value)} + extras`}
+              >
+                + extras
+              </span>
+            )}
+          </div>
         ) : null}
       </div>
 

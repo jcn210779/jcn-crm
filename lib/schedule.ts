@@ -12,6 +12,7 @@ import type { Job, Lead } from "./types";
 
 export type JobWithLead = Job & {
   lead?: Pick<Lead, "id" | "name" | "city"> | null;
+  approved_extras_value?: number;
 };
 
 export type MonthKey = string; // "2026-05"
@@ -145,7 +146,7 @@ export function buildMonthBuckets({
     });
 
     const totalValue = monthJobs.reduce(
-      (sum, j) => sum + Number(j.value),
+      (sum, j) => sum + Number(j.value) + Number(j.approved_extras_value ?? 0),
       0,
     );
 
