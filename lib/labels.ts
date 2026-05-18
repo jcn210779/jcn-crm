@@ -1,5 +1,7 @@
 import type {
   BusinessExpenseCategory,
+  CashAdjustmentKind,
+  CashAdjustmentSource,
   DailyLogType,
   ExpenseCategory,
   ExtraStatus,
@@ -308,3 +310,22 @@ export const TARGET_CITIES: readonly string[] = [
   "Arlington",
   "Woburn",
 ] as const;
+
+// ============================================================================
+// Cash Adjustments
+// ============================================================================
+
+export const CASH_ADJUSTMENT_KIND_LABEL: Record<CashAdjustmentKind, string> = {
+  income: "Entrada",
+  outflow: "Saída",
+};
+
+export const CASH_ADJUSTMENT_SOURCE_LABEL: Record<CashAdjustmentSource, string> = {
+  historical_job: "Job antigo (pré-CRM)",
+  refund: "Reembolso",
+  loan: "Empréstimo",
+  owner_draw: "Pró-labore / retirada",
+  tax_return: "Devolução de imposto",
+  adjustment: "Ajuste de caixa",
+  other: "Outro",
+};

@@ -7,6 +7,7 @@ import {
   CreditCard,
   DollarSign,
   Filter,
+  Landmark,
   Plus,
   Receipt,
   Repeat,
@@ -27,6 +28,7 @@ import { BUSINESS_EXPENSE_CATEGORY_LABEL } from "@/lib/labels";
 import { formatDateBR, formatUSD } from "@/lib/finance";
 import {
   BUSINESS_EXPENSE_CATEGORIES,
+  type AccountBalance,
   type BusinessExpense,
   type BusinessExpenseCategory,
   type FinanceMonthly,
@@ -38,9 +40,10 @@ type Tab = "monthly" | "table" | "business";
 type Props = {
   monthly: FinanceMonthly[];
   businessExpenses: BusinessExpense[];
+  accountBalance: AccountBalance | null;
 };
 
-export function FinanceView({ monthly, businessExpenses }: Props) {
+export function FinanceView({ monthly, businessExpenses, accountBalance }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("monthly");
 
@@ -63,6 +66,9 @@ export function FinanceView({ monthly, businessExpenses }: Props) {
           </div>
         </div>
       </header>
+
+      {/* 3 cards de saldo: Banco, Cash, Total */}
+      {accountBalance && <AccountBalanceCards balance={accountBalance} />}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2">
@@ -487,3 +493,72 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+
+// ============================================================================
+// Cards de Saldo (Banco / Cash / Total)
+// ============================================================================
+
+function AccountBalanceCards({ balance }: { balance: AccountBalance }) {
+  const bank = Number(balance.bank_balance ?? 0);
+  const cash = Number(balance.cash_balance ?? 0);
+  const total = Number(balance.total_balance ?? 0);
+
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <BalanceCard
+        icon={Landmark}
+        label="Banco"
+        sub="Cheques, transferências, Zelle, etc"
+        value={formatUSD(bank)}
+        accent="gold"
+      />
+      <BalanceCard
+        icon={Banknote}
+        label="Cash"
+        sub="Dinheiro físico"
+        value={formatUSD(cash)}
+        accent="green"
+      />
+      <BalanceCard
+        icon={Wallet}
+        label="Total disponível"
+        sub="Banco + Cash"
+        value={formatUSD(total)}
+        accent="neutral"
+      />
+    </div>
+  );
+}
+
+function BalanceCard({
+  icon: Icon,
+  label,
+  sub,
+  value,
+  accent,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  sub: string;
+  value: string;
+  accent: "gold" | "green" | "neutral";
+}) {
+  const accentClass = {
+    gold: "border-jcn-gold-400/30 bg-jcn-gold-500/10 text-jcn-gold-300",
+    green: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+    neutral: "border-white/[0.08] bg-white/[0.04] text-jcn-ice",
+  }[accent];
+
+  return (
+    <div className={cn("rounded-2xl border p-5 backdrop-blur-xl", accentClass)}>
+      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.15em] opacity-80">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-black tracking-tight md:text-3xl">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] text-jcn-ice/45">{sub}</div>
+    </div>
+  );
+}

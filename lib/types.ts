@@ -953,9 +953,75 @@ export type FinanceMonthly = {
   job_subs_cost: number;
   ads_spend: number;
   business_expenses: number;
+  adjustments_outflow: number;
   total_paid_out: number;
   cash_balance: number;
 };
+
+// ============================================================================
+// Cash Adjustments (backfill / ajustes manuais de caixa)
+// ============================================================================
+
+export type CashAdjustmentKind = "income" | "outflow";
+export const CASH_ADJUSTMENT_KINDS: readonly CashAdjustmentKind[] = [
+  "income",
+  "outflow",
+];
+
+export type CashAdjustmentSource =
+  | "historical_job"
+  | "refund"
+  | "loan"
+  | "owner_draw"
+  | "tax_return"
+  | "adjustment"
+  | "other";
+export const CASH_ADJUSTMENT_SOURCES: readonly CashAdjustmentSource[] = [
+  "historical_job",
+  "refund",
+  "loan",
+  "owner_draw",
+  "tax_return",
+  "adjustment",
+  "other",
+];
+
+export type CashAdjustment = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  /** Data do ajuste (YYYY-MM-DD). */
+  adjustment_date: string;
+  kind: CashAdjustmentKind;
+  source: CashAdjustmentSource;
+  amount: number;
+  description: string;
+  notes: string | null;
+  /** Como foi pago/recebido. cash = dinheiro físico. Outros = banco. NULL = banco por padrão. */
+  payment_method: PaymentMethod | null;
+};
+
+/** Saldo cumulativo separado entre Banco e Cash. View v_account_balance. */
+export type AccountBalance = {
+  cash_inflows: number;
+  cash_outflows: number;
+  cash_balance: number;
+  bank_inflows: number;
+  bank_outflows: number;
+  bank_balance: number;
+  total_balance: number;
+};
+
+export type CashAdjustmentInsert = Pick<
+  CashAdjustment,
+  "adjustment_date" | "kind" | "amount" | "description"
+> &
+  Partial<Omit<CashAdjustment, "id" | "created_at" | "updated_at">>;
+
+export type CashAdjustmentUpdate = Partial<
+  Omit<CashAdjustment, "id" | "created_at" | "updated_at">
+>;
 
 // ============================================================================
 // Views
@@ -1084,6 +1150,12 @@ export type Database = {
         Update: BusinessExpenseUpdate;
         Relationships: [];
       };
+      cash_adjustments: {
+        Row: CashAdjustment;
+        Insert: CashAdjustmentInsert;
+        Update: CashAdjustmentUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -1136,6 +1208,10 @@ export type Database = {
       };
       v_finance_monthly: {
         Row: FinanceMonthly;
+        Relationships: [];
+      };
+      v_account_balance: {
+        Row: AccountBalance;
         Relationships: [];
       };
     };

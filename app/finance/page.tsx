@@ -4,6 +4,7 @@ import { FinanceView } from "@/components/finance/finance-view";
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type {
+  AccountBalance,
   BusinessExpense,
   FinanceMonthly,
 } from "@/lib/types";
@@ -18,6 +19,7 @@ export default async function FinancePage() {
   const [
     { data: monthlyData, error: monthlyError },
     { data: businessData, error: businessError },
+    { data: balanceData, error: balanceError },
   ] = await Promise.all([
     supabase.from("v_finance_monthly").select("*").limit(13),
     supabase
@@ -25,11 +27,13 @@ export default async function FinancePage() {
       .select("*")
       .order("expense_date", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase.from("v_account_balance").select("*").limit(1).maybeSingle(),
   ]);
 
   const monthly = (monthlyData ?? []) as FinanceMonthly[];
   const businessExpenses = (businessData ?? []) as BusinessExpense[];
-  const error = monthlyError ?? businessError;
+  const accountBalance = (balanceData ?? null) as AccountBalance | null;
+  const error = monthlyError ?? businessError ?? balanceError;
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -47,7 +51,11 @@ export default async function FinancePage() {
           <p className="mt-2 text-sm text-jcn-ice/55">{error.message}</p>
         </div>
       ) : (
-        <FinanceView monthly={monthly} businessExpenses={businessExpenses} />
+        <FinanceView
+          monthly={monthly}
+          businessExpenses={businessExpenses}
+          accountBalance={accountBalance}
+        />
       )}
     </main>
   );
