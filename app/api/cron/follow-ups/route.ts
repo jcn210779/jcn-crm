@@ -10,8 +10,8 @@
  * 4. estimate_sent_14d    — idem mas 14 dias (última tentativa)
  * 5. job_phase_changed    — job mudou phase nas últimas 24h
  *
- * Idempotência: cron verifica se já existe follow_up do mesmo kind pro mesmo
- * lead/job pra não criar duplicado.
+ * Canais: pra cada gatilho qualificado, cria draft de EMAIL (se lead tem email)
+ *         E/OU SMS (se lead tem phone). Idempotência por (lead_id, kind, channel).
  *
  * Auth: token no header `Authorization: Bearer ${CRON_SECRET}` (Vercel padrão).
  */
@@ -20,10 +20,12 @@ import { NextResponse } from "next/server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-server";
 import {
+  generateSmsTemplate,
   generateTemplate,
   type TemplateInput,
 } from "@/lib/follow-up-templates";
 import type {
+  FollowUpChannel,
   FollowUpInsert,
   FollowUpKind,
   Lead,
@@ -35,6 +37,7 @@ type LeadRow = Pick<
   | "id"
   | "name"
   | "email"
+  | "phone"
   | "city"
   | "service_interest"
   | "stage"
@@ -45,7 +48,7 @@ type JobRow = {
   id: string;
   current_phase: string;
   updated_at: string;
-  lead: Pick<Lead, "id" | "name" | "email"> | null;
+  lead: Pick<Lead, "id" | "name" | "email" | "phone"> | null;
 };
 
 const SERVICE_LABEL: Record<ServiceType, string> = {
@@ -76,7 +79,6 @@ function hoursBetween(iso: string): number {
 }
 
 export async function GET(req: Request) {
-  // Auth via Vercel cron (Bearer token)
   const authHeader = req.headers.get("authorization");
   const expectedSecret = process.env.CRON_SECRET;
   if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
@@ -84,58 +86,103 @@ export async function GET(req: Request) {
   }
 
   const supabase = createSupabaseAdminClient();
-
   let created = 0;
   let skipped = 0;
 
+  // Helper: cria drafts (email + sms) pra um lead se aplicável
+  async function createForLead(
+    lead: LeadRow,
+    kind: FollowUpKind,
+    extras: Partial<TemplateInput> = {},
+  ) {
+    const input: TemplateInput = {
+      name: lead.name,
+      service: SERVICE_LABEL[lead.service_interest],
+      city: lead.city ?? undefined,
+      ...extras,
+    };
+
+    // EMAIL
+    if (lead.email) {
+      const existsE = await checkExistingFollowUp(
+        supabase,
+        lead.id,
+        null,
+        kind,
+        "email",
+      );
+      if (existsE) {
+        skipped++;
+      } else {
+        const { subject, body } = generateTemplate(kind, input);
+        await supabase.from("follow_ups").insert({
+          lead_id: lead.id,
+          job_id: null,
+          kind,
+          channel: "email",
+          draft_subject: subject,
+          draft_body: body,
+          to_email: lead.email,
+          to_phone: null,
+          to_name: lead.name,
+        } satisfies FollowUpInsert);
+        created++;
+      }
+    }
+
+    // SMS
+    if (lead.phone) {
+      const existsS = await checkExistingFollowUp(
+        supabase,
+        lead.id,
+        null,
+        kind,
+        "sms",
+      );
+      if (existsS) {
+        skipped++;
+      } else {
+        const smsBody = generateSmsTemplate(kind, input);
+        await supabase.from("follow_ups").insert({
+          lead_id: lead.id,
+          job_id: null,
+          kind,
+          channel: "sms",
+          draft_subject: smsBody.slice(0, 80), // preview
+          draft_body: smsBody,
+          to_email: null,
+          to_phone: lead.phone,
+          to_name: lead.name,
+        } satisfies FollowUpInsert);
+        created++;
+      }
+    }
+  }
+
   // ============================================================
-  // 1) NEW LEAD 4H — leads stage='novo' criados há +4h, sem visit_scheduled
+  // 1) NEW LEAD 4H
   // ============================================================
   const { data: newLeads } = await supabase
     .from("leads")
-    .select("id, name, email, city, service_interest, stage, created_at")
+    .select(
+      "id, name, email, phone, city, service_interest, stage, created_at",
+    )
     .eq("stage", "novo")
     .is("visit_scheduled_at", null);
 
   for (const lead of ((newLeads ?? []) as LeadRow[])) {
-    if (!lead.email) continue;
     if (hoursBetween(lead.created_at) < 4) continue;
-
-    const exists = await checkExistingFollowUp(
-      supabase,
-      lead.id,
-      null,
-      "new_lead_4h",
-    );
-    if (exists) {
-      skipped++;
-      continue;
-    }
-
-    const { subject, body } = generateTemplate("new_lead_4h", {
-      name: lead.name,
-      service: SERVICE_LABEL[lead.service_interest],
-      city: lead.city,
-    });
-
-    await supabase.from("follow_ups").insert({
-      lead_id: lead.id,
-      job_id: null,
-      kind: "new_lead_4h",
-      draft_subject: subject,
-      draft_body: body,
-      to_email: lead.email,
-      to_name: lead.name,
-    } satisfies FollowUpInsert);
-    created++;
+    await createForLead(lead, "new_lead_4h");
   }
 
   // ============================================================
-  // 2-4) ESTIMATE SENT — 3d, 7d, 14d
+  // 2-4) ESTIMATE SENT
   // ============================================================
   const { data: estimateLeads } = await supabase
     .from("leads")
-    .select("id, name, email, city, service_interest, stage, updated_at, created_at")
+    .select(
+      "id, name, email, phone, city, service_interest, stage, updated_at, created_at",
+    )
     .eq("stage", "estimate_enviado");
 
   const ESTIMATE_TRIGGERS: Array<{ kind: FollowUpKind; days: number }> = [
@@ -147,39 +194,10 @@ export async function GET(req: Request) {
   for (const lead of ((estimateLeads ?? []) as Array<
     LeadRow & { updated_at: string }
   >)) {
-    if (!lead.email) continue;
     const daysSinceUpdate = daysBetween(lead.updated_at);
-
     for (const trigger of ESTIMATE_TRIGGERS) {
       if (daysSinceUpdate < trigger.days) continue;
-      // Verifica se este kind já foi criado pra esse lead
-      const exists = await checkExistingFollowUp(
-        supabase,
-        lead.id,
-        null,
-        trigger.kind,
-      );
-      if (exists) {
-        skipped++;
-        continue;
-      }
-
-      const { subject, body } = generateTemplate(trigger.kind, {
-        name: lead.name,
-        service: SERVICE_LABEL[lead.service_interest],
-        daysSince: daysSinceUpdate,
-      } satisfies TemplateInput);
-
-      await supabase.from("follow_ups").insert({
-        lead_id: lead.id,
-        job_id: null,
-        kind: trigger.kind,
-        draft_subject: subject,
-        draft_body: body,
-        to_email: lead.email,
-        to_name: lead.name,
-      } satisfies FollowUpInsert);
-      created++;
+      await createForLead(lead, trigger.kind, { daysSince: daysSinceUpdate });
     }
   }
 
@@ -200,35 +218,55 @@ export async function GET(req: Request) {
     const { data: jobs } = await supabase
       .from("jobs")
       .select(
-        "id, current_phase, updated_at, lead:leads(id, name, email)",
+        "id, current_phase, updated_at, lead:leads(id, name, email, phone)",
       )
       .in("id", Array.from(recentJobIds));
 
     for (const job of ((jobs ?? []) as unknown as JobRow[])) {
-      if (!job.lead?.email) continue;
-
+      if (!job.lead) continue;
       const exists = await checkExistingFollowUpJobPhase(supabase, job.id);
       if (exists) {
         skipped++;
         continue;
       }
 
-      const { subject, body } = generateTemplate("job_phase_changed", {
+      const input: TemplateInput = {
         name: job.lead.name,
         jobPhase: PHASE_LABEL[job.current_phase] ?? job.current_phase,
-      });
+      };
 
-      await supabase.from("follow_ups").insert({
-        lead_id: null,
-        job_id: job.id,
-        kind: "job_phase_changed",
-        draft_subject: subject,
-        draft_body: body,
-        to_email: job.lead.email,
-        to_name: job.lead.name,
-        notes: `Phase: ${job.current_phase}`,
-      } satisfies FollowUpInsert);
-      created++;
+      if (job.lead.email) {
+        const { subject, body } = generateTemplate("job_phase_changed", input);
+        await supabase.from("follow_ups").insert({
+          lead_id: null,
+          job_id: job.id,
+          kind: "job_phase_changed",
+          channel: "email",
+          draft_subject: subject,
+          draft_body: body,
+          to_email: job.lead.email,
+          to_phone: null,
+          to_name: job.lead.name,
+          notes: `Phase: ${job.current_phase}`,
+        } satisfies FollowUpInsert);
+        created++;
+      }
+      if (job.lead.phone) {
+        const smsBody = generateSmsTemplate("job_phase_changed", input);
+        await supabase.from("follow_ups").insert({
+          lead_id: null,
+          job_id: job.id,
+          kind: "job_phase_changed",
+          channel: "sms",
+          draft_subject: smsBody.slice(0, 80),
+          draft_body: smsBody,
+          to_email: null,
+          to_phone: job.lead.phone,
+          to_name: job.lead.name,
+          notes: `Phase: ${job.current_phase}`,
+        } satisfies FollowUpInsert);
+        created++;
+      }
     }
   }
 
@@ -240,8 +278,13 @@ async function checkExistingFollowUp(
   leadId: string | null,
   jobId: string | null,
   kind: FollowUpKind,
+  channel: FollowUpChannel,
 ): Promise<boolean> {
-  let query = supabase.from("follow_ups").select("id").eq("kind", kind);
+  let query = supabase
+    .from("follow_ups")
+    .select("id")
+    .eq("kind", kind)
+    .eq("channel", channel);
   if (leadId) query = query.eq("lead_id", leadId);
   if (jobId) query = query.eq("job_id", jobId);
   const { data } = await query.limit(1).maybeSingle();
@@ -253,7 +296,6 @@ async function checkExistingFollowUpJobPhase(
   jobId: string,
 ): Promise<boolean> {
   // Pra phase_changed, considera "já existe" se tem follow_up criado nas últimas 24h
-  // (independente do phase específico). Evita spam quando phase muda 2x em 1 dia.
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data } = await supabase
     .from("follow_ups")

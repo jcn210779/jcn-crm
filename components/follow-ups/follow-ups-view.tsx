@@ -7,6 +7,7 @@ import {
   Clock,
   Mail,
   MailX,
+  MessageSquare,
   SkipForward,
   XCircle,
 } from "lucide-react";
@@ -231,16 +232,33 @@ function FollowUpCard({
         <div
           className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-            STATUS_ACCENT[followUp.status],
+            followUp.channel === "sms"
+              ? "border-violet-400/40 bg-violet-500/15 text-violet-300 border"
+              : STATUS_ACCENT[followUp.status],
           )}
         >
-          <Mail className="h-4 w-4" />
+          {followUp.channel === "sms" ? (
+            <MessageSquare className="h-4 w-4" />
+          ) : (
+            <Mail className="h-4 w-4" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold text-jcn-ice">
-              {followUp.to_name ?? followUp.to_email}
+              {followUp.to_name ?? followUp.to_email ?? followUp.to_phone}
             </span>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] font-semibold",
+                followUp.channel === "sms"
+                  ? "border-violet-400/40 bg-violet-500/15 text-violet-300"
+                  : "border-jcn-gold-400/40 bg-jcn-gold-500/15 text-jcn-gold-300",
+              )}
+            >
+              {followUp.channel === "sms" ? "📱 SMS" : "✉️ Email"}
+            </Badge>
             <Badge
               variant="outline"
               className={cn(
@@ -261,7 +279,7 @@ function FollowUpCard({
             {followUp.draft_subject}
           </div>
           <div className="mt-0.5 text-[11px] text-jcn-ice/45">
-            {followUp.to_email} ·{" "}
+            {followUp.to_email ?? followUp.to_phone} ·{" "}
             {formatDistanceToNow(new Date(followUp.created_at), {
               locale: ptBR,
               addSuffix: true,

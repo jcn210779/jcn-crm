@@ -994,6 +994,10 @@ export const FOLLOW_UP_STATUSES: readonly FollowUpStatus[] = [
   "failed",
 ];
 
+export type FollowUpChannel = "email" | "sms";
+
+export const FOLLOW_UP_CHANNELS: readonly FollowUpChannel[] = ["email", "sms"];
+
 export type FollowUp = {
   id: string;
   created_at: string;
@@ -1004,10 +1008,12 @@ export type FollowUp = {
 
   kind: FollowUpKind;
   status: FollowUpStatus;
+  channel: FollowUpChannel;
 
   draft_subject: string;
   draft_body: string;
-  to_email: string;
+  to_email: string | null;
+  to_phone: string | null;
   to_name: string | null;
 
   sent_at: string | null;
@@ -1019,7 +1025,7 @@ export type FollowUp = {
 
 export type FollowUpInsert = Pick<
   FollowUp,
-  "kind" | "draft_subject" | "draft_body" | "to_email"
+  "kind" | "draft_subject" | "draft_body"
 > &
   Partial<Omit<FollowUp, "id" | "created_at" | "updated_at">>;
 

@@ -124,6 +124,34 @@ export function generateTemplate(
   return T[kind](input);
 }
 
+/**
+ * Templates SMS curtos (max ~200 chars pra caber em 1 SMS sem cobrar dobrado).
+ * Tom: rápido, direto, pessoal — como mensagem do dono pra cliente.
+ */
+const TSMS: Record<FollowUpKind, (input: TemplateInput) => string> = {
+  new_lead_4h: ({ name, service }) =>
+    `Hi ${name}, this is José from JCN Construction. Got your message about the ${service ?? "project"}. Calling you back today to set up a visit. Reply STOP to opt out.`,
+
+  estimate_sent_3d: ({ name, service }) =>
+    `Hi ${name}, José from JCN. Following up on your ${service ?? "project"} estimate. Any questions or want to walk through it? Just reply here.`,
+
+  estimate_sent_7d: ({ name }) =>
+    `Hi ${name}, José from JCN. Just checking in on the estimate. Material prices shift seasonally, locking in soon = better deal. Let me know either way.`,
+
+  estimate_sent_14d: ({ name }) =>
+    `Hi ${name}, José from JCN. It's been a couple weeks since the estimate. If you decided to go another route, no worries — just reply "not now" so I can close the file.`,
+
+  job_phase_changed: ({ name, jobPhase }) =>
+    `Hi ${name}, José from JCN. Update on your project: we're at "${jobPhase ?? "next phase"}". I'll keep you posted as we hit milestones.`,
+};
+
+export function generateSmsTemplate(
+  kind: FollowUpKind,
+  input: TemplateInput,
+): string {
+  return TSMS[kind](input);
+}
+
 export const FOLLOW_UP_KIND_LABEL: Record<FollowUpKind, string> = {
   new_lead_4h: "Lead novo (4h sem ação)",
   estimate_sent_3d: "Estimate enviado (3 dias)",
