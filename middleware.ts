@@ -20,7 +20,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/auth/") ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js" ||
-    pathname.startsWith("/icon-");
+    pathname.startsWith("/icon-") ||
+    pathname.startsWith("/api/cron/"); // Vercel cron chama sem sessão (auth via Bearer)
 
   if (!user && !isPublic) {
     const loginUrl = request.nextUrl.clone();
