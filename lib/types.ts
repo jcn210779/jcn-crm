@@ -967,6 +967,67 @@ export type FinanceMonthly = {
 };
 
 // ============================================================================
+// Follow-ups automáticos (drafts + envio via Resend)
+// ============================================================================
+
+export type FollowUpKind =
+  | "new_lead_4h"
+  | "estimate_sent_3d"
+  | "estimate_sent_7d"
+  | "estimate_sent_14d"
+  | "job_phase_changed";
+
+export const FOLLOW_UP_KINDS: readonly FollowUpKind[] = [
+  "new_lead_4h",
+  "estimate_sent_3d",
+  "estimate_sent_7d",
+  "estimate_sent_14d",
+  "job_phase_changed",
+];
+
+export type FollowUpStatus = "pending" | "sent" | "skipped" | "failed";
+
+export const FOLLOW_UP_STATUSES: readonly FollowUpStatus[] = [
+  "pending",
+  "sent",
+  "skipped",
+  "failed",
+];
+
+export type FollowUp = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  lead_id: string | null;
+  job_id: string | null;
+
+  kind: FollowUpKind;
+  status: FollowUpStatus;
+
+  draft_subject: string;
+  draft_body: string;
+  to_email: string;
+  to_name: string | null;
+
+  sent_at: string | null;
+  resend_email_id: string | null;
+  error_message: string | null;
+
+  notes: string | null;
+};
+
+export type FollowUpInsert = Pick<
+  FollowUp,
+  "kind" | "draft_subject" | "draft_body" | "to_email"
+> &
+  Partial<Omit<FollowUp, "id" | "created_at" | "updated_at">>;
+
+export type FollowUpUpdate = Partial<
+  Omit<FollowUp, "id" | "created_at" | "updated_at">
+>;
+
+// ============================================================================
 // Team Payables (a pagar pra funcionário)
 // ============================================================================
 
@@ -1209,6 +1270,12 @@ export type Database = {
         Row: TeamPayable;
         Insert: TeamPayableInsert;
         Update: TeamPayableUpdate;
+        Relationships: [];
+      };
+      follow_ups: {
+        Row: FollowUp;
+        Insert: FollowUpInsert;
+        Update: FollowUpUpdate;
         Relationships: [];
       };
     };

@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase-config";
@@ -35,6 +36,27 @@ export function createSupabaseServerClient() {
           // mesmo motivo do set()
         }
       },
+    },
+  });
+}
+
+/**
+ * Cliente Supabase com service_role (bypass RLS). USAR APENAS em cron jobs
+ * ou route handlers de sistema que não têm sessão de usuário (Vercel cron).
+ *
+ * Lê SUPABASE_SERVICE_ROLE_KEY do env. Se não estiver setado, lança erro.
+ */
+export function createSupabaseAdminClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY não configurada no env (necessária pra cron)",
+    );
+  }
+  return createClient<Database>(SUPABASE_URL, serviceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
   });
 }

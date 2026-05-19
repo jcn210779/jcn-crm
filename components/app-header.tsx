@@ -9,6 +9,7 @@ import {
   HardHat,
   KanbanSquare,
   LogOut,
+  Mail,
   Plus,
   Users,
   Wrench,
@@ -82,6 +83,13 @@ export function AppHeader({
             icon={CalendarCheck2}
           >
             Tasks
+          </NavLink>
+          <NavLink
+            href="/follow-ups"
+            active={pathname?.startsWith("/follow-ups") ?? false}
+            icon={Mail}
+          >
+            Follow-ups
           </NavLink>
           <NavLink
             href="/team"
