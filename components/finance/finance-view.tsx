@@ -21,6 +21,10 @@ import { useMemo, useState } from "react";
 import { AddBusinessExpenseDialog } from "@/components/finance/add-business-expense-dialog";
 import { EditBusinessExpenseDialog } from "@/components/finance/edit-business-expense-dialog";
 import { FinanceMonthlyTab } from "@/components/finance/finance-monthly-tab";
+import {
+  FinanceReceivableTab,
+  type ReceivableRow,
+} from "@/components/finance/finance-receivable-tab";
 import { FinanceTableTab } from "@/components/finance/finance-table-tab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,15 +39,23 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Tab = "monthly" | "table" | "business";
+type Tab = "monthly" | "table" | "business" | "receivable";
 
 type Props = {
   monthly: FinanceMonthly[];
   businessExpenses: BusinessExpense[];
   accountBalance: AccountBalance | null;
+  receivablePending: ReceivableRow[];
+  receivedByJob: Record<string, number>;
 };
 
-export function FinanceView({ monthly, businessExpenses, accountBalance }: Props) {
+export function FinanceView({
+  monthly,
+  businessExpenses,
+  accountBalance,
+  receivablePending,
+  receivedByJob,
+}: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("monthly");
 
@@ -85,6 +97,22 @@ export function FinanceView({ monthly, businessExpenses, accountBalance }: Props
           label="Tabela"
         />
         <TabButton
+          active={tab === "receivable"}
+          onClick={() => setTab("receivable")}
+          icon={Wallet}
+          label="A receber"
+          badge={
+            receivablePending.length > 0
+              ? `$${Math.round(
+                  receivablePending.reduce(
+                    (s, p) => s + Number(p.amount),
+                    0,
+                  ),
+                ).toLocaleString("en-US")}`
+              : null
+          }
+        />
+        <TabButton
           active={tab === "business"}
           onClick={() => setTab("business")}
           icon={Briefcase}
@@ -94,6 +122,12 @@ export function FinanceView({ monthly, businessExpenses, accountBalance }: Props
 
       {tab === "monthly" && <FinanceMonthlyTab monthly={monthly} />}
       {tab === "table" && <FinanceTableTab monthly={monthly} />}
+      {tab === "receivable" && (
+        <FinanceReceivableTab
+          pending={receivablePending}
+          receivedByJob={receivedByJob}
+        />
+      )}
       {tab === "business" && (
         <BusinessExpensesTab
           expenses={businessExpenses}
@@ -109,11 +143,13 @@ function TabButton({
   onClick,
   icon: Icon,
   label,
+  badge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  badge?: string | null;
 }) {
   return (
     <button
@@ -128,6 +164,11 @@ function TabButton({
     >
       <Icon className="h-3.5 w-3.5" />
       {label}
+      {badge && (
+        <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold normal-case text-amber-300">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
