@@ -3,7 +3,7 @@ import { DecorBackground } from "@/components/decor-background";
 import { TeamPage } from "@/components/team/team-page";
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type { JobHours, Lead, TeamMember } from "@/lib/types";
+import type { JobHours, Lead, TeamMember, TeamPayable } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +33,7 @@ export default async function Page() {
     { data: membersData, error: membersError },
     { data: hoursData, error: hoursError },
     { data: jobsData, error: jobsError },
+    { data: payablesData, error: payablesError },
   ] = await Promise.all([
     supabase
       .from("team_members")
@@ -49,6 +50,12 @@ export default async function Page() {
       .select("id, current_phase, lead:leads(id, name)")
       .neq("current_phase", "completed")
       .order("contract_signed_at", { ascending: false }),
+    supabase
+      .from("team_payables")
+      .select("*")
+      .eq("status", "pending")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false }),
   ]);
 
   const members = (membersData ?? []) as TeamMember[];
@@ -57,8 +64,9 @@ export default async function Page() {
     id: j.id,
     label: j.lead?.name ?? "Sem cliente",
   }));
+  const payables = (payablesData ?? []) as TeamPayable[];
 
-  const error = membersError ?? hoursError ?? jobsError;
+  const error = membersError ?? hoursError ?? jobsError ?? payablesError;
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -76,7 +84,12 @@ export default async function Page() {
           <p className="mt-2 text-sm text-jcn-ice/55">{error.message}</p>
         </div>
       ) : (
-        <TeamPage members={members} hours={hours} jobs={jobs} />
+        <TeamPage
+          members={members}
+          hours={hours}
+          jobs={jobs}
+          payables={payables}
+        />
       )}
     </main>
   );

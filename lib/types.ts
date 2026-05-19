@@ -967,6 +967,47 @@ export type FinanceMonthly = {
 };
 
 // ============================================================================
+// Team Payables (a pagar pra funcionário)
+// ============================================================================
+
+export type TeamPayableStatus = "pending" | "paid";
+
+export type TeamPayable = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  member_id: string;
+  amount: number;
+  description: string;
+  due_date: string | null;
+
+  status: TeamPayableStatus;
+  paid_at: string | null;
+  paid_business_expense_id: string | null;
+
+  notes: string | null;
+};
+
+export type TeamPayableInsert = Pick<
+  TeamPayable,
+  "member_id" | "amount" | "description"
+> &
+  Partial<Omit<TeamPayable, "id" | "created_at" | "updated_at">>;
+
+export type TeamPayableUpdate = Partial<
+  Omit<TeamPayable, "id" | "created_at" | "updated_at">
+>;
+
+export type TeamPayableSummaryRow = {
+  member_id: string;
+  member_name: string;
+  pending_count: number;
+  pending_total: number;
+  oldest_due_date: string | null;
+};
+
+// ============================================================================
 // Cash Adjustments (backfill / ajustes manuais de caixa)
 // ============================================================================
 
@@ -1164,6 +1205,12 @@ export type Database = {
         Update: CashAdjustmentUpdate;
         Relationships: [];
       };
+      team_payables: {
+        Row: TeamPayable;
+        Insert: TeamPayableInsert;
+        Update: TeamPayableUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -1220,6 +1267,10 @@ export type Database = {
       };
       v_account_balance: {
         Row: AccountBalance;
+        Relationships: [];
+      };
+      v_team_payable_summary: {
+        Row: TeamPayableSummaryRow;
         Relationships: [];
       };
     };

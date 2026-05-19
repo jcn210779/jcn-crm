@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarDays, Users } from "lucide-react";
+import { CalendarDays, Users, Wallet } from "lucide-react";
 import { useState } from "react";
 
 import { TeamList } from "@/components/team/team-list";
+import { TeamPayables, type PayableRow } from "@/components/team/team-payables";
 import {
   TeamPayrollWeekly,
   type HoursRow,
@@ -12,21 +13,34 @@ import {
 import type { TeamMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Tab = "members" | "payroll";
+type Tab = "members" | "payroll" | "payables";
 
 type Props = {
   members: TeamMember[];
   hours: HoursRow[];
   jobs: JobOption[];
+  payables: PayableRow[];
 };
 
-export function TeamPage({ members, hours, jobs }: Props) {
-  const [tab, setTab] = useState<Tab>("payroll");
+export function TeamPage({ members, hours, jobs, payables }: Props) {
+  const [tab, setTab] = useState<Tab>("payables");
+
+  const pendingTotal = payables
+    .filter((p) => p.status === "pending")
+    .reduce((s, p) => s + Number(p.amount), 0);
 
   return (
     <div className="mx-auto mt-6 max-w-6xl space-y-5 px-4 md:px-6">
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2">
+        <TabButton
+          active={tab === "payables"}
+          onClick={() => setTab("payables")}
+          icon={Wallet}
+          label="A pagar"
+          badge={pendingTotal > 0 ? `$${pendingTotal.toLocaleString("en-US")}` : null}
+          badgeAccent="amber"
+        />
         <TabButton
           active={tab === "payroll"}
           onClick={() => setTab("payroll")}
@@ -45,6 +59,9 @@ export function TeamPage({ members, hours, jobs }: Props) {
       {tab === "payroll" && (
         <TeamPayrollWeekly members={members} hours={hours} jobs={jobs} />
       )}
+      {tab === "payables" && (
+        <TeamPayables members={members} payables={payables} />
+      )}
     </div>
   );
 }
@@ -54,12 +71,21 @@ function TabButton({
   onClick,
   icon: Icon,
   label,
+  badge,
+  badgeAccent,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  badge?: string | null;
+  badgeAccent?: "amber" | "gold";
 }) {
+  const badgeClass =
+    badgeAccent === "amber"
+      ? "border-amber-400/40 bg-amber-500/15 text-amber-300"
+      : "border-jcn-gold-400/40 bg-jcn-gold-500/15 text-jcn-gold-300";
+
   return (
     <button
       type="button"
@@ -73,6 +99,16 @@ function TabButton({
     >
       <Icon className="h-3.5 w-3.5" />
       {label}
+      {badge && (
+        <span
+          className={cn(
+            "rounded-full border px-2 py-0.5 text-[10px] font-bold normal-case",
+            badgeClass,
+          )}
+        >
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
