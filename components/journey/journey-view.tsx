@@ -26,7 +26,6 @@ import {
 import { JOB_PHASE_LABEL } from "@/lib/labels";
 import type {
   Job,
-  JobPayment,
   JobPhase,
   JourneyMilestone,
   Lead,
@@ -42,7 +41,6 @@ type JobRow = Job & {
 
 type Props = {
   jobs: JobRow[];
-  payments: JobPayment[];
   milestones: JourneyMilestone[];
 };
 
@@ -57,7 +55,7 @@ const PHASE_ACCENT: Record<JobPhase, string> = {
   completed: "border-emerald-400/30 bg-emerald-500/15 text-emerald-300",
 };
 
-export function JourneyView({ jobs, payments, milestones }: Props) {
+export function JourneyView({ jobs, milestones }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("active");
   const [dialog, setDialog] = useState<{
@@ -65,17 +63,6 @@ export function JourneyView({ jobs, payments, milestones }: Props) {
     leadId: string | null;
     step: JourneyStep;
   } | null>(null);
-
-  // Agrupar payments por job_id
-  const paymentsByJob = useMemo(() => {
-    const m = new Map<string, JobPayment[]>();
-    for (const p of payments) {
-      const arr = m.get(p.job_id) ?? [];
-      arr.push(p);
-      m.set(p.job_id, arr);
-    }
-    return m;
-  }, [payments]);
 
   // Agrupar milestones por (lead_id, job_id)
   const milestonesByJob = useMemo(() => {
@@ -89,7 +76,7 @@ export function JourneyView({ jobs, payments, milestones }: Props) {
     return m;
   }, [milestones]);
 
-  // Compute journey por job
+  // Compute journey por job (100% manual — usa só milestones)
   const enriched = useMemo(() => {
     return jobs.map((job) => {
       const jobMs = milestonesByJob.get(job.id) ?? [];
@@ -97,12 +84,7 @@ export function JourneyView({ jobs, payments, milestones }: Props) {
         ? milestonesByJob.get(`lead-${job.lead.id}`) ?? []
         : [];
       const allMs = [...jobMs, ...leadMs];
-      const steps = computeJourney({
-        lead: job.lead,
-        job,
-        payments: paymentsByJob.get(job.id) ?? [],
-        milestones: allMs,
-      });
+      const steps = computeJourney({ milestones: allMs });
       return {
         job,
         steps,
@@ -110,7 +92,7 @@ export function JourneyView({ jobs, payments, milestones }: Props) {
         currentStep: currentStep(steps),
       };
     });
-  }, [jobs, paymentsByJob, milestonesByJob]);
+  }, [jobs, milestonesByJob]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return enriched;
@@ -371,9 +353,7 @@ function StepNode({
       title={
         step.completedAt
           ? `Concluído em ${format(new Date(step.completedAt), "d MMM yyyy", { locale: ptBR })}`
-          : step.autoSource
-            ? `Auto: ${step.autoSource}`
-            : "Click pra marcar concluído"
+          : "Click pra marcar concluído"
       }
     >
       <div

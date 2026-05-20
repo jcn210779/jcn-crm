@@ -3,12 +3,7 @@ import { DecorBackground } from "@/components/decor-background";
 import { JourneyView } from "@/components/journey/journey-view";
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type {
-  Job,
-  JobPayment,
-  JourneyMilestone,
-  Lead,
-} from "@/lib/types";
+import type { Job, JourneyMilestone, Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +21,6 @@ export default async function Page() {
 
   const [
     { data: jobsData, error: jobsErr },
-    { data: paymentsData, error: paymentsErr },
     { data: milestonesData, error: milestonesErr },
   ] = await Promise.all([
     supabase
@@ -35,15 +29,13 @@ export default async function Page() {
         "*, lead:leads(id, name, city, phone, email, created_at, stage)",
       )
       .order("contract_signed_at", { ascending: false }),
-    supabase.from("job_payments").select("*"),
     supabase.from("journey_milestones").select("*"),
   ]);
 
   const jobs = (jobsData ?? []) as unknown as JobRow[];
-  const payments = (paymentsData ?? []) as JobPayment[];
   const milestones = (milestonesData ?? []) as JourneyMilestone[];
 
-  const error = jobsErr ?? paymentsErr ?? milestonesErr;
+  const error = jobsErr ?? milestonesErr;
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -59,11 +51,7 @@ export default async function Page() {
           <p className="mt-2 text-sm text-jcn-ice/55">{error.message}</p>
         </div>
       ) : (
-        <JourneyView
-          jobs={jobs}
-          payments={payments}
-          milestones={milestones}
-        />
+        <JourneyView jobs={jobs} milestones={milestones} />
       )}
     </main>
   );

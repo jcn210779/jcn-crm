@@ -58,9 +58,8 @@ export function JourneyStepDialog({
   }, [open, step]);
 
   const isCompleted = step.status === "completed";
-  const isAutoCompleted = isCompleted && !step.manual;
 
-  // Decide se etapa pode ser ligada a job ou lead
+  // Decide se etapa fica ligada a job ou lead
   // Etapas 1-4 podem ser do lead. Etapas 5+ são do job.
   const useLeadId = ["lead_registered", "proposal_sent", "proposal_accepted", "contract_sent"].includes(
     step.kind,
@@ -135,21 +134,16 @@ export function JourneyStepDialog({
             {step.label}
           </DialogTitle>
           <DialogDescription>
-            {isAutoCompleted && step.autoSource && (
+            {isCompleted && step.completedAt && (
               <span className="text-emerald-300">
-                ✓ Conclusão automática: {step.autoSource}
-              </span>
-            )}
-            {step.manual && step.completedAt && (
-              <span className="text-emerald-300">
-                ✓ Marcada manualmente em{" "}
+                ✓ Concluída em{" "}
                 {format(new Date(step.completedAt), "d MMM yyyy", {
                   locale: ptBR,
                 })}
               </span>
             )}
             {!isCompleted && (
-              <span>Marca essa etapa como concluída quando voc&apos;ê fechar.</span>
+              <span>Marca essa etapa como concluída quando voc&ecirc; fechar.</span>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -178,17 +172,10 @@ export function JourneyStepDialog({
             </>
           )}
 
-          {isAutoCompleted && (
-            <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3 text-xs text-jcn-ice/65">
-              Esta etapa é deduzida automaticamente dos dados do CRM. Pra
-              desmarcar, você precisa remover o dado que dispara o auto
-              (payment, mudança de fase, etc).
-            </div>
-          )}
         </div>
 
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-          {step.manual && existingMilestoneId && (
+          {isCompleted && existingMilestoneId && (
             <Button
               variant="ghost"
               onClick={handleRemove}
