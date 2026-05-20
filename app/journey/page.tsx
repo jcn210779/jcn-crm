@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 type JobRow = Job & {
-  lead: Pick<Lead, "id" | "name" | "city" | "phone" | "email" | "created_at" | "stage"> | null;
+  lead: Pick<Lead, "id" | "name" | "city" | "phone" | "email" | "stage"> | null;
 };
 
 export default async function Page() {
@@ -21,21 +21,32 @@ export default async function Page() {
 
   const [
     { data: jobsData, error: jobsErr },
+    { data: leadsData, error: leadsErr },
     { data: milestonesData, error: milestonesErr },
   ] = await Promise.all([
+    // Todos os jobs com lead
     supabase
       .from("jobs")
-      .select(
-        "*, lead:leads(id, name, city, phone, email, created_at, stage)",
-      )
+      .select("*, lead:leads(id, name, city, phone, email, stage)")
       .order("contract_signed_at", { ascending: false }),
+    // Todos os leads (vamos filtrar client-side os que já têm job)
+    supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    // Todos milestones
     supabase.from("journey_milestones").select("*"),
   ]);
 
   const jobs = (jobsData ?? []) as unknown as JobRow[];
+  const allLeads = (leadsData ?? []) as Lead[];
   const milestones = (milestonesData ?? []) as JourneyMilestone[];
 
-  const error = jobsErr ?? milestonesErr;
+  // IDs de leads que JÁ viraram job — ficam na seção de Vendidos/Entregues
+  const leadIdsWithJob = new Set(jobs.map((j) => j.lead?.id).filter(Boolean));
+  const leadsWithoutJob = allLeads.filter((l) => !leadIdsWithJob.has(l.id));
+
+  const error = jobsErr ?? leadsErr ?? milestonesErr;
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -51,7 +62,11 @@ export default async function Page() {
           <p className="mt-2 text-sm text-jcn-ice/55">{error.message}</p>
         </div>
       ) : (
-        <JourneyView jobs={jobs} milestones={milestones} />
+        <JourneyView
+          jobs={jobs}
+          leadsWithoutJob={leadsWithoutJob}
+          milestones={milestones}
+        />
       )}
     </main>
   );

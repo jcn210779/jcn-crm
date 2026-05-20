@@ -3,12 +3,15 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Check,
+  Briefcase,
+  CheckCircle2,
   ChevronRight,
   Clock,
   Map as MapIcon,
   MapPin,
   TrendingUp,
+  UserMinus,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,28 +26,27 @@ import {
   currentStep,
   type JourneyStep,
 } from "@/lib/journey";
-import { JOB_PHASE_LABEL } from "@/lib/labels";
+import { JOB_PHASE_LABEL, STAGE_LABEL } from "@/lib/labels";
 import type {
   Job,
   JobPhase,
   JourneyMilestone,
   Lead,
+  LeadStage,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type JobRow = Job & {
-  lead: Pick<
-    Lead,
-    "id" | "name" | "city" | "phone" | "email" | "created_at" | "stage"
-  > | null;
+  lead: Pick<Lead, "id" | "name" | "city" | "phone" | "email" | "stage"> | null;
 };
 
 type Props = {
   jobs: JobRow[];
+  leadsWithoutJob: Lead[];
   milestones: JourneyMilestone[];
 };
 
-type Filter = "active" | "completed" | "all";
+type Section = "pipeline" | "won" | "delivered" | "lost";
 
 const PHASE_ACCENT: Record<JobPhase, string> = {
   planning: "border-sky-400/30 bg-sky-500/15 text-sky-300",
@@ -55,58 +57,91 @@ const PHASE_ACCENT: Record<JobPhase, string> = {
   completed: "border-emerald-400/30 bg-emerald-500/15 text-emerald-300",
 };
 
-export function JourneyView({ jobs, milestones }: Props) {
+const STAGE_ACCENT: Record<LeadStage, string> = {
+  novo: "border-sky-400/30 bg-sky-500/15 text-sky-300",
+  contato_feito: "border-cyan-400/30 bg-cyan-500/15 text-cyan-300",
+  visita_agendada: "border-indigo-400/30 bg-indigo-500/15 text-indigo-300",
+  cotando: "border-amber-400/30 bg-amber-500/15 text-amber-300",
+  estimate_enviado: "border-jcn-gold-400/30 bg-jcn-gold-500/15 text-jcn-gold-300",
+  follow_up: "border-orange-400/30 bg-orange-500/15 text-orange-300",
+  ganho: "border-emerald-400/30 bg-emerald-500/15 text-emerald-300",
+  perdido: "border-rose-400/30 bg-rose-500/15 text-rose-300",
+};
+
+export function JourneyView({ jobs, leadsWithoutJob, milestones }: Props) {
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>("active");
+  const [section, setSection] = useState<Section>("pipeline");
   const [dialog, setDialog] = useState<{
-    jobId: string;
+    jobId: string | null;
     leadId: string | null;
     step: JourneyStep;
   } | null>(null);
 
   // Agrupar milestones por (lead_id, job_id)
-  const milestonesByJob = useMemo(() => {
+  const milestonesByKey = useMemo(() => {
     const m = new Map<string, JourneyMilestone[]>();
     for (const ms of milestones) {
-      const key = ms.job_id ?? `lead-${ms.lead_id}`;
-      const arr = m.get(key) ?? [];
-      arr.push(ms);
-      m.set(key, arr);
+      if (ms.job_id) {
+        const arr = m.get(`job-${ms.job_id}`) ?? [];
+        arr.push(ms);
+        m.set(`job-${ms.job_id}`, arr);
+      }
+      if (ms.lead_id) {
+        const arr = m.get(`lead-${ms.lead_id}`) ?? [];
+        arr.push(ms);
+        m.set(`lead-${ms.lead_id}`, arr);
+      }
     }
     return m;
   }, [milestones]);
 
-  // Compute journey por job (100% manual — usa só milestones)
-  const enriched = useMemo(() => {
-    return jobs.map((job) => {
-      const jobMs = milestonesByJob.get(job.id) ?? [];
-      const leadMs = job.lead
-        ? milestonesByJob.get(`lead-${job.lead.id}`) ?? []
-        : [];
-      const allMs = [...jobMs, ...leadMs];
-      const steps = computeJourney({ milestones: allMs });
-      return {
-        job,
-        steps,
-        completedCount: countCompleted(steps),
-        currentStep: currentStep(steps),
-      };
-    });
-  }, [jobs, milestonesByJob]);
+  // Separar jobs em ativos vs entregues
+  const activeJobs = useMemo(
+    () => jobs.filter((j) => j.current_phase !== "completed"),
+    [jobs],
+  );
+  const deliveredJobs = useMemo(
+    () => jobs.filter((j) => j.current_phase === "completed"),
+    [jobs],
+  );
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return enriched;
-    if (filter === "active") {
-      return enriched.filter((e) => e.job.current_phase !== "completed");
-    }
-    return enriched.filter((e) => e.job.current_phase === "completed");
-  }, [enriched, filter]);
+  // Separar leads em pipeline vs perdidos
+  const pipelineLeads = useMemo(
+    () => leadsWithoutJob.filter((l) => l.stage !== "perdido"),
+    [leadsWithoutJob],
+  );
+  const lostLeads = useMemo(
+    () => leadsWithoutJob.filter((l) => l.stage === "perdido"),
+    [leadsWithoutJob],
+  );
 
   const counts = {
-    all: enriched.length,
-    active: enriched.filter((e) => e.job.current_phase !== "completed").length,
-    completed: enriched.filter((e) => e.job.current_phase === "completed").length,
+    pipeline: pipelineLeads.length,
+    won: activeJobs.length,
+    delivered: deliveredJobs.length,
+    lost: lostLeads.length,
   };
+
+  function getStepsForLead(leadId: string): JourneyStep[] {
+    const ms = milestonesByKey.get(`lead-${leadId}`) ?? [];
+    return computeJourney({ milestones: ms });
+  }
+
+  function getStepsForJob(jobId: string, leadId: string | null): JourneyStep[] {
+    const jobMs = milestonesByKey.get(`job-${jobId}`) ?? [];
+    const leadMs = leadId ? milestonesByKey.get(`lead-${leadId}`) ?? [] : [];
+    return computeJourney({ milestones: [...jobMs, ...leadMs] });
+  }
+
+  function findExistingMilestone(
+    jobId: string | null,
+    leadId: string | null,
+    kind: JourneyStep["kind"],
+  ): string | undefined {
+    const jobMs = jobId ? milestonesByKey.get(`job-${jobId}`) ?? [] : [];
+    const leadMs = leadId ? milestonesByKey.get(`lead-${leadId}`) ?? [] : [];
+    return [...jobMs, ...leadMs].find((m) => m.kind === kind)?.id;
+  }
 
   return (
     <div className="mx-auto mt-6 max-w-7xl space-y-5 px-4 md:px-6">
@@ -128,76 +163,143 @@ export function JourneyView({ jobs, milestones }: Props) {
         </div>
       </header>
 
-      {/* Filtros */}
+      {/* Tabs/Seções */}
       <div className="flex flex-wrap gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2">
-        <FilterChip
-          active={filter === "active"}
-          onClick={() => setFilter("active")}
-          label="Em andamento"
-          count={counts.active}
+        <SectionChip
+          active={section === "pipeline"}
+          onClick={() => setSection("pipeline")}
+          icon={TrendingUp}
+          label="Em pipeline"
+          count={counts.pipeline}
+          accent="amber"
         />
-        <FilterChip
-          active={filter === "completed"}
-          onClick={() => setFilter("completed")}
+        <SectionChip
+          active={section === "won"}
+          onClick={() => setSection("won")}
+          icon={Briefcase}
+          label="Vendidos"
+          count={counts.won}
+          accent="gold"
+        />
+        <SectionChip
+          active={section === "delivered"}
+          onClick={() => setSection("delivered")}
+          icon={CheckCircle2}
           label="Entregues"
-          count={counts.completed}
+          count={counts.delivered}
+          accent="emerald"
         />
-        <FilterChip
-          active={filter === "all"}
-          onClick={() => setFilter("all")}
-          label="Tudo"
-          count={counts.all}
+        <SectionChip
+          active={section === "lost"}
+          onClick={() => setSection("lost")}
+          icon={XCircle}
+          label="Perdidos"
+          count={counts.lost}
+          accent="rose"
         />
       </div>
 
-      {/* Lista */}
-      {filtered.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center">
-          <MapIcon className="mx-auto h-10 w-10 text-jcn-ice/30" />
-          <p className="mt-4 text-sm font-semibold text-jcn-ice/65">
-            Nenhum job nesse filtro
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filtered.map((e) => (
+      {/* Conteúdo por seção */}
+      {section === "pipeline" && (
+        <SectionContent
+          isEmpty={pipelineLeads.length === 0}
+          emptyMessage="Nenhum lead em pipeline. Os leads ativos sem job aparecem aqui."
+          emptyIcon={TrendingUp}
+        >
+          {pipelineLeads.map((lead) => (
+            <LeadJourneyCard
+              key={lead.id}
+              lead={lead}
+              steps={getStepsForLead(lead.id)}
+              onStepClick={(step) =>
+                setDialog({ jobId: null, leadId: lead.id, step })
+              }
+            />
+          ))}
+        </SectionContent>
+      )}
+
+      {section === "won" && (
+        <SectionContent
+          isEmpty={activeJobs.length === 0}
+          emptyMessage="Nenhum job ativo no momento."
+          emptyIcon={Briefcase}
+        >
+          {activeJobs.map((job) => (
             <JobJourneyCard
-              key={e.job.id}
-              job={e.job}
-              steps={e.steps}
-              completedCount={e.completedCount}
-              currentStep={e.currentStep}
+              key={job.id}
+              job={job}
+              steps={getStepsForJob(job.id, job.lead?.id ?? null)}
               onStepClick={(step) =>
                 setDialog({
-                  jobId: e.job.id,
-                  leadId: e.job.lead?.id ?? null,
+                  jobId: job.id,
+                  leadId: job.lead?.id ?? null,
                   step,
                 })
               }
             />
           ))}
-        </div>
+        </SectionContent>
       )}
 
-      {/* Dialog marcar etapa */}
+      {section === "delivered" && (
+        <SectionContent
+          isEmpty={deliveredJobs.length === 0}
+          emptyMessage="Nenhum job entregue ainda."
+          emptyIcon={CheckCircle2}
+        >
+          {deliveredJobs.map((job) => (
+            <JobJourneyCard
+              key={job.id}
+              job={job}
+              steps={getStepsForJob(job.id, job.lead?.id ?? null)}
+              onStepClick={(step) =>
+                setDialog({
+                  jobId: job.id,
+                  leadId: job.lead?.id ?? null,
+                  step,
+                })
+              }
+            />
+          ))}
+        </SectionContent>
+      )}
+
+      {section === "lost" && (
+        <SectionContent
+          isEmpty={lostLeads.length === 0}
+          emptyMessage="Nenhum lead perdido. Bom sinal."
+          emptyIcon={UserMinus}
+        >
+          {lostLeads.map((lead) => (
+            <LeadJourneyCard
+              key={lead.id}
+              lead={lead}
+              steps={getStepsForLead(lead.id)}
+              onStepClick={(step) =>
+                setDialog({ jobId: null, leadId: lead.id, step })
+              }
+              isLost
+            />
+          ))}
+        </SectionContent>
+      )}
+
+      {/* Dialog */}
       {dialog && (
         <JourneyStepDialog
           open={!!dialog}
           onOpenChange={(o) => {
             if (!o) setDialog(null);
           }}
-          jobId={dialog.jobId}
+          jobId={dialog.jobId ?? ""}
           leadId={dialog.leadId}
           step={dialog.step}
-          existingMilestoneId={(() => {
-            const jobMs = milestonesByJob.get(dialog.jobId) ?? [];
-            const leadMs = dialog.leadId
-              ? milestonesByJob.get(`lead-${dialog.leadId}`) ?? []
-              : [];
-            return [...jobMs, ...leadMs].find(
-              (m) => m.kind === dialog.step.kind,
-            )?.id;
-          })()}
+          existingMilestoneId={findExistingMilestone(
+            dialog.jobId,
+            dialog.leadId,
+            dialog.step.kind,
+          )}
           onDone={() => {
             setDialog(null);
             router.refresh();
@@ -208,17 +310,52 @@ export function JourneyView({ jobs, milestones }: Props) {
   );
 }
 
-function FilterChip({
+function SectionContent({
+  isEmpty,
+  emptyMessage,
+  emptyIcon: Icon,
+  children,
+}: {
+  isEmpty: boolean;
+  emptyMessage: string;
+  emptyIcon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  if (isEmpty) {
+    return (
+      <div className="rounded-3xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center">
+        <Icon className="mx-auto h-10 w-10 text-jcn-ice/30" />
+        <p className="mt-4 text-sm font-semibold text-jcn-ice/65">
+          {emptyMessage}
+        </p>
+      </div>
+    );
+  }
+  return <div className="space-y-4">{children}</div>;
+}
+
+function SectionChip({
   active,
   onClick,
+  icon: Icon,
   label,
   count,
+  accent,
 }: {
   active: boolean;
   onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   count: number;
+  accent: "amber" | "gold" | "emerald" | "rose";
 }) {
+  const activeAccent = {
+    amber: "border-amber-400/40 bg-amber-500/10 text-amber-300",
+    gold: "border-jcn-gold-400/40 bg-jcn-gold-500/10 text-jcn-gold-300",
+    emerald: "border-emerald-400/40 bg-emerald-500/10 text-emerald-300",
+    rose: "border-rose-400/40 bg-rose-500/10 text-rose-300",
+  }[accent];
+
   return (
     <button
       type="button"
@@ -226,10 +363,11 @@ function FilterChip({
       className={cn(
         "flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition",
         active
-          ? "border-jcn-gold-400/40 bg-jcn-gold-500/10 text-jcn-gold-300"
+          ? activeAccent
           : "border-white/[0.06] bg-white/[0.02] text-jcn-ice/55 hover:text-jcn-ice",
       )}
     >
+      <Icon className="h-3.5 w-3.5" />
       {label}
       <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] font-bold normal-case">
         {count}
@@ -241,97 +379,195 @@ function FilterChip({
 function JobJourneyCard({
   job,
   steps,
-  completedCount,
-  currentStep,
   onStepClick,
 }: {
   job: JobRow;
   steps: JourneyStep[];
-  completedCount: number;
-  currentStep: JourneyStep | null;
   onStepClick: (step: JourneyStep) => void;
 }) {
+  const completedCount = countCompleted(steps);
+  const current = currentStep(steps);
   const pct = Math.round((completedCount / steps.length) * 100);
-  const contractValue = Number(job.value);
 
   return (
     <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl">
-      {/* Header do job */}
       <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="flex items-start gap-3">
-          <Link
-            href={`/job/${job.id}`}
-            className="group flex items-center gap-2"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-              <MapIcon className="h-5 w-5" />
+        <Link href={`/job/${job.id}`} className="group flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
+            <Briefcase className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 text-base font-bold text-jcn-ice group-hover:text-jcn-gold-200">
+              {job.lead?.name ?? "Cliente sem nome"}
+              <ChevronRight className="h-4 w-4 opacity-50" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 text-base font-bold text-jcn-ice group-hover:text-jcn-gold-200">
-                {job.lead?.name ?? "Cliente sem nome"}
-                <ChevronRight className="h-4 w-4 opacity-50" />
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-jcn-ice/55">
-                {job.lead?.city && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {job.lead.city}
-                  </span>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-jcn-ice/55">
+              {job.lead?.city && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {job.lead.city}
+                </span>
+              )}
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] font-semibold",
+                  PHASE_ACCENT[job.current_phase],
                 )}
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] font-semibold",
-                    PHASE_ACCENT[job.current_phase],
-                  )}
-                >
-                  {JOB_PHASE_LABEL[job.current_phase]}
-                </Badge>
-                <span>{formatCurrency(contractValue)}</span>
-              </div>
+              >
+                {JOB_PHASE_LABEL[job.current_phase]}
+              </Badge>
+              <span>{formatCurrency(Number(job.value))}</span>
             </div>
-          </Link>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-ice/55">
-            Progresso
           </div>
-          <div className="text-2xl font-black text-jcn-gold-300">
-            {pct}%
-            <span className="ml-1 text-xs text-jcn-ice/55">
-              ({completedCount}/{steps.length})
-            </span>
-          </div>
-          {currentStep && (
-            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-jcn-ice/65">
-              <Clock className="h-3 w-3" />
-              Próxima: <b>{currentStep.label}</b>
-            </div>
-          )}
-        </div>
+        </Link>
+        <ProgressBlock pct={pct} done={completedCount} total={steps.length} next={current} />
       </header>
 
-      {/* Timeline horizontal */}
-      <div className="overflow-x-auto pb-2">
-        <ol className="flex min-w-max items-start gap-1">
-          {steps.map((step, idx) => (
-            <li key={step.kind} className="flex items-start">
-              <StepNode step={step} onClick={() => onStepClick(step)} />
-              {idx < steps.length - 1 && (
-                <div
-                  className={cn(
-                    "mx-1 mt-5 h-0.5 w-6 md:w-10",
-                    step.status === "completed"
-                      ? "bg-emerald-400/60"
-                      : "bg-white/[0.08]",
-                  )}
-                />
-              )}
-            </li>
-          ))}
-        </ol>
-      </div>
+      <Timeline steps={steps} onStepClick={onStepClick} />
     </section>
+  );
+}
+
+function LeadJourneyCard({
+  lead,
+  steps,
+  onStepClick,
+  isLost = false,
+}: {
+  lead: Lead;
+  steps: JourneyStep[];
+  onStepClick: (step: JourneyStep) => void;
+  isLost?: boolean;
+}) {
+  const completedCount = countCompleted(steps);
+  const current = currentStep(steps);
+  const pct = Math.round((completedCount / steps.length) * 100);
+
+  return (
+    <section
+      className={cn(
+        "rounded-3xl border p-5 backdrop-blur-xl",
+        isLost
+          ? "border-rose-400/15 bg-rose-500/[0.025] opacity-80"
+          : "border-white/[0.06] bg-white/[0.025]",
+      )}
+    >
+      <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <Link
+          href={`/lead/${lead.id}`}
+          className="group flex items-center gap-3"
+        >
+          <div
+            className={cn(
+              "flex h-11 w-11 items-center justify-center rounded-xl",
+              isLost
+                ? "bg-rose-500/15 text-rose-300"
+                : "bg-amber-500/15 text-amber-300",
+            )}
+          >
+            {isLost ? (
+              <UserMinus className="h-5 w-5" />
+            ) : (
+              <TrendingUp className="h-5 w-5" />
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 text-base font-bold text-jcn-ice group-hover:text-jcn-gold-200">
+              {lead.name}
+              <ChevronRight className="h-4 w-4 opacity-50" />
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-jcn-ice/55">
+              {lead.city && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {lead.city}
+                </span>
+              )}
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] font-semibold",
+                  STAGE_ACCENT[lead.stage],
+                )}
+              >
+                {STAGE_LABEL[lead.stage]}
+              </Badge>
+              {lead.estimated_value && Number(lead.estimated_value) > 0 && (
+                <span>
+                  est. {formatCurrency(Number(lead.estimated_value))}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
+        <ProgressBlock pct={pct} done={completedCount} total={steps.length} next={current} />
+      </header>
+
+      <Timeline steps={steps} onStepClick={onStepClick} />
+    </section>
+  );
+}
+
+function ProgressBlock({
+  pct,
+  done,
+  total,
+  next,
+}: {
+  pct: number;
+  done: number;
+  total: number;
+  next: JourneyStep | null;
+}) {
+  return (
+    <div className="text-right">
+      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-ice/55">
+        Progresso
+      </div>
+      <div className="text-2xl font-black text-jcn-gold-300">
+        {pct}%
+        <span className="ml-1 text-xs text-jcn-ice/55">
+          ({done}/{total})
+        </span>
+      </div>
+      {next && (
+        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-jcn-ice/65">
+          <Clock className="h-3 w-3" />
+          Próxima: <b>{next.label}</b>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Timeline({
+  steps,
+  onStepClick,
+}: {
+  steps: JourneyStep[];
+  onStepClick: (step: JourneyStep) => void;
+}) {
+  return (
+    <div className="overflow-x-auto pb-2">
+      <ol className="flex min-w-max items-start gap-1">
+        {steps.map((step, idx) => (
+          <li key={step.kind} className="flex items-start">
+            <StepNode step={step} onClick={() => onStepClick(step)} />
+            {idx < steps.length - 1 && (
+              <div
+                className={cn(
+                  "mx-1 mt-5 h-0.5 w-6 md:w-10",
+                  step.status === "completed"
+                    ? "bg-emerald-400/60"
+                    : "bg-white/[0.08]",
+                )}
+              />
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -369,7 +605,7 @@ function StepNode({
         )}
       >
         {isCompleted ? (
-          <Check className="h-5 w-5" />
+          <CheckCircle2 className="h-5 w-5" />
         ) : isCurrent ? (
           <TrendingUp className="h-5 w-5" />
         ) : (

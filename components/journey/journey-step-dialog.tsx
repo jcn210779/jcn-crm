@@ -24,7 +24,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  jobId: string;
+  jobId: string; // pode ser "" se for lead-only
   leadId: string | null;
   step: JourneyStep;
   /** Se passado, é edição/remoção de override manual existente. */
@@ -59,13 +59,19 @@ export function JourneyStepDialog({
 
   const isCompleted = step.status === "completed";
 
-  // Decide se etapa fica ligada a job ou lead
-  // Etapas 1-4 podem ser do lead. Etapas 5+ são do job.
-  const useLeadId = ["lead_registered", "proposal_sent", "proposal_accepted", "contract_sent"].includes(
-    step.kind,
-  );
-  const targetLeadId = useLeadId ? leadId : null;
-  const targetJobId = useLeadId ? null : jobId;
+  // Decide se etapa fica ligada a job ou lead.
+  // - Se não tem jobId (lead-only): tudo vai no lead.
+  // - Se tem jobId: etapas 1-4 vão no lead, etapas 5+ vão no job.
+  const hasJob = !!jobId;
+  const isPreContract = [
+    "lead_registered",
+    "proposal_sent",
+    "proposal_accepted",
+    "contract_sent",
+  ].includes(step.kind);
+
+  const targetLeadId = isPreContract || !hasJob ? leadId : null;
+  const targetJobId = !isPreContract && hasJob ? jobId : null;
 
   async function handleMarkComplete() {
     if (!targetLeadId && !targetJobId) {
