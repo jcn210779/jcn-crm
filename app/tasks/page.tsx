@@ -1,9 +1,9 @@
 import { AppHeader } from "@/components/app-header";
 import { DecorBackground } from "@/components/decor-background";
-import { TasksList } from "@/components/tasks/tasks-list";
+import { TasksPageWrapper } from "@/components/tasks/tasks-page-wrapper";
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type { Lead, Task } from "@/lib/types";
+import type { Lead, Repair, Task } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -11,14 +11,12 @@ export default async function TasksPage() {
   const user = await requireUser();
   const supabase = createSupabaseServerClient();
 
-  // Pega todas tasks pendentes (overdue também conta como pending até serem marcadas)
   const { data: tasksData, error: tasksErr } = await supabase
     .from("tasks")
     .select("*")
     .eq("status", "pending")
     .order("due_date", { ascending: true });
 
-  // Pega só os leads que aparecem nas tasks (pra mostrar nome + cidade)
   const leadIds = Array.from(
     new Set(
       ((tasksData ?? []) as Task[])
@@ -36,7 +34,16 @@ export default async function TasksPage() {
     leads = (leadsData ?? []) as Lead[];
   }
 
+  const { data: repairsData, error: repairsErr } = await supabase
+    .from("repairs")
+    .select("*")
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false });
+
   const tasks = (tasksData ?? []) as Task[];
+  const repairs = (repairsData ?? []) as Repair[];
+
+  const error = tasksErr ?? repairsErr;
 
   return (
     <main className="relative min-h-screen pb-24">
@@ -46,15 +53,16 @@ export default async function TasksPage() {
         showNewLead={false}
         title="Tasks"
       />
-      {tasksErr ? (
+      {error ? (
         <div className="mx-auto mt-16 max-w-md px-6 text-center">
-          <h2 className="text-xl font-bold text-white">Erro ao carregar tasks</h2>
-          <p className="mt-2 text-sm text-white/55">{tasksErr.message}</p>
+          <h2 className="text-xl font-bold text-white">Erro ao carregar</h2>
+          <p className="mt-2 text-sm text-white/55">{error.message}</p>
         </div>
       ) : (
-        <TasksList
+        <TasksPageWrapper
           tasks={tasks}
           leads={leads}
+          repairs={repairs}
           userEmail={user.email ?? ""}
         />
       )}

@@ -967,6 +967,62 @@ export type FinanceMonthly = {
 };
 
 // ============================================================================
+// Repairs (apontamentos de reparos — warranty + paid)
+// ============================================================================
+
+export type RepairStatus =
+  | "open"
+  | "scheduled"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+export const REPAIR_STATUSES: readonly RepairStatus[] = [
+  "open",
+  "scheduled",
+  "in_progress",
+  "completed",
+  "cancelled",
+];
+
+export type RepairType = "warranty" | "paid";
+
+export const REPAIR_TYPES: readonly RepairType[] = ["warranty", "paid"];
+
+export type Repair = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  customer_name: string;
+  customer_phone: string | null;
+  customer_address: string | null;
+
+  description: string;
+
+  type: RepairType;
+  status: RepairStatus;
+
+  scheduled_for: string | null;
+  completed_at: string | null;
+
+  value_estimated: number | null;
+  value_charged: number | null;
+
+  linked_job_id: string | null;
+  cash_adjustment_id: string | null;
+
+  notes: string | null;
+};
+
+export type RepairInsert = Pick<Repair, "customer_name" | "description"> &
+  Partial<Omit<Repair, "id" | "created_at" | "updated_at">>;
+
+export type RepairUpdate = Partial<
+  Omit<Repair, "id" | "created_at" | "updated_at">
+>;
+
+// ============================================================================
 // Follow-ups automáticos (drafts + envio via Resend)
 // ============================================================================
 
@@ -1282,6 +1338,12 @@ export type Database = {
         Row: FollowUp;
         Insert: FollowUpInsert;
         Update: FollowUpUpdate;
+        Relationships: [];
+      };
+      repairs: {
+        Row: Repair;
+        Insert: RepairInsert;
+        Update: RepairUpdate;
         Relationships: [];
       };
     };
