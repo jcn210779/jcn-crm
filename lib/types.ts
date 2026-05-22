@@ -967,6 +967,85 @@ export type FinanceMonthly = {
 };
 
 // ============================================================================
+// Permits (catálogo de oportunidades scraped)
+// ============================================================================
+
+export type PermitStatus =
+  | "active"
+  | "expired"
+  | "completed"
+  | "cancelled"
+  | "unknown";
+
+export const PERMIT_STATUSES: readonly PermitStatus[] = [
+  "active",
+  "expired",
+  "completed",
+  "cancelled",
+  "unknown",
+];
+
+export type Permit = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+
+  external_id: string;
+  source_city: string;
+  source_url: string | null;
+  permit_number: string | null;
+
+  address: string;
+  city: string;
+  state: string;
+  zip: string | null;
+
+  service_type: ServiceType;
+  service_description: string | null;
+  estimated_value: number | null;
+
+  owner_name: string | null;
+  owner_phone: string | null;
+  owner_email: string | null;
+
+  contractor_name: string | null;
+  contractor_phone: string | null;
+
+  issued_at: string | null;
+  expires_at: string | null;
+
+  status: PermitStatus;
+
+  reviewed: boolean;
+  reviewed_at: string | null;
+  interesting: boolean | null;
+  lead_id: string | null;
+
+  notes: string | null;
+  raw_data: Record<string, unknown> | null;
+};
+
+export type PermitInsert = Pick<
+  Permit,
+  "external_id" | "source_city" | "address" | "city"
+> &
+  Partial<Omit<Permit, "id" | "created_at" | "updated_at">>;
+
+export type PermitUpdate = Partial<
+  Omit<Permit, "id" | "created_at" | "updated_at">
+>;
+
+export type PermitSummaryRow = {
+  source_city: string;
+  total: number;
+  unreviewed: number;
+  interesting_count: number;
+  converted_count: number;
+  total_value: number;
+  latest_issued: string | null;
+};
+
+// ============================================================================
 // Journey Milestones (jornada do cliente — 12 etapas)
 // ============================================================================
 
@@ -1398,6 +1477,12 @@ export type Database = {
         Update: Partial<JourneyMilestone>;
         Relationships: [];
       };
+      permits: {
+        Row: Permit;
+        Insert: PermitInsert;
+        Update: PermitUpdate;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -1458,6 +1543,10 @@ export type Database = {
       };
       v_team_payable_summary: {
         Row: TeamPayableSummaryRow;
+        Relationships: [];
+      };
+      v_permits_summary: {
+        Row: PermitSummaryRow;
         Relationships: [];
       };
     };

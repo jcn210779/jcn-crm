@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  Building2,
   CalendarCheck2,
   CalendarRange,
   ChevronDown,
@@ -112,6 +113,13 @@ export function AppHeader({
             icon={Map}
           >
             Jornada
+          </NavLink>
+          <NavLink
+            href="/permits"
+            active={pathname?.startsWith("/permits") ?? false}
+            icon={Building2}
+          >
+            Permits
           </NavLink>
           <NavLink
             href="/schedule"
