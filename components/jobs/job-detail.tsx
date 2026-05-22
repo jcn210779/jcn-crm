@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { JobDailyLogSection } from "@/components/jobs/daily-log/job-daily-log-section";
 import { JobExpensesSection } from "@/components/jobs/expenses/job-expenses-section";
 import { JobExtrasSection } from "@/components/jobs/extras/job-extras-section";
+import { JobPnlSection } from "@/components/jobs/pnl/job-pnl-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
@@ -373,6 +374,16 @@ export function JobDetail({
         approvedExtrasValue={approvedExtrasValue}
         baseContractValue={job.value}
         payments={payments}
+      />
+
+      {/* P&L — margem real vs estimada */}
+      <JobPnlSection
+        job={job}
+        payments={payments}
+        expenses={expenses}
+        hours={hours}
+        extras={extras}
+        jobSubs={jobSubs}
       />
 
       {/* Despesas e recibos */}
