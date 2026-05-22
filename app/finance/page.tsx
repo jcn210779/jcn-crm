@@ -30,7 +30,7 @@ export default async function FinancePage() {
     { data: pendingData, error: pendingError },
     { data: paidData, error: paidError },
   ] = await Promise.all([
-    supabase.from("v_finance_monthly").select("*").limit(13),
+    supabase.from("v_finance_monthly").select("*").limit(24),
     supabase
       .from("business_expenses")
       .select("*")

@@ -2,6 +2,7 @@
 
 import {
   Banknote,
+  BarChart3,
   Briefcase,
   Calendar,
   CreditCard,
@@ -20,6 +21,7 @@ import { useMemo, useState } from "react";
 
 import { AddBusinessExpenseDialog } from "@/components/finance/add-business-expense-dialog";
 import { EditBusinessExpenseDialog } from "@/components/finance/edit-business-expense-dialog";
+import { FinanceAnnualTab } from "@/components/finance/finance-annual-tab";
 import { FinanceMonthlyTab } from "@/components/finance/finance-monthly-tab";
 import {
   FinanceReceivableTab,
@@ -39,7 +41,7 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Tab = "monthly" | "table" | "business" | "receivable";
+type Tab = "monthly" | "table" | "annual" | "business" | "receivable";
 
 type Props = {
   monthly: FinanceMonthly[];
@@ -97,6 +99,12 @@ export function FinanceView({
           label="Tabela"
         />
         <TabButton
+          active={tab === "annual"}
+          onClick={() => setTab("annual")}
+          icon={BarChart3}
+          label="Anual"
+        />
+        <TabButton
           active={tab === "receivable"}
           onClick={() => setTab("receivable")}
           icon={Wallet}
@@ -122,6 +130,7 @@ export function FinanceView({
 
       {tab === "monthly" && <FinanceMonthlyTab monthly={monthly} />}
       {tab === "table" && <FinanceTableTab monthly={monthly} />}
+      {tab === "annual" && <FinanceAnnualTab monthly={monthly} />}
       {tab === "receivable" && (
         <FinanceReceivableTab
           pending={receivablePending}
