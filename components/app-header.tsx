@@ -11,7 +11,6 @@ import {
   KanbanSquare,
   LogOut,
   Mail,
-  Map,
   Plus,
   Users,
   Wrench,
@@ -106,13 +105,6 @@ export function AppHeader({
             icon={Wrench}
           >
             Subs
-          </NavLink>
-          <NavLink
-            href="/journey"
-            active={pathname?.startsWith("/journey") ?? false}
-            icon={Map}
-          >
-            Jornada
           </NavLink>
           <NavLink
             href="/permits"

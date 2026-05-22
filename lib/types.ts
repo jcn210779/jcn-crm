@@ -1046,52 +1046,6 @@ export type PermitSummaryRow = {
 };
 
 // ============================================================================
-// Journey Milestones (jornada do cliente — 12 etapas)
-// ============================================================================
-
-export type JourneyMilestoneKind =
-  | "lead_registered"
-  | "proposal_sent"
-  | "proposal_accepted"
-  | "contract_sent"
-  | "contract_signed"
-  | "invoice_1_sent"
-  | "permit_ok"
-  | "invoice_2_sent"
-  | "work_started"
-  | "work_in_progress"
-  | "invoice_3_sent"
-  | "delivered";
-
-export const JOURNEY_MILESTONE_KINDS: readonly JourneyMilestoneKind[] = [
-  "lead_registered",
-  "proposal_sent",
-  "proposal_accepted",
-  "contract_sent",
-  "contract_signed",
-  "invoice_1_sent",
-  "permit_ok",
-  "invoice_2_sent",
-  "work_started",
-  "work_in_progress",
-  "invoice_3_sent",
-  "delivered",
-];
-
-export type JourneyMilestone = {
-  id: string;
-  created_at: string;
-  lead_id: string | null;
-  job_id: string | null;
-  kind: JourneyMilestoneKind;
-  completed_at: string;
-  notes: string | null;
-};
-
-export type JourneyMilestoneInsert = Pick<JourneyMilestone, "kind"> &
-  Partial<Omit<JourneyMilestone, "id" | "created_at">>;
-
-// ============================================================================
 // Repairs (apontamentos de reparos — warranty + paid)
 // ============================================================================
 
@@ -1469,12 +1423,6 @@ export type Database = {
         Row: Repair;
         Insert: RepairInsert;
         Update: RepairUpdate;
-        Relationships: [];
-      };
-      journey_milestones: {
-        Row: JourneyMilestone;
-        Insert: JourneyMilestoneInsert;
-        Update: Partial<JourneyMilestone>;
         Relationships: [];
       };
       permits: {
