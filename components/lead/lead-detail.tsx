@@ -198,12 +198,58 @@ export function LeadDetail({
 
   async function deleteLead() {
     const supabase = createSupabaseBrowserClient();
+
+    // Se lead virou job (stage='ganho'), tem registros vinculados (job +
+    // payments + expenses + hours + extras + subs + journey + photos + diários).
+    // Foreign key bloqueia DELETE direto no lead. Solução: deletar cascata
+    // começando do job (que tem ON DELETE CASCADE nos filhos).
+    const { data: jobs } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("lead_id", lead.id);
+
+    const jobIds = (jobs ?? []).map((j) => j.id);
+
+    if (jobIds.length > 0) {
+      // Confirma o cascade pesado
+      const ok = confirm(
+        `Este lead tem ${jobIds.length} job vinculado.\n\n` +
+          `Apagar vai REMOVER PERMANENTEMENTE:\n` +
+          `- O job e todo o contrato\n` +
+          `- Todos os pagamentos (recebidos + a receber)\n` +
+          `- Todas as despesas/recibos lançadas\n` +
+          `- Todas as horas trabalhadas\n` +
+          `- Todos os extras / change orders\n` +
+          `- Subempreiteiros vinculados\n` +
+          `- Fotos e diários\n\n` +
+          `Tem CERTEZA? Esta ação não pode ser desfeita.`,
+      );
+      if (!ok) return;
+
+      // Deleta jobs (ON DELETE CASCADE deleta os filhos)
+      const { error: jobDeleteErr } = await supabase
+        .from("jobs")
+        .delete()
+        .in("id", jobIds);
+      if (jobDeleteErr) {
+        toast.error("Erro ao apagar job vinculado", {
+          description: jobDeleteErr.message,
+        });
+        return;
+      }
+    }
+
+    // Agora deleta o lead
     const { error } = await supabase.from("leads").delete().eq("id", lead.id);
     if (error) {
       toast.error("Erro ao excluir", { description: error.message });
       return;
     }
-    toast.success("Lead excluído");
+    toast.success(
+      jobIds.length > 0
+        ? "Lead + job apagados com todos os vínculos"
+        : "Lead excluído",
+    );
     router.push("/");
     router.refresh();
   }
