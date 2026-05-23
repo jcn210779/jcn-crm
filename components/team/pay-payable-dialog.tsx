@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Landmark, Loader2, Wallet } from "lucide-react";
+import { Banknote, Landmark, Loader2, Trash2, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -135,6 +135,38 @@ export function PayPayableDialog({
     }
   }
 
+  async function handleDelete() {
+    if (
+      !confirm(
+        `Apagar pendência de ${memberName} (${formatCurrency(Number(payable.amount))})?\n\n` +
+          `Sem pagamento. A pendência some sem virar despesa.\n\n` +
+          `Útil pra:\n` +
+          `- Lançou errado\n` +
+          `- Funcionário não trabalhou de fato\n` +
+          `- Já pagou em dinheiro e não lançou aqui`,
+      )
+    )
+      return;
+
+    setSaving(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("team_payables")
+        .delete()
+        .eq("id", payable.id);
+
+      if (error) {
+        toast.error(`Erro: ${error.message}`);
+        return;
+      }
+      toast.success("Pendência apagada");
+      onDone();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border-white/[0.08] bg-background sm:max-w-md">
@@ -206,27 +238,38 @@ export function PayPayableDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
           <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
+            variant="ghost"
+            onClick={handleDelete}
             disabled={saving}
+            className="text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"
           >
-            Cancelar
+            <Trash2 className="h-4 w-4" />
+            Apagar
           </Button>
-          <Button onClick={handleConfirm} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Pagando
-              </>
-            ) : (
-              <>
-                <Wallet className="h-4 w-4" />
-                Confirmar pagamento
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirm} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Pagando
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-4 w-4" />
+                  Confirmar pagamento
+                </>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
