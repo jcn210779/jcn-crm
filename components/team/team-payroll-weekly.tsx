@@ -73,6 +73,8 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
   const [presetMember, setPresetMember] = useState<TeamMember | null>(null);
   const [presetDate, setPresetDate] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
+  /** Quando setado, dialog de pagar abre filtrando SÓ esse funcionário. */
+  const [paySingleMemberId, setPaySingleMemberId] = useState<string | null>(null);
 
   const days = useMemo<Date[]>(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -157,8 +159,24 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
       toast.info("Sem horas na semana pra pagar.");
       return;
     }
+    setPaySingleMemberId(null);
     setPayOpen(true);
   }
+
+  function handlePayMember(memberId: string) {
+    const entry = payoutEntries.find((e) => e.member.id === memberId);
+    if (!entry || entry.total === 0) {
+      toast.info("Esse funcionário não tem horas na semana.");
+      return;
+    }
+    setPaySingleMemberId(memberId);
+    setPayOpen(true);
+  }
+
+  // Entries filtrados pra o dialog (1 ou todos)
+  const dialogEntries = paySingleMemberId
+    ? payoutEntries.filter((e) => e.member.id === paySingleMemberId)
+    : payoutEntries;
 
   return (
     <div className="space-y-5">
@@ -360,6 +378,17 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
                       <div className="text-[10px] text-jcn-ice/55">
                         {memberTotalH}h
                       </div>
+                      {memberTotalAmount > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePayMember(m.id)}
+                          className="mt-1.5 h-7 border-emerald-400/40 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/25"
+                        >
+                          <Wallet className="h-3 w-3" />
+                          Pagar
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -428,15 +457,19 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
         }}
       />
 
-      {/* Dialog pagar tudo (cheque vs cash por funcionário) */}
+      {/* Dialog pagar (1 funcionário OU todos) */}
       <PayAllWeeklyDialog
         open={payOpen}
-        onOpenChange={setPayOpen}
+        onOpenChange={(o) => {
+          setPayOpen(o);
+          if (!o) setPaySingleMemberId(null);
+        }}
         weekLabel={weekLabel}
         fridayDate={dateKey(fridayDate)}
-        entries={payoutEntries}
+        entries={dialogEntries}
         onDone={() => {
           setPayOpen(false);
+          setPaySingleMemberId(null);
           router.refresh();
         }}
       />

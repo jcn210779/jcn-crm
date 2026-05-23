@@ -176,15 +176,20 @@ export function PayAllWeeklyDialog({
       <DialogContent className="border-white/[0.08] bg-background sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl font-black tracking-tight">
-            Pagar folha
+            {entries.length === 1
+              ? `Pagar ${entries[0]?.member.name ?? ""}`
+              : "Pagar folha"}
           </DialogTitle>
           <DialogDescription>
-            Semana <b>{weekLabel}</b> · Pagamento na sexta {fridayDate}. Escolhe
-            como cada um vai receber.
+            Semana <b>{weekLabel}</b> · Pagamento na sexta {fridayDate}.{" "}
+            {entries.length === 1
+              ? "Escolhe como esse funcionário vai receber."
+              : "Escolhe como cada um vai receber."}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Botões pra setar todos de uma vez */}
+        {/* Botões pra setar todos de uma vez (só faz sentido se 2+) */}
+        {entries.length > 1 && (
         <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
           <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-ice/55">
             Todos:
@@ -210,6 +215,7 @@ export function PayAllWeeklyDialog({
             Cash
           </Button>
         </div>
+        )}
 
         {/* Lista funcionários */}
         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
