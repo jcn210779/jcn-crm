@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Clock,
   DollarSign,
   HardHat,
   Plus,
@@ -23,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
+import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type { JobHours, Lead, TeamMember } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -171,6 +173,41 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
     }
     setPaySingleMemberId(memberId);
     setPayOpen(true);
+  }
+
+  async function handleAddToPayable(memberId: string) {
+    const entry = payoutEntries.find((e) => e.member.id === memberId);
+    if (!entry || entry.total === 0) {
+      toast.info("Esse funcionário não tem horas na semana.");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Jogar ${entry.member.name} pra "A pagar"?\n\n` +
+          `${formatCurrency(entry.total)} — ${weekLabel}\n\n` +
+          `Vai aparecer na aba "A pagar". Você paga quando puder.`,
+      )
+    )
+      return;
+
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.from("team_payables").insert({
+      member_id: memberId,
+      amount: entry.total,
+      description: `Folha semana ${weekLabel}`,
+      due_date: dateKey(fridayDate),
+      notes: `Gerado da folha semanal de ${weekLabel}`,
+    });
+
+    if (error) {
+      toast.error(`Erro: ${error.message}`);
+      return;
+    }
+    toast.success(
+      `${entry.member.name} (${formatCurrency(entry.total)}) → A pagar`,
+    );
+    router.refresh();
   }
 
   // Entries filtrados pra o dialog (1 ou todos)
@@ -379,15 +416,27 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
                         {memberTotalH}h
                       </div>
                       {memberTotalAmount > 0 && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handlePayMember(m.id)}
-                          className="mt-1.5 h-7 border-emerald-400/40 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/25"
-                        >
-                          <Wallet className="h-3 w-3" />
-                          Pagar
-                        </Button>
+                        <div className="mt-1.5 flex flex-col gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePayMember(m.id)}
+                            className="h-7 border-emerald-400/40 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/25"
+                          >
+                            <Wallet className="h-3 w-3" />
+                            Pagar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAddToPayable(m.id)}
+                            className="h-7 border-amber-400/40 bg-amber-500/10 px-2 text-[10px] font-bold text-amber-300 hover:bg-amber-500/25"
+                            title="Deixar pra pagar depois"
+                          >
+                            <Clock className="h-3 w-3" />
+                            A pagar
+                          </Button>
+                        </div>
                       )}
                     </td>
                   </tr>
