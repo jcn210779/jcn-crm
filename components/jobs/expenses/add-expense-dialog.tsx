@@ -272,6 +272,18 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
                 </span>
               </div>
             )}
+            {paymentMethod === "vendor_account" && (
+              <div className="flex items-start gap-2 rounded-xl border border-violet-400/30 bg-violet-500/10 p-3 text-[11px] text-violet-200">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Material em <strong>conta aberta com fornecedor</strong>{" "}
+                  (Lansing, etc). NÃO sai do caixa agora. Quando você pagar a
+                  fatura no dia 15, lance em &ldquo;Gastos da empresa&rdquo;
+                  com método cheque/transferência. Continua entrando na margem
+                  do job normalmente.
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

@@ -98,6 +98,7 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   cash: "Dinheiro",
   wire_transfer: "Transferência",
   credit_card: "Cartão de crédito",
+  vendor_account: "Conta fornecedor (Lansing, etc)",
   zelle: "Zelle",
   venmo: "Venmo",
   other: "Outro",

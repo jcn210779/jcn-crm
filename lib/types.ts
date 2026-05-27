@@ -129,6 +129,7 @@ export type PaymentMethod =
   | "cash"
   | "wire_transfer"
   | "credit_card"
+  | "vendor_account"
   | "zelle"
   | "venmo"
   | "other";
@@ -138,6 +139,7 @@ export const PAYMENT_METHODS: readonly PaymentMethod[] = [
   "cash",
   "wire_transfer",
   "credit_card",
+  "vendor_account",
   "zelle",
   "venmo",
   "other",
