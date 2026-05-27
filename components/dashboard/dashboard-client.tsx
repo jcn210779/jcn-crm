@@ -34,14 +34,20 @@ import {
 } from "@/lib/dashboard-metrics";
 import { SOURCE_LABEL } from "@/lib/labels";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
-import type { AdSpend, LeadSource } from "@/lib/types";
+import type { AdSpend, FinanceMonthly, LeadSource } from "@/lib/types";
+import { YearSummaryBanner } from "@/components/dashboard/year-summary-banner";
 
 type Props = {
   metricsByMonth: DashboardMetrics[]; // [0] = mês mais recente
   currentSpends: AdSpend[];
+  monthly: FinanceMonthly[];
 };
 
-export function DashboardClient({ metricsByMonth, currentSpends }: Props) {
+export function DashboardClient({
+  metricsByMonth,
+  currentSpends,
+  monthly,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -103,7 +109,10 @@ export function DashboardClient({ metricsByMonth, currentSpends }: Props) {
     selected.total.spend > 0 || selected.total.leads > 0;
 
   return (
-    <div className="mx-auto mt-6 max-w-7xl px-4 md:px-6">
+    <div className="mx-auto mt-6 max-w-7xl space-y-5 px-4 md:px-6">
+      {/* Banner do ano (resumo acumulado) */}
+      <YearSummaryBanner monthly={monthly} />
+
       {/* Header: título + seletor mês + botão editar */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>

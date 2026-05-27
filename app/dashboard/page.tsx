@@ -11,7 +11,7 @@ import {
   type DashboardMetrics,
 } from "@/lib/dashboard-metrics";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import type { AdSpend, Job, Lead } from "@/lib/types";
+import type { AdSpend, FinanceMonthly, Job, Lead } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -42,13 +42,15 @@ async function DashboardLoader() {
   // Fetch paralelo dos 3 conjuntos. Banco JCN é pequeno (10s de leads, 2 jobs,
   // poucas dezenas de ad_spend) — varredura full é OK por enquanto. Se crescer,
   // adicionar filtro por created_at >= últimos 12 meses.
-  const [leadsRes, jobsRes, spendsRes] = await Promise.all([
+  const [leadsRes, jobsRes, spendsRes, monthlyRes] = await Promise.all([
     supabase.from("leads").select("*"),
     supabase.from("jobs").select("*"),
     supabase.from("ad_spend").select("*"),
+    supabase.from("v_finance_monthly").select("*").limit(24),
   ]);
 
-  const firstError = leadsRes.error ?? jobsRes.error ?? spendsRes.error;
+  const firstError =
+    leadsRes.error ?? jobsRes.error ?? spendsRes.error ?? monthlyRes.error;
   if (firstError) {
     return (
       <div className="mx-auto mt-16 max-w-md px-6 text-center">
@@ -63,6 +65,7 @@ async function DashboardLoader() {
   const leads: Lead[] = leadsRes.data ?? [];
   const jobs: Job[] = jobsRes.data ?? [];
   const spends: AdSpend[] = spendsRes.data ?? [];
+  const monthly: FinanceMonthly[] = (monthlyRes.data ?? []) as FinanceMonthly[];
 
   // Calcula métricas pros 12 últimos meses (do mais recente pro mais antigo)
   const months = lastNMonths(12);
@@ -74,6 +77,7 @@ async function DashboardLoader() {
     <DashboardClient
       metricsByMonth={metricsByMonth}
       currentSpends={spends}
+      monthly={monthly}
     />
   );
 }
