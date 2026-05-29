@@ -35,3 +35,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts.bak
+
+# raw input data (PDFs extratos bancarios, transcricoes, etc — informacao sensivel)
+raw/

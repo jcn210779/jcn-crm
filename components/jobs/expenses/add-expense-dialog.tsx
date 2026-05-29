@@ -53,6 +53,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
   const [amount, setAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState<string>(defaultDate());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
+  const [checkNumber, setCheckNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -66,6 +67,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
     setAmount("");
     setExpenseDate(defaultDate());
     setPaymentMethod("");
+    setCheckNumber("");
     setNotes("");
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -135,6 +137,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
     }
 
     // 2) INSERT em job_expenses
+    const trimmedCheck = checkNumber.trim();
     const { error } = await supabase.from("job_expenses").insert({
       job_id: jobId,
       category,
@@ -143,6 +146,10 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
       amount: amt,
       expense_date: expenseDate,
       payment_method: paymentMethod || null,
+      check_number:
+        paymentMethod === "check" && trimmedCheck.length > 0
+          ? trimmedCheck
+          : null,
       receipt_path: receiptPath,
       receipt_file_name: receiptFileName,
       receipt_size: receiptSize,
@@ -285,6 +292,27 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
               </div>
             )}
           </div>
+
+          {/* Número do cheque — só quando method=check */}
+          {paymentMethod === "check" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="exp-check-number">
+                Número do cheque
+                <span className="ml-2 text-[10px] font-normal text-jcn-ice/45">
+                  (recomendado — facilita reconciliar com extrato)
+                </span>
+              </Label>
+              <Input
+                id="exp-check-number"
+                type="text"
+                inputMode="numeric"
+                value={checkNumber}
+                onChange={(e) => setCheckNumber(e.target.value)}
+                placeholder="Ex: 1183"
+                maxLength={20}
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label>Recibo (opcional)</Label>

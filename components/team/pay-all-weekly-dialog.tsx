@@ -45,6 +45,7 @@ export function PayAllWeeklyDialog({
   onDone,
 }: Props) {
   const [methods, setMethods] = useState<Record<string, Selection>>({});
+  const [checkNumbers, setCheckNumbers] = useState<Record<string, string>>({});
   const [receipts, setReceipts] = useState<Record<string, File | null>>({});
   const [saving, setSaving] = useState(false);
 
@@ -52,12 +53,15 @@ export function PayAllWeeklyDialog({
   useEffect(() => {
     if (!open) return;
     const next: Record<string, Selection> = {};
+    const nextC: Record<string, string> = {};
     const nextR: Record<string, File | null> = {};
     for (const e of entries) {
       next[e.member.id] = methods[e.member.id] ?? "check";
+      nextC[e.member.id] = "";
       nextR[e.member.id] = null;
     }
     setMethods(next);
+    setCheckNumbers(nextC);
     setReceipts(nextR);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, entries]);
@@ -129,13 +133,16 @@ export function PayAllWeeklyDialog({
           size: null,
           mime: null,
         };
+        const pm = methods[e.member.id] as PaymentMethod;
+        const cn = (checkNumbers[e.member.id] ?? "").trim();
         return {
           expense_date: fridayDate,
           category: "payroll" as const,
           description: `Folha semana ${weekLabel} — ${e.member.name}`,
           vendor: e.member.name,
           amount: e.total,
-          payment_method: methods[e.member.id] as PaymentMethod,
+          payment_method: pm,
+          check_number: pm === "check" && cn.length > 0 ? cn : null,
           receipt_path: r.path,
           receipt_file_name: r.name,
           receipt_size: r.size,
@@ -263,6 +270,28 @@ export function PayAllWeeklyDialog({
                     />
                   </div>
                 </div>
+                {m === "check" && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">
+                      Nº cheque (recomendado)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={checkNumbers[e.member.id] ?? ""}
+                      onChange={(ev) =>
+                        setCheckNumbers((prev) => ({
+                          ...prev,
+                          [e.member.id]: ev.target.value,
+                        }))
+                      }
+                      placeholder="Ex: 1183"
+                      maxLength={20}
+                      className="h-8 w-full rounded-lg border border-white/[0.08] bg-white/[0.025] px-2.5 text-xs text-jcn-ice placeholder:text-white/30 focus:border-sky-400/40 focus:outline-none"
+                      disabled={saving}
+                    />
+                  </div>
+                )}
                 <ReceiptInput
                   file={file}
                   onChange={(f) =>

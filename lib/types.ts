@@ -608,6 +608,13 @@ export type JobExpense = {
    */
   payment_method: PaymentMethod | null;
 
+  /**
+   * Número do cheque (migration 0032). Preenchido só quando
+   * payment_method = 'check'. Aceita texto pra suportar cheques com letra ou
+   * hífen ("1234-A", "A1234"). Opcional.
+   */
+  check_number: string | null;
+
   /** Caminho no bucket Supabase Storage `job-receipts`. */
   receipt_path: string | null;
   receipt_file_name: string | null;
@@ -927,6 +934,13 @@ export type BusinessExpense = {
   amount: number;
 
   payment_method: PaymentMethod | null;
+
+  /**
+   * Número do cheque (migration 0032). Preenchido só quando
+   * payment_method = 'check'. Aceita texto pra suportar cheques com letra ou
+   * hífen ("1234-A", "A1234"). Opcional.
+   */
+  check_number: string | null;
 
   recurring: boolean;
   recurrence_note: string | null;

@@ -796,7 +796,7 @@ async function loadMonthData(monthLabel: string): Promise<{
   // 5) business_expenses
   const { data: bizData } = await supabase
     .from("business_expenses")
-    .select("id, description, amount, expense_date, category, vendor")
+    .select("id, description, amount, expense_date, category, vendor, check_number")
     .gte("expense_date", start)
     .lte("expense_date", end)
     .order("expense_date", { ascending: false });
@@ -806,7 +806,7 @@ async function loadMonthData(monthLabel: string): Promise<{
       id: b.id,
       date: b.expense_date,
       label: b.description,
-      detail: `${BUSINESS_EXPENSE_CATEGORY_LABEL[b.category]}${b.vendor ? ` • ${b.vendor}` : ""}`,
+      detail: `${BUSINESS_EXPENSE_CATEGORY_LABEL[b.category]}${b.vendor ? ` • ${b.vendor}` : ""}${b.check_number ? ` • cheque #${b.check_number}` : ""}`,
       amount: Number(b.amount),
       source: "business" as const,
     }),

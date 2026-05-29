@@ -72,6 +72,7 @@ export function AddBusinessExpenseDialog({
     new Date().toISOString().slice(0, 10),
   );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
+  const [checkNumber, setCheckNumber] = useState("");
   const [recurring, setRecurring] = useState(false);
   const [recurrenceNote, setRecurrenceNote] = useState("");
   const [notes, setNotes] = useState("");
@@ -85,6 +86,7 @@ export function AddBusinessExpenseDialog({
     setAmount("");
     setExpenseDate(new Date().toISOString().slice(0, 10));
     setPaymentMethod("");
+    setCheckNumber("");
     setRecurring(false);
     setRecurrenceNote("");
     setNotes("");
@@ -130,6 +132,7 @@ export function AddBusinessExpenseDialog({
     }
 
     // 2) INSERT business_expense
+    const trimmedCheck = checkNumber.trim();
     const { error } = await supabase.from("business_expenses").insert({
       expense_date: expenseDate,
       category,
@@ -137,6 +140,10 @@ export function AddBusinessExpenseDialog({
       description: description.trim(),
       amount: amt,
       payment_method: paymentMethod || null,
+      check_number:
+        paymentMethod === "check" && trimmedCheck.length > 0
+          ? trimmedCheck
+          : null,
       recurring,
       recurrence_note: recurring ? recurrenceNote.trim() || null : null,
       receipt_path: receiptPath,
@@ -270,6 +277,27 @@ export function AddBusinessExpenseDialog({
               </select>
             </div>
           </div>
+
+          {/* Número do cheque — só quando method=check */}
+          {paymentMethod === "check" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="be-check-number">
+                Número do cheque
+                <span className="ml-2 text-[10px] font-normal text-jcn-ice/45">
+                  (recomendado — facilita reconciliar com extrato)
+                </span>
+              </Label>
+              <Input
+                id="be-check-number"
+                type="text"
+                inputMode="numeric"
+                value={checkNumber}
+                onChange={(e) => setCheckNumber(e.target.value)}
+                placeholder="Ex: 1183"
+                maxLength={20}
+              />
+            </div>
+          )}
 
           {/* Toggle Recorrente */}
           <button

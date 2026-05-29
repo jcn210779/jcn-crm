@@ -61,6 +61,7 @@ export function EditBusinessExpenseDialog({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(
     expense.payment_method ?? "",
   );
+  const [checkNumber, setCheckNumber] = useState(expense.check_number ?? "");
   const [recurring, setRecurring] = useState(expense.recurring);
   const [recurrenceNote, setRecurrenceNote] = useState(
     expense.recurrence_note ?? "",
@@ -125,6 +126,7 @@ export function EditBusinessExpenseDialog({
     // - novo upload → substitui (e deleta o antigo no Storage)
     // - remover marcado e sem novo → zera campos
     // - sem mudança → mantém
+    const trimmedCheck = checkNumber.trim();
     const updatePayload: BusinessExpenseUpdate = {
       expense_date: expenseDate,
       category,
@@ -132,6 +134,10 @@ export function EditBusinessExpenseDialog({
       description: description.trim(),
       amount: amt,
       payment_method: paymentMethod || null,
+      check_number:
+        paymentMethod === "check" && trimmedCheck.length > 0
+          ? trimmedCheck
+          : null,
       recurring,
       recurrence_note: recurring ? recurrenceNote.trim() || null : null,
       notes: notes.trim() || null,
@@ -368,6 +374,27 @@ export function EditBusinessExpenseDialog({
               </select>
             </div>
           </div>
+
+          {/* Número do cheque — só quando method=check */}
+          {paymentMethod === "check" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="be-edit-check-number">
+                Número do cheque
+                <span className="ml-2 text-[10px] font-normal text-jcn-ice/45">
+                  (recomendado)
+                </span>
+              </Label>
+              <Input
+                id="be-edit-check-number"
+                type="text"
+                inputMode="numeric"
+                value={checkNumber}
+                onChange={(e) => setCheckNumber(e.target.value)}
+                placeholder="Ex: 1183"
+                maxLength={20}
+              />
+            </div>
+          )}
 
           <button
             type="button"

@@ -382,6 +382,14 @@ function ExpenseRow({ expense, receiptUrl, onView, onDelete }: ExpenseRowProps) 
               locale: ptBR,
             })}
           </span>
+          {expense.check_number && (
+            <span
+              className="rounded-md border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 font-bold text-sky-300"
+              title="Número do cheque"
+            >
+              cheque #{expense.check_number}
+            </span>
+          )}
           {expense.notes && (
             <span className="italic opacity-70">{expense.notes}</span>
           )}

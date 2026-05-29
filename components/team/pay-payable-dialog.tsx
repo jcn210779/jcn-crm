@@ -41,6 +41,7 @@ export function PayPayableDialog({
 }: Props) {
   const [method, setMethod] = useState<Method>("check");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  const [checkNumber, setCheckNumber] = useState("");
   const [receipt, setReceipt] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -48,6 +49,7 @@ export function PayPayableDialog({
     if (!open) return;
     setMethod("check");
     setPaidAt(new Date().toISOString().slice(0, 10));
+    setCheckNumber("");
     setReceipt(null);
   }, [open]);
 
@@ -80,6 +82,7 @@ export function PayPayableDialog({
       }
 
       // 2) Criar business_expense payroll
+      const trimmedCheck = checkNumber.trim();
       const { data: beData, error: beError } = await supabase
         .from("business_expenses")
         .insert({
@@ -89,6 +92,8 @@ export function PayPayableDialog({
           vendor: memberName,
           amount: payable.amount,
           payment_method: method as PaymentMethod,
+          check_number:
+            method === "check" && trimmedCheck.length > 0 ? trimmedCheck : null,
           receipt_path: receiptPath,
           receipt_file_name: receiptFileName,
           receipt_size: receiptSize,
@@ -219,6 +224,30 @@ export function PayPayableDialog({
               onChange={(e) => setPaidAt(e.target.value)}
             />
           </div>
+
+          {/* Número do cheque — só quando method=check */}
+          {method === "check" && (
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="check-number"
+                className="text-xs font-bold uppercase tracking-[0.12em] text-white/55"
+              >
+                Número do cheque
+                <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-jcn-ice/45">
+                  (recomendado — facilita reconciliar com extrato BoA)
+                </span>
+              </Label>
+              <Input
+                id="check-number"
+                type="text"
+                inputMode="numeric"
+                value={checkNumber}
+                onChange={(e) => setCheckNumber(e.target.value)}
+                placeholder="Ex: 1183"
+                maxLength={20}
+              />
+            </div>
+          )}
 
           {/* Recibo */}
           <div className="space-y-1.5">

@@ -521,6 +521,15 @@ function ExpenseRow({
                 {expense.vendor}
               </span>
             )}
+            {expense.check_number && (
+              <span
+                className="flex items-center gap-1 rounded-md border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 font-bold text-sky-300"
+                title="Número do cheque"
+              >
+                <Landmark className="h-3 w-3" />
+                #{expense.check_number}
+              </span>
+            )}
           </div>
         </div>
       </div>
