@@ -150,14 +150,56 @@ export function PayAllWeeklyDialog({
         };
       });
 
-      const { error } = await supabase.from("business_expenses").insert(rows);
-      if (error) {
+      const { data: beData, error } = await supabase
+        .from("business_expenses")
+        .insert(rows)
+        .select("id");
+      if (error || !beData) {
         // Rollback dos uploads
         if (uploadedPaths.length > 0) {
           await supabase.storage.from("job-receipts").remove(uploadedPaths);
         }
-        toast.error(`Erro ao lançar folha: ${error.message}`);
+        toast.error(`Erro ao lançar folha: ${error?.message ?? "?"}`);
         return;
+      }
+
+      // 3) Marcar job_hours como pagos (paid_at + link com business_expense)
+      //    Calcula segunda e domingo da semana a partir de fridayDate.
+      const friday = new Date(fridayDate + "T00:00:00Z");
+      const monday = new Date(friday);
+      monday.setUTCDate(friday.getUTCDate() - 4);
+      const sunday = new Date(friday);
+      sunday.setUTCDate(friday.getUTCDate() + 2);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const fmtDate = (d: Date) =>
+        `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+      const mondayKey = fmtDate(monday);
+      const sundayKey = fmtDate(sunday);
+
+      const updateErrors: string[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        const beId = beData[i]?.id;
+        if (!e || !beId) continue;
+        const { error: hoursErr } = await supabase
+          .from("job_hours")
+          .update({
+            paid_at: new Date().toISOString(),
+            payment_business_expense_id: beId,
+          })
+          .eq("member_id", e.member.id)
+          .gte("work_date", mondayKey)
+          .lte("work_date", sundayKey)
+          .is("paid_at", null);
+        if (hoursErr) {
+          updateErrors.push(`${e.member.name}: ${hoursErr.message}`);
+        }
+      }
+      if (updateErrors.length > 0) {
+        // Despesa criada com sucesso — só avisa que hours não fecharam
+        toast.warning(
+          `Despesa lançada mas algumas horas não fecharam: ${updateErrors.join("; ")}`,
+        );
       }
 
       const checkCount = rows.filter((r) => r.payment_method === "check").length;

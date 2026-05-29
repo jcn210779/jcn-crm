@@ -706,6 +706,20 @@ export type JobHours = {
   /** Coluna calculada pelo banco: hours × hourly_rate_snapshot. Read-only. */
   calculated_amount: number;
 
+  /**
+   * Quando setado, hora ja foi "fechada" (paga direto via folha, movida pra
+   * "A pagar", ou marcada manualmente como ja paga). Migration 0033.
+   * NULL = ainda pendente, aparece como "Pagar" na folha semanal.
+   */
+  paid_at: string | null;
+
+  /**
+   * Linka com business_expense que pagou esse hour (quando paid via folha
+   * normal). NULL quando foi marcado pago manual ou via "A pagar".
+   * Migration 0033.
+   */
+  payment_business_expense_id: string | null;
+
   notes: string | null;
 };
 

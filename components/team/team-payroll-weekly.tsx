@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -138,10 +139,11 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
     setAddOpen(true);
   }
 
-  // Agrupa por member pro dialog de pagar
+  // Agrupa por member: SÓ horas PENDENTES (paid_at IS NULL) pro dialog de pagar
   const payoutEntries = useMemo<PayoutEntry[]>(() => {
     const totalsByMember = new Map<string, PayoutEntry>();
     for (const h of weekHours) {
+      if (h.paid_at) continue; // ignora hours já fechados
       const m = members.find((mm) => mm.id === h.member_id);
       if (!m) continue;
       const cur = totalsByMember.get(m.id);
@@ -156,9 +158,37 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
     );
   }, [weekHours, members]);
 
+  // Status de pagamento por funcionário da semana
+  type PayStatus = "none" | "partial" | "paid";
+  const payStatusByMember = useMemo(() => {
+    const map = new Map<string, { paidAmount: number; pendingAmount: number; status: PayStatus }>();
+    for (const h of weekHours) {
+      const cur = map.get(h.member_id) ?? { paidAmount: 0, pendingAmount: 0, status: "none" as PayStatus };
+      if (h.paid_at) cur.paidAmount += Number(h.calculated_amount);
+      else cur.pendingAmount += Number(h.calculated_amount);
+      map.set(h.member_id, cur);
+    }
+    for (const [k, v] of map.entries()) {
+      if (v.paidAmount > 0 && v.pendingAmount === 0) v.status = "paid";
+      else if (v.paidAmount > 0 && v.pendingAmount > 0) v.status = "partial";
+      else v.status = "none";
+      map.set(k, v);
+    }
+    return map;
+  }, [weekHours]);
+
+  // Total da semana SÓ pendente (pro botão "Pagar tudo")
+  const weekPendingAmount = useMemo(
+    () =>
+      weekHours
+        .filter((h) => !h.paid_at)
+        .reduce((s, h) => s + Number(h.calculated_amount), 0),
+    [weekHours],
+  );
+
   function handlePayAll() {
-    if (weekTotalAmount === 0) {
-      toast.info("Sem horas na semana pra pagar.");
+    if (weekPendingAmount === 0) {
+      toast.info("Sem horas pendentes na semana pra pagar.");
       return;
     }
     setPaySingleMemberId(null);
@@ -178,7 +208,7 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
   async function handleAddToPayable(memberId: string) {
     const entry = payoutEntries.find((e) => e.member.id === memberId);
     if (!entry || entry.total === 0) {
-      toast.info("Esse funcionário não tem horas na semana.");
+      toast.info("Esse funcionário não tem horas pendentes na semana.");
       return;
     }
 
@@ -186,7 +216,8 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
       !confirm(
         `Jogar ${entry.member.name} pra "A pagar"?\n\n` +
           `${formatCurrency(entry.total)} — ${weekLabel}\n\n` +
-          `Vai aparecer na aba "A pagar". Você paga quando puder.`,
+          `Vai aparecer na aba "A pagar". Você paga quando puder.\n` +
+          `As horas da semana saem da pendência (deixa de aparecer "Pagar").`,
       )
     )
       return;
@@ -204,8 +235,66 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
       toast.error(`Erro: ${error.message}`);
       return;
     }
+
+    // Marca hours daquela semana daquele funcionário como "fechados" (saiu
+    // da pendência da semana). paid_at é setado, payment_business_expense_id
+    // fica NULL — pagamento real acontece quando a pendência for paga.
+    const { error: hoursErr } = await supabase
+      .from("job_hours")
+      .update({ paid_at: new Date().toISOString() })
+      .eq("member_id", memberId)
+      .gte("work_date", weekStartKey)
+      .lte("work_date", weekEndKey)
+      .is("paid_at", null);
+
+    if (hoursErr) {
+      toast.warning(
+        `Pendência criada mas horas não fecharam: ${hoursErr.message}`,
+      );
+      router.refresh();
+      return;
+    }
+
     toast.success(
       `${entry.member.name} (${formatCurrency(entry.total)}) → A pagar`,
+    );
+    router.refresh();
+  }
+
+  async function handleMarkPaid(memberId: string) {
+    const entry = payoutEntries.find((e) => e.member.id === memberId);
+    if (!entry || entry.total === 0) {
+      toast.info("Esse funcionário não tem horas pendentes na semana.");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Marcar ${entry.member.name} como PAGO sem lançar despesa?\n\n` +
+          `${formatCurrency(entry.total)} — ${weekLabel}\n\n` +
+          `Use isso só se você JÁ pagou e JÁ lançou a despesa em outro lugar ` +
+          `(cash, fora do sistema, etc).\n\n` +
+          `As horas saem da pendência da semana mas NÃO cria business_expense — ` +
+          `evita duplicar.`,
+      )
+    )
+      return;
+
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("job_hours")
+      .update({ paid_at: new Date().toISOString() })
+      .eq("member_id", memberId)
+      .gte("work_date", weekStartKey)
+      .lte("work_date", weekEndKey)
+      .is("paid_at", null);
+
+    if (error) {
+      toast.error(`Erro: ${error.message}`);
+      return;
+    }
+    toast.success(
+      `${entry.member.name} marcado como pago (sem nova despesa)`,
     );
     router.refresh();
   }
@@ -272,14 +361,16 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
         <Button
           variant="outline"
           onClick={handlePayAll}
-          disabled={weekTotalAmount === 0}
+          disabled={weekPendingAmount === 0}
           className={cn(
             "border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20",
-            weekTotalAmount === 0 && "opacity-50",
+            weekPendingAmount === 0 && "opacity-50",
           )}
         >
           <Wallet className="h-4 w-4" />
-          {`Pagar tudo (sex ${format(fridayDate, "d MMM", { locale: ptBR })}) — ${formatCurrency(weekTotalAmount)}`}
+          {weekPendingAmount === 0 && weekTotalAmount > 0
+            ? `Tudo pago nesta semana — ${formatCurrency(weekTotalAmount)}`
+            : `Pagar pendente (sex ${format(fridayDate, "d MMM", { locale: ptBR })}) — ${formatCurrency(weekPendingAmount)}`}
         </Button>
       </div>
 
@@ -409,35 +500,103 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
                       );
                     })}
                     <td className="px-3 py-3 text-right">
-                      <div className="text-sm font-black text-jcn-gold-300">
-                        {formatCurrency(memberTotalAmount)}
-                      </div>
-                      <div className="text-[10px] text-jcn-ice/55">
-                        {memberTotalH}h
-                      </div>
-                      {memberTotalAmount > 0 && (
-                        <div className="mt-1.5 flex flex-col gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePayMember(m.id)}
-                            className="h-7 border-emerald-400/40 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/25"
-                          >
-                            <Wallet className="h-3 w-3" />
-                            Pagar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAddToPayable(m.id)}
-                            className="h-7 border-amber-400/40 bg-amber-500/10 px-2 text-[10px] font-bold text-amber-300 hover:bg-amber-500/25"
-                            title="Deixar pra pagar depois"
-                          >
-                            <Clock className="h-3 w-3" />
-                            A pagar
-                          </Button>
-                        </div>
-                      )}
+                      {(() => {
+                        const ps = payStatusByMember.get(m.id);
+                        const status = ps?.status ?? "none";
+                        const pendingAmount = ps?.pendingAmount ?? 0;
+                        const paidAmount = ps?.paidAmount ?? 0;
+                        return (
+                          <>
+                            {status === "paid" ? (
+                              <>
+                                <div className="text-sm font-black text-emerald-300/80">
+                                  {formatCurrency(memberTotalAmount)}
+                                </div>
+                                <div className="text-[10px] text-jcn-ice/45">
+                                  {memberTotalH}h
+                                </div>
+                                <div className="mt-1.5 flex justify-end">
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Pago
+                                  </span>
+                                </div>
+                              </>
+                            ) : status === "partial" ? (
+                              <>
+                                <div className="text-sm font-black text-jcn-gold-300">
+                                  {formatCurrency(pendingAmount)}
+                                </div>
+                                <div className="text-[10px] text-jcn-ice/55">
+                                  {memberTotalH}h · pago {formatCurrency(paidAmount)}
+                                </div>
+                                <div className="mt-1.5 flex flex-col gap-1">
+                                  <span className="inline-flex items-center justify-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                                    Parcial
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handlePayMember(m.id)}
+                                    className="h-7 border-emerald-400/40 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/25"
+                                  >
+                                    <Wallet className="h-3 w-3" />
+                                    Pagar resto
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleAddToPayable(m.id)}
+                                    className="h-7 border-amber-400/40 bg-amber-500/10 px-2 text-[10px] font-bold text-amber-300 hover:bg-amber-500/25"
+                                  >
+                                    <Clock className="h-3 w-3" />
+                                    A pagar
+                                  </Button>
+                                </div>
+                              </>
+                            ) : memberTotalAmount > 0 ? (
+                              <>
+                                <div className="text-sm font-black text-jcn-gold-300">
+                                  {formatCurrency(memberTotalAmount)}
+                                </div>
+                                <div className="text-[10px] text-jcn-ice/55">
+                                  {memberTotalH}h
+                                </div>
+                                <div className="mt-1.5 flex flex-col gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handlePayMember(m.id)}
+                                    className="h-7 border-emerald-400/40 bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/25"
+                                  >
+                                    <Wallet className="h-3 w-3" />
+                                    Pagar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleAddToPayable(m.id)}
+                                    className="h-7 border-amber-400/40 bg-amber-500/10 px-2 text-[10px] font-bold text-amber-300 hover:bg-amber-500/25"
+                                    title="Deixar pra pagar depois"
+                                  >
+                                    <Clock className="h-3 w-3" />
+                                    A pagar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleMarkPaid(m.id)}
+                                    className="h-6 px-2 text-[10px] font-semibold text-jcn-ice/55 hover:bg-white/[0.04] hover:text-jcn-ice/75"
+                                    title="Marcar como pago sem criar despesa (use se já lançou em outro lugar)"
+                                  >
+                                    Já paguei
+                                  </Button>
+                                </div>
+                              </>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );
