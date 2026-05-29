@@ -377,6 +377,12 @@ export type Lead = {
   visit_scheduled_at: string | null;
   visit_completed_at: string | null;
 
+  // Confirmação pública de visita (migration 0034). confirm_token vira o link
+  // público /confirmar/<token>; os dois timestamps marcam a ação do cliente.
+  confirm_token: string;
+  visit_confirmed_at: string | null;
+  reschedule_requested_at: string | null;
+
   lost_reason: LostReason | null;
   lost_notes: string | null;
 

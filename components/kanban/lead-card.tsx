@@ -65,6 +65,21 @@ export function LeadCard({ lead, dragging }: Props) {
         <span>{SERVICE_LABEL[lead.service_interest]}</span>
       </div>
 
+      {(lead.visit_confirmed_at || lead.reschedule_requested_at) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {lead.visit_confirmed_at && (
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+              ✅ Confirmou
+            </span>
+          )}
+          {lead.reschedule_requested_at && (
+            <span className="rounded-full border border-orange-400/30 bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-300">
+              🔄 Pediu remarcar
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="mt-2.5 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.1em]">
         <span className="rounded-full border border-white/[0.06] bg-white/[0.03] px-2 py-0.5 text-white/50">
           {SOURCE_LABEL[lead.source]}

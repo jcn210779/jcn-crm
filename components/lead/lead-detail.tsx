@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Clock,
   HardHat,
+  Link2,
   Mail,
   MapPin,
   Phone,
@@ -254,6 +255,17 @@ export function LeadDetail({
     router.refresh();
   }
 
+  async function copyConfirmLink() {
+    const url = `https://jcn-crm.vercel.app/confirmar/${lead.confirm_token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link de confirmação copiado", { description: url });
+    } catch {
+      // Fallback se Clipboard API não disponível (contexto não-seguro etc).
+      window.prompt("Copie o link de confirmação:", url);
+    }
+  }
+
   return (
     <div className="mx-auto mt-6 max-w-5xl space-y-5 px-4 md:px-6">
       <Link
@@ -274,6 +286,16 @@ export function LeadDetail({
             <Badge variant={STAGE_BADGE_VARIANT[lead.stage]}>
               {STAGE_LABEL[lead.stage]}
             </Badge>
+            {lead.visit_confirmed_at && (
+              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                ✅ Confirmou
+              </span>
+            )}
+            {lead.reschedule_requested_at && (
+              <span className="rounded-full border border-orange-400/30 bg-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-orange-300">
+                🔄 Pediu remarcar
+              </span>
+            )}
             <span>·</span>
             <span>{SOURCE_LABEL[lead.source]}</span>
             <span>·</span>
@@ -296,25 +318,36 @@ export function LeadDetail({
           )}
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="h-10 border-white/[0.1] bg-white/[0.04]">
-              Mover etapa
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {LEAD_STAGES.map((s) => (
-              <DropdownMenuItem
-                key={s}
-                disabled={s === lead.stage}
-                onSelect={() => updateStage(s)}
-              >
-                {STAGE_LABEL[s]}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            className="h-10 border-white/[0.1] bg-white/[0.04]"
+            onClick={copyConfirmLink}
+          >
+            <Link2 className="h-4 w-4" />
+            Copiar link de confirmação
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 border-white/[0.1] bg-white/[0.04]">
+                Mover etapa
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {LEAD_STAGES.map((s) => (
+                <DropdownMenuItem
+                  key={s}
+                  disabled={s === lead.stage}
+                  onSelect={() => updateStage(s)}
+                >
+                  {STAGE_LABEL[s]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       <div className="grid gap-5 md:grid-cols-2">
