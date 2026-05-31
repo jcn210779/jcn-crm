@@ -10,6 +10,7 @@ import {
   Link2,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Trash2,
   XCircle,
@@ -20,6 +21,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { FollowUpSection } from "@/components/lead/followup-section";
+import { LeadEditDialog } from "@/components/lead/lead-edit-dialog";
 import { VisitScheduleDialog } from "@/components/lead/visit-schedule-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,6 +111,7 @@ export function LeadDetail({
   const [showLostDialog, setShowLostDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason>("ghosted");
   const [lostNotes, setLostNotes] = useState("");
 
@@ -319,6 +322,15 @@ export function LeadDetail({
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            className="h-10 border-white/[0.1] bg-white/[0.04]"
+            onClick={() => setShowEditDialog(true)}
+          >
+            <Pencil className="h-4 w-4" />
+            Editar
+          </Button>
+
           <Button
             variant="outline"
             className="h-10 border-white/[0.1] bg-white/[0.04]"
@@ -642,6 +654,13 @@ export function LeadDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de edição dos dados cadastrais */}
+      <LeadEditDialog
+        lead={lead}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+      />
 
       {/* Dialog de agendamento de visita */}
       <VisitScheduleDialog
