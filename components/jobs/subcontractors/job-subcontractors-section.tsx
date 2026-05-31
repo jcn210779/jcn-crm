@@ -18,9 +18,12 @@ import { HireSubDialog } from "@/components/jobs/subcontractors/hire-sub-dialog"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import type {
-  ActiveSubOption,
-  JobSubcontractorWithSub,
+import {
+  deriveSubPaymentStatus,
+  subRemainingBalance,
+  type ActiveSubOption,
+  type JobSubcontractorWithSub,
+  type SubPaymentStatus,
 } from "@/lib/job-subs";
 import {
   JOB_SUBCONTRACTOR_STATUS_LABEL,
@@ -43,6 +46,18 @@ const STATUS_TONE: Record<JobSubcontractorStatus, string> = {
   in_progress: "bg-jcn-gold-500/15 text-jcn-gold-300 border-jcn-gold-400/30",
   completed: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
   cancelled: "bg-rose-500/15 text-rose-300 border-rose-400/30",
+};
+
+const PAY_STATUS_TONE: Record<SubPaymentStatus, string> = {
+  unpaid: "bg-rose-500/15 text-rose-300 border-rose-400/30",
+  partial: "bg-orange-500/15 text-orange-300 border-orange-400/30",
+  paid: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
+};
+
+const PAY_STATUS_LABEL: Record<SubPaymentStatus, string> = {
+  unpaid: "Não pago",
+  partial: "Parcial",
+  paid: "Pago",
 };
 
 const SPECIALTY_ACCENT: Record<SubcontractorSpecialty, string> = {
@@ -74,6 +89,7 @@ export function JobSubcontractorsSection({
     let inProgressValue = 0;
     let completedCount = 0;
     let completedValue = 0;
+    let totalRemaining = 0;
     for (const js of jobSubs) {
       const amt = Number(js.agreed_value);
       if (js.status === "in_progress") {
@@ -83,6 +99,13 @@ export function JobSubcontractorsSection({
         completedCount++;
         completedValue += amt;
       }
+      // Saldo a pagar — ignora cancelados (não há obrigação de pagamento)
+      if (js.status !== "cancelled") {
+        totalRemaining += subRemainingBalance({
+          agreedValue: amt,
+          amountPaid: Number(js.amount_paid ?? 0),
+        });
+      }
     }
     return {
       total: jobSubs.length,
@@ -90,6 +113,7 @@ export function JobSubcontractorsSection({
       inProgressValue,
       completedCount,
       completedValue,
+      totalRemaining,
     };
   }, [jobSubs]);
 
@@ -127,7 +151,7 @@ export function JobSubcontractorsSection({
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
           label="Total contratados"
           value={`${stats.total}`}
@@ -144,7 +168,7 @@ export function JobSubcontractorsSection({
           accent={stats.inProgressCount > 0 ? "gold" : "neutral"}
         />
         <KpiCard
-          label="Total pago"
+          label="Concluídos"
           value={formatCurrency(stats.completedValue)}
           subValue={
             stats.completedCount > 0
@@ -154,6 +178,11 @@ export function JobSubcontractorsSection({
               : undefined
           }
           accent={stats.completedCount > 0 ? "green" : "neutral"}
+        />
+        <KpiCard
+          label="A pagar a subs"
+          value={formatCurrency(stats.totalRemaining)}
+          accent={stats.totalRemaining > 0 ? "red" : "green"}
         />
       </div>
 
@@ -204,7 +233,7 @@ export function JobSubcontractorsSection({
   );
 }
 
-type KpiAccent = "gold" | "green" | "neutral";
+type KpiAccent = "gold" | "green" | "red" | "neutral";
 
 type KpiCardProps = {
   label: string;
@@ -217,6 +246,7 @@ function KpiCard({ label, value, subValue, accent }: KpiCardProps) {
   const accentClass: Record<KpiAccent, string> = {
     gold: "border-jcn-gold-400/30 bg-jcn-gold-500/10 text-jcn-gold-300",
     green: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+    red: "border-rose-400/30 bg-rose-500/10 text-rose-300",
     neutral: "border-white/[0.08] bg-white/[0.03] text-jcn-ice",
   };
 
@@ -294,6 +324,19 @@ function JobSubRow({
   const specialty = jobSub.sub?.specialty ?? null;
   const subCompany = jobSub.sub?.company_name ?? null;
 
+  const agreed = Number(jobSub.agreed_value);
+  const paid = Number(jobSub.amount_paid ?? 0);
+  const payStatus = deriveSubPaymentStatus({
+    agreedValue: agreed,
+    amountPaid: paid,
+  });
+  const remaining = subRemainingBalance({
+    agreedValue: agreed,
+    amountPaid: paid,
+  });
+  // Cancelado não tem obrigação de pagamento — não mostra badge de pagamento
+  const showPayBadge = jobSub.status !== "cancelled";
+
   return (
     <button
       type="button"
@@ -325,6 +368,17 @@ function JobSubRow({
               {SUBCONTRACTOR_SPECIALTY_LABEL[specialty]}
             </Badge>
           )}
+          {showPayBadge && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] font-semibold",
+                PAY_STATUS_TONE[payStatus],
+              )}
+            >
+              {PAY_STATUS_LABEL[payStatus]}
+            </Badge>
+          )}
           <span className="text-sm font-bold text-jcn-ice">{subName}</span>
           {subCompany && (
             <span className="text-xs text-jcn-ice/55">· {subCompany}</span>
@@ -340,8 +394,18 @@ function JobSubRow({
 
       <div className="text-right shrink-0">
         <div className="text-base font-black text-jcn-gold-300">
-          {formatCurrency(Number(jobSub.agreed_value))}
+          {formatCurrency(agreed)}
         </div>
+        {showPayBadge && remaining > 0 && (
+          <div className="mt-0.5 text-[11px] font-semibold text-orange-300/80">
+            falta {formatCurrency(remaining)}
+          </div>
+        )}
+        {showPayBadge && remaining === 0 && paid > 0 && (
+          <div className="mt-0.5 text-[11px] font-semibold text-emerald-300/80">
+            quitado
+          </div>
+        )}
       </div>
     </button>
   );

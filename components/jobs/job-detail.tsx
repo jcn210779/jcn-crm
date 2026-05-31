@@ -21,6 +21,7 @@ import { JobExpensesSection } from "@/components/jobs/expenses/job-expenses-sect
 import { JobExtrasSection } from "@/components/jobs/extras/job-extras-section";
 import { JobPnlSection } from "@/components/jobs/pnl/job-pnl-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
+import { JobInvoicesSection } from "@/components/jobs/invoices/job-invoices-section";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
@@ -50,6 +51,7 @@ import {
   type JobDailyLog,
   type JobExpense,
   type JobExtra,
+  type JobInvoice,
   type JobPayment,
   type JobPhase,
   type JobPhaseHistoryRow,
@@ -76,6 +78,8 @@ type Props = {
   jobSubs: JobSubcontractorWithSub[];
   activeSubs: ActiveSubOption[];
   dailyLogs: JobDailyLog[];
+  invoices: JobInvoice[];
+  invoiceSignedUrls: Record<string, string | null>;
   userEmail: string;
 };
 
@@ -105,6 +109,8 @@ export function JobDetail({
   jobSubs,
   activeSubs,
   dailyLogs,
+  invoices,
+  invoiceSignedUrls,
   userEmail,
 }: Props) {
   const router = useRouter();
@@ -374,6 +380,13 @@ export function JobDetail({
         approvedExtrasValue={approvedExtrasValue}
         baseContractValue={job.value}
         payments={payments}
+      />
+
+      {/* Faturas enviadas ao cliente */}
+      <JobInvoicesSection
+        jobId={job.id}
+        invoices={invoices}
+        invoiceUrls={invoiceSignedUrls}
       />
 
       {/* P&L — margem real vs estimada */}

@@ -19,7 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/format";
-import type { JobSubcontractorWithSub } from "@/lib/job-subs";
+import {
+  deriveSubPaymentStatus,
+  subRemainingBalance,
+  type JobSubcontractorWithSub,
+} from "@/lib/job-subs";
 import {
   JOB_SUBCONTRACTOR_STATUS_LABEL,
   SUBCONTRACTOR_SPECIALTY_LABEL,
@@ -51,6 +55,8 @@ export function EditJobSubDialog({
   );
   const [agreedValue, setAgreedValue] = useState(String(jobSub.agreed_value));
   const [status, setStatus] = useState<JobSubcontractorStatus>(jobSub.status);
+  const [amountPaid, setAmountPaid] = useState(String(jobSub.amount_paid ?? 0));
+  const [paidAt, setPaidAt] = useState<string>(jobSub.paid_at ?? "");
   const [notes, setNotes] = useState(jobSub.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<Mode>("edit");
@@ -67,6 +73,12 @@ export function EditJobSubDialog({
       return;
     }
 
+    const paid = Number(amountPaid.replace(/[^0-9.]/g, "")) || 0;
+    if (Number.isNaN(paid) || paid < 0) {
+      toast.error("Valor pago inválido");
+      return;
+    }
+
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
@@ -75,6 +87,8 @@ export function EditJobSubDialog({
         service_description: serviceDescription.trim(),
         agreed_value: value,
         status: nextStatus,
+        amount_paid: paid,
+        paid_at: paid > 0 ? paidAt || null : null,
         notes: notes.trim() || null,
       })
       .eq("id", jobSub.id);
@@ -332,6 +346,80 @@ export function EditJobSubDialog({
               </select>
             </div>
           </div>
+
+          {/* Pagamento */}
+          {(() => {
+            const agreed = Number(agreedValue.replace(/[^0-9.]/g, "")) || 0;
+            const paid = Number(amountPaid.replace(/[^0-9.]/g, "")) || 0;
+            const payStatus = deriveSubPaymentStatus({
+              agreedValue: agreed,
+              amountPaid: paid,
+            });
+            const remaining = subRemainingBalance({
+              agreedValue: agreed,
+              amountPaid: paid,
+            });
+            const overpaid = agreed > 0 && paid > agreed;
+            const payTone =
+              payStatus === "paid"
+                ? "border-emerald-400/30 bg-emerald-500/5 text-emerald-300"
+                : payStatus === "partial"
+                  ? "border-orange-400/30 bg-orange-500/5 text-orange-300"
+                  : "border-white/[0.1] bg-white/[0.03] text-jcn-ice/70";
+            const payLabel =
+              payStatus === "paid"
+                ? "Pago"
+                : payStatus === "partial"
+                  ? "Parcial"
+                  : "Não pago";
+            return (
+              <div className={cn("rounded-2xl border p-3", payTone)}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] opacity-80">
+                    Pagamento ao sub
+                  </span>
+                  <span className="rounded-full border border-white/[0.15] bg-white/[0.04] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
+                    {payLabel}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ejs-paid">Valor pago ($)</Label>
+                    <Input
+                      id="ejs-paid"
+                      type="text"
+                      inputMode="decimal"
+                      value={amountPaid}
+                      onChange={(e) => setAmountPaid(e.target.value)}
+                      className="bg-white/[0.04] text-jcn-ice"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ejs-paid-at">Data do pagamento</Label>
+                    <Input
+                      id="ejs-paid-at"
+                      type="date"
+                      value={paidAt}
+                      onChange={(e) => setPaidAt(e.target.value)}
+                      className="bg-white/[0.04] text-jcn-ice"
+                    />
+                  </div>
+                </div>
+                {payStatus !== "paid" && (
+                  <p className="mt-2 text-xs opacity-80">
+                    Falta pagar {formatCurrency(remaining)}.
+                  </p>
+                )}
+                {overpaid && (
+                  <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-300">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    Valor pago ({formatCurrency(paid)}) está acima do combinado
+                    ({formatCurrency(agreed)}). Confere se está certo.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="space-y-1.5">
             <Label htmlFor="ejs-notes">Notas</Label>

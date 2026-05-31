@@ -642,6 +642,41 @@ export type JobExpenseUpdate = Partial<
   Omit<JobExpense, "id" | "created_at" | "updated_at" | "job_id">
 >;
 
+// =============================================================================
+// Invoices ENVIADOS ao cliente (recebíveis) — migration 0035
+// NÃO confundir com JobExpense (despesa/receipt de compra).
+// =============================================================================
+
+export type JobInvoice = {
+  id: string;
+  created_at: string;
+
+  job_id: string;
+
+  /** Arquivo no bucket Supabase Storage `job-extras`. */
+  file_path: string;
+  file_name: string;
+  mime: string | null;
+
+  /** Metadados opcionais da fatura. */
+  invoice_number: string | null;
+  amount: number | null;
+  /** Data em que a fatura foi enviada ao cliente. */
+  sent_at: string | null;
+};
+
+/** Campos obrigatorios pra INSERT em job_invoices. */
+export type JobInvoiceInsert = Pick<
+  JobInvoice,
+  "job_id" | "file_path" | "file_name"
+> &
+  Partial<Omit<JobInvoice, "id" | "created_at">>;
+
+/** Update parcial (job_id imutável). */
+export type JobInvoiceUpdate = Partial<
+  Omit<JobInvoice, "id" | "created_at" | "job_id">
+>;
+
 /** Linha agregada da view v_job_expense_summary. */
 export type JobExpenseSummary = {
   job_id: string;
@@ -868,6 +903,11 @@ export type JobSubcontractor = {
   agreed_value: number;
 
   status: JobSubcontractorStatus;
+
+  /** Quanto já foi pago ao sub (migration 0036). Default 0. */
+  amount_paid: number;
+  /** Data do último pagamento registrado (migration 0036). Opcional. */
+  paid_at: string | null;
 
   hired_at: string;
   started_at: string | null;
@@ -1393,6 +1433,12 @@ export type Database = {
         Row: JobExpense;
         Insert: JobExpenseInsert;
         Update: JobExpenseUpdate;
+        Relationships: [];
+      };
+      job_invoices: {
+        Row: JobInvoice;
+        Insert: JobInvoiceInsert;
+        Update: JobInvoiceUpdate;
         Relationships: [];
       };
       team_members: {

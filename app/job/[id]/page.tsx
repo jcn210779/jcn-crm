@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { getSignedReceiptUrls } from "@/lib/job-expenses";
 import { getSignedExtraUrls } from "@/lib/job-extras";
 import type { JobHoursWithMember, TeamMemberLite } from "@/lib/job-hours";
+import { getSignedInvoiceUrls } from "@/lib/job-invoices";
 import { getSignedPhotoUrls } from "@/lib/job-photos";
 import type {
   ActiveSubOption,
@@ -18,6 +19,7 @@ import type {
   JobDailyLog,
   JobExpense,
   JobExtra,
+  JobInvoice,
   JobPayment,
   JobPhaseHistoryRow,
   JobPhoto,
@@ -56,6 +58,7 @@ export default async function JobDetailPage({ params }: Props) {
     jobSubsRes,
     activeSubsRes,
     dailyLogsRes,
+    invoicesRes,
   ] = await Promise.all([
     supabase.from("leads").select("*").eq("id", job.lead_id).maybeSingle<Lead>(),
     supabase
@@ -113,6 +116,12 @@ export default async function JobDetailPage({ params }: Props) {
       .eq("job_id", job.id)
       .order("log_date", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("job_invoices")
+      .select("*")
+      .eq("job_id", job.id)
+      .order("sent_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false }),
   ]);
 
   const lead = leadRes.data ?? null;
@@ -126,6 +135,7 @@ export default async function JobDetailPage({ params }: Props) {
   const jobSubs = (jobSubsRes.data ?? []) as JobSubcontractorWithSub[];
   const activeSubs = (activeSubsRes.data ?? []) as ActiveSubOption[];
   const dailyLogs = (dailyLogsRes.data ?? []) as JobDailyLog[];
+  const invoices = (invoicesRes.data ?? []) as JobInvoice[];
 
   // Signed URLs em batch (TTL 1h) — server-side pra primeira renderização
   const photoSignedUrls = await getSignedPhotoUrls({
@@ -149,6 +159,13 @@ export default async function JobDetailPage({ params }: Props) {
   const extraSignedUrls = await getSignedExtraUrls({
     supabase,
     storagePaths: extraAttachmentPaths,
+    expiresIn: 3600,
+  });
+
+  // Signed URLs das faturas enviadas ao cliente (bucket job-extras)
+  const invoiceSignedUrls = await getSignedInvoiceUrls({
+    supabase,
+    storagePaths: invoices.map((inv) => inv.file_path),
     expiresIn: 3600,
   });
 
@@ -182,6 +199,8 @@ export default async function JobDetailPage({ params }: Props) {
         jobSubs={jobSubs}
         activeSubs={activeSubs}
         dailyLogs={dailyLogs}
+        invoices={invoices}
+        invoiceSignedUrls={invoiceSignedUrls}
         userEmail={user.email ?? ""}
       />
     </main>
