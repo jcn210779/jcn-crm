@@ -66,13 +66,29 @@ export function EstimateUploadDialog({
       toast.error("Arquivo grande demais (máximo 20 MB)");
       return;
     }
+
+    // Validação tolerante: aceita por MIME OU por extensão do nome.
+    // Alguns navegadores retornam mime vazio ou application/octet-stream
+    // pra PDFs/imagens (especialmente quando vem do iCloud/AirDrop).
     const mime = f.type.toLowerCase();
-    if (!ALLOWED_ESTIMATE_MIME_TYPES.some((m) => m === mime)) {
-      toast.error(`Formato não aceito (${f.type})`);
+    const name = f.name.toLowerCase();
+    const ext = name.split(".").pop() ?? "";
+
+    const allowedExts = ["pdf", "jpg", "jpeg", "png", "webp", "heic", "heif"];
+    const mimeOk = ALLOWED_ESTIMATE_MIME_TYPES.some((m) => m === mime);
+    const extOk = allowedExts.includes(ext);
+
+    if (!mimeOk && !extOk) {
+      toast.error(
+        `Formato não aceito (mime: "${f.type || "vazio"}", arquivo: "${f.name}"). Use PDF, JPG, PNG, WEBP ou HEIC.`,
+      );
       return;
     }
+
     setFile(f);
-    if (f.type.startsWith("image/")) {
+    const isImage = mime.startsWith("image/") ||
+      ["jpg", "jpeg", "png", "webp", "heic", "heif"].includes(ext);
+    if (isImage) {
       setPreviewUrl(URL.createObjectURL(f));
     } else {
       setPreviewUrl(null);

@@ -56,6 +56,20 @@ type UploadResult = {
 /**
  * Upload do PDF/imagem do estimate. Path = `estimates/<lead_id>/<uuid>.<ext>`.
  */
+/** Infere MIME type pela extensão quando browser não fornece. */
+function inferMimeFromExt(ext: string): string {
+  const map: Record<string, string> = {
+    pdf: "application/pdf",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    heic: "image/heic",
+    heif: "image/heic", // bucket aceita só heic; heif vira heic
+  };
+  return map[ext] ?? "application/octet-stream";
+}
+
 export async function uploadEstimateFile(args: {
   supabase: Client;
   leadId: string;
@@ -67,18 +81,20 @@ export async function uploadEstimateFile(args: {
     return { error: `Arquivo grande demais (máximo 20 MB).` };
   }
 
-  const mime = file.type || "application/octet-stream";
-  if (
-    !ALLOWED_ESTIMATE_MIME_TYPES.some(
-      (allowed) => mime.toLowerCase() === allowed,
-    )
-  ) {
-    return {
-      error: `Formato não aceito (${mime}). Use JPG, PNG, WEBP, HEIC ou PDF.`,
-    };
+  const ext = extractExtension(file);
+  // MIME canônico: usa o do browser se for aceito, senão infere pela extensão.
+  let mime = (file.type || "").toLowerCase();
+  const isAllowedMime = ALLOWED_ESTIMATE_MIME_TYPES.some((a) => a === mime);
+  if (!isAllowedMime) {
+    const inferred = inferMimeFromExt(ext);
+    if (!ALLOWED_ESTIMATE_MIME_TYPES.some((a) => a === inferred)) {
+      return {
+        error: `Formato não aceito (mime: "${file.type || "vazio"}", arquivo: "${file.name}"). Use PDF, JPG, PNG, WEBP ou HEIC.`,
+      };
+    }
+    mime = inferred;
   }
 
-  const ext = extractExtension(file);
   const storagePath = `estimates/${leadId}/${generateUuid()}.${ext}`;
 
   const uploadRes = await supabase.storage
@@ -86,7 +102,7 @@ export async function uploadEstimateFile(args: {
     .upload(storagePath, file, {
       cacheControl: "3600",
       upsert: false,
-      contentType: mime,
+      contentType: mime, // sempre mime canônico aqui (passa pela RLS do bucket)
     });
 
   if (uploadRes.error) {
