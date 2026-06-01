@@ -6,13 +6,17 @@ import {
   ArrowLeft,
   ChevronDown,
   Clock,
+  ExternalLink,
+  FileText,
   HardHat,
+  Image as ImageIcon,
   Link2,
   Mail,
   MapPin,
   Pencil,
   Phone,
   Trash2,
+  Upload,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { EstimateUploadDialog } from "@/components/lead/estimate-upload-dialog";
 import { FollowUpSection } from "@/components/lead/followup-section";
 import { LeadEditDialog } from "@/components/lead/lead-edit-dialog";
 import { VisitScheduleDialog } from "@/components/lead/visit-schedule-dialog";
@@ -56,6 +61,7 @@ import {
   SOURCE_LABEL,
   STAGE_LABEL,
 } from "@/lib/labels";
+import { deleteEstimateFile, getSignedEstimateUrl } from "@/lib/lead-estimate";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
   LEAD_STAGES,
@@ -112,8 +118,61 @@ export function LeadDetail({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showEstimateDialog, setShowEstimateDialog] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason>("ghosted");
   const [lostNotes, setLostNotes] = useState("");
+
+  async function handleViewEstimate() {
+    if (!lead.estimate_path) return;
+    const supabase = createSupabaseBrowserClient();
+    const url = await getSignedEstimateUrl({
+      supabase,
+      storagePath: lead.estimate_path,
+    });
+    if (!url) {
+      toast.error("Não consegui gerar link do estimate");
+      return;
+    }
+    window.open(url, "_blank");
+  }
+
+  async function handleDeleteEstimate() {
+    if (!lead.estimate_path) return;
+    if (
+      !confirm(
+        `Apagar estimate anexado de ${lead.name}?\n\n` +
+          `O arquivo sai do Storage e os campos do lead ficam vazios.\n` +
+          `Você pode anexar outro depois.`,
+      )
+    )
+      return;
+
+    const supabase = createSupabaseBrowserClient();
+    const { error: delErr } = await deleteEstimateFile({
+      supabase,
+      storagePath: lead.estimate_path,
+    });
+    if (delErr) {
+      toast.error(`Erro ao apagar arquivo: ${delErr}`);
+      return;
+    }
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        estimate_path: null,
+        estimate_file_name: null,
+        estimate_size: null,
+        estimate_mime: null,
+        estimate_uploaded_at: null,
+      })
+      .eq("id", lead.id);
+    if (error) {
+      toast.error(`Erro ao limpar campos: ${error.message}`);
+      return;
+    }
+    toast.success("Estimate apagado");
+    router.refresh();
+  }
 
   async function updateStage(newStage: LeadStage) {
     if (newStage === "perdido") {
@@ -434,6 +493,81 @@ export function LeadDetail({
       <FollowUpSection lead={lead} tasks={tasks} userEmail={userEmail} />
 
       {/* Notes editavel */}
+      {/* Estimate enviado */}
+      <SectionCard title="Estimate enviado">
+        {lead.estimate_path ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 rounded-xl border border-sky-400/30 bg-sky-500/[0.08] p-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sky-500/20 text-sky-300">
+                {lead.estimate_mime === "application/pdf" ? (
+                  <FileText className="h-5 w-5" />
+                ) : (
+                  <ImageIcon className="h-5 w-5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-jcn-ice">
+                  {lead.estimate_file_name ?? "Estimate anexado"}
+                </p>
+                <p className="text-[11px] text-jcn-ice/55">
+                  {lead.estimate_size
+                    ? `${(lead.estimate_size / 1024).toFixed(0)} KB · `
+                    : ""}
+                  {lead.estimate_uploaded_at
+                    ? `Anexado ${formatDistanceToNow(
+                        new Date(lead.estimate_uploaded_at),
+                        { addSuffix: true, locale: ptBR },
+                      )}`
+                    : ""}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewEstimate}
+                className="border-sky-400/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ver estimate
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEstimateDialog(true)}
+              >
+                <Upload className="h-4 w-4" />
+                Trocar
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteEstimate}
+                className="text-rose-300 hover:bg-rose-500/15 hover:text-rose-200"
+              >
+                <Trash2 className="h-4 w-4" />
+                Apagar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-jcn-ice/55">
+              Nenhum estimate anexado ainda.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowEstimateDialog(true)}
+            >
+              <Upload className="h-4 w-4" />
+              Anexar estimate
+            </Button>
+          </div>
+        )}
+      </SectionCard>
+
       <SectionCard title="Anotações">
         <Textarea
           rows={4}
@@ -669,6 +803,19 @@ export function LeadDetail({
         onOpenChange={setShowVisitDialog}
         onDone={() => {
           setShowVisitDialog(false);
+          router.refresh();
+        }}
+      />
+
+      {/* Dialog de upload de estimate (anexar/trocar) */}
+      <EstimateUploadDialog
+        open={showEstimateDialog}
+        onOpenChange={setShowEstimateDialog}
+        leadId={lead.id}
+        leadName={lead.name}
+        currentEstimatedValue={lead.estimated_value}
+        onDone={() => {
+          setShowEstimateDialog(false);
           router.refresh();
         }}
       />

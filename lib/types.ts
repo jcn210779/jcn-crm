@@ -373,6 +373,17 @@ export type Lead = {
 
   estimated_value: number | null;
 
+  /**
+   * Anexo do estimate enviado pro cliente (migration 0037). Path no bucket
+   * `lead-estimates`, pattern `estimates/<lead_id>/<uuid>.<ext>`. Aceita PDF
+   * ou imagem. Opcional — lead pode estar em estimate_enviado sem anexo.
+   */
+  estimate_path: string | null;
+  estimate_file_name: string | null;
+  estimate_size: number | null;
+  estimate_mime: string | null;
+  estimate_uploaded_at: string | null;
+
   first_contact_at: string | null;
   visit_scheduled_at: string | null;
   visit_completed_at: string | null;

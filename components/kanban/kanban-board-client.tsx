@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { LeadCard } from "@/components/kanban/lead-card";
+import { EstimateUploadDialog } from "@/components/lead/estimate-upload-dialog";
 import { VisitScheduleDialog } from "@/components/lead/visit-schedule-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +56,7 @@ export function KanbanBoardClient({ initialLeads, userEmail }: Props) {
   );
   const [, startTransition] = useTransition();
   const [visitDialogLead, setVisitDialogLead] = useState<Lead | null>(null);
+  const [estimateDialogLead, setEstimateDialogLead] = useState<Lead | null>(null);
 
   // Realtime: re-busca tudo quando muda algo no banco.
   useEffect(() => {
@@ -172,6 +174,13 @@ export function KanbanBoardClient({ initialLeads, userEmail }: Props) {
       setVisitDialogLead({ ...lead, stage: newStage });
     }
 
+    // Quando lead vai pra estimate_enviado E ainda não tem estimate anexado,
+    // abre dialog pra upload do PDF/foto. Se já tem, pula (pode editar pelo
+    // /lead/[id]).
+    if (newStage === "estimate_enviado" && !lead.estimate_path) {
+      setEstimateDialogLead({ ...lead, stage: newStage });
+    }
+
     startTransition(() => {
       router.refresh();
     });
@@ -269,6 +278,24 @@ export function KanbanBoardClient({ initialLeads, userEmail }: Props) {
           }}
           onDone={() => {
             setVisitDialogLead(null);
+            startTransition(() => router.refresh());
+          }}
+        />
+      ) : null}
+
+      {/* Dialog de upload de estimate (abre quando lead vai pra estimate_enviado
+          E ainda não tem estimate anexado). */}
+      {estimateDialogLead ? (
+        <EstimateUploadDialog
+          open={estimateDialogLead !== null}
+          onOpenChange={(open) => {
+            if (!open) setEstimateDialogLead(null);
+          }}
+          leadId={estimateDialogLead.id}
+          leadName={estimateDialogLead.name}
+          currentEstimatedValue={estimateDialogLead.estimated_value}
+          onDone={() => {
+            setEstimateDialogLead(null);
             startTransition(() => router.refresh());
           }}
         />
