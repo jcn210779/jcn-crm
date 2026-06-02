@@ -790,14 +790,18 @@ export type JobHoursInsert = Pick<
     >
   >;
 
-/** Update parcial (job_id, member_id e calculated_amount imutaveis). */
+/**
+ * Update parcial. `member_id` e `calculated_amount` imutáveis (calc é
+ * GENERATED ALWAYS; member_id não muda — se errou, apaga e cria de novo).
+ * `job_id` PODE ser atualizado (Jose costuma lançar hora no job errado e
+ * precisa mover pra outro). updated_at é gerido por trigger DB.
+ */
 export type JobHoursUpdate = Partial<
   Omit<
     JobHours,
     | "id"
     | "created_at"
     | "updated_at"
-    | "job_id"
     | "member_id"
     | "calculated_amount"
   >

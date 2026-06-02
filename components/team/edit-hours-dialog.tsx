@@ -130,7 +130,6 @@ export function EditHoursDialog({
         job_id: row.job_id,
         hours: hoursNum,
         notes: row.notes.trim() || null,
-        updated_at: new Date().toISOString(),
       })
       .eq("id", rowId);
 
