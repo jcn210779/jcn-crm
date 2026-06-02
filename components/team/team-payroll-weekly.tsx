@@ -18,6 +18,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AddHoursWeeklyDialog } from "@/components/team/add-hours-weekly-dialog";
+import { EditHoursDialog } from "@/components/team/edit-hours-dialog";
 import {
   PayAllWeeklyDialog,
   type PayoutEntry,
@@ -75,6 +76,12 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const [presetMember, setPresetMember] = useState<TeamMember | null>(null);
   const [presetDate, setPresetDate] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCell, setEditCell] = useState<{
+    member: TeamMember;
+    date: string;
+    entries: HoursRow[];
+  } | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   /** Quando setado, dialog de pagar abre filtrando SÓ esse funcionário. */
   const [paySingleMemberId, setPaySingleMemberId] = useState<string | null>(null);
@@ -137,6 +144,20 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
     setPresetMember(member);
     setPresetDate(date);
     setAddOpen(true);
+  }
+
+  /**
+   * Click numa célula da grade:
+   * - Se tem entries → abre EditHoursDialog (lista + edit/delete)
+   * - Se vazio → abre AddHoursWeeklyDialog
+   */
+  function openCell(member: TeamMember, date: string, entries: HoursRow[]) {
+    if (entries.length > 0) {
+      setEditCell({ member, date, entries });
+      setEditOpen(true);
+    } else {
+      openAddForCell(member, date);
+    }
   }
 
   // Agrupa por member: SÓ horas PENDENTES (paid_at IS NULL) pro dialog de pagar
@@ -460,7 +481,7 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
                         >
                           <button
                             type="button"
-                            onClick={() => openAddForCell(m, key)}
+                            onClick={() => openCell(m, key, entries)}
                             className={cn(
                               "h-14 w-full rounded-lg border border-transparent px-2 py-1.5 text-xs transition hover:border-jcn-gold-400/30 hover:bg-jcn-gold-500/[0.08]",
                               entries.length > 0
@@ -664,6 +685,33 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
           router.refresh();
         }}
       />
+
+      {/* Dialog editar horas existentes da célula */}
+      {editCell ? (
+        <EditHoursDialog
+          open={editOpen}
+          onOpenChange={(o) => {
+            setEditOpen(o);
+            if (!o) setEditCell(null);
+          }}
+          member={editCell.member}
+          workDate={editCell.date}
+          entries={editCell.entries}
+          jobs={jobs}
+          onDone={() => {
+            setEditOpen(false);
+            setEditCell(null);
+            router.refresh();
+          }}
+          onAddNew={() => {
+            // Fecha edit + abre add com presets do funcionário/data
+            setEditOpen(false);
+            const { member, date } = editCell;
+            setEditCell(null);
+            openAddForCell(member, date);
+          }}
+        />
+      ) : null}
 
       {/* Dialog pagar (1 funcionário OU todos) */}
       <PayAllWeeklyDialog
