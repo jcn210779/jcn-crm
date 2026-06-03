@@ -34,6 +34,7 @@ export function SendFollowUpDialog({
 }: Props) {
   const [subject, setSubject] = useState(followUp.draft_subject);
   const [body, setBody] = useState(followUp.draft_body);
+  const [phone, setPhone] = useState(followUp.to_phone ?? "");
   const [sending, setSending] = useState(false);
   const [smsOpened, setSmsOpened] = useState(false);
 
@@ -41,6 +42,7 @@ export function SendFollowUpDialog({
     if (!open) return;
     setSubject(followUp.draft_subject);
     setBody(followUp.draft_body);
+    setPhone(followUp.to_phone ?? "");
     setSmsOpened(false);
   }, [open, followUp]);
 
@@ -75,17 +77,45 @@ export function SendFollowUpDialog({
   }
 
   function handleOpenSms() {
-    if (!followUp.to_phone) {
-      toast.error("Telefone não cadastrado");
+    if (!phone.trim()) {
+      toast.error("Telefone não preenchido");
       return;
     }
-    // Limpa telefone: só dígitos e +
-    const cleanPhone = followUp.to_phone.replace(/[^\d+]/g, "");
+    const cleanPhone = phone.replace(/[^\d+]/g, "");
     const encoded = encodeURIComponent(body);
-    // sms:+phone?body=... funciona em iOS e Android
     const smsUrl = `sms:${cleanPhone}?&body=${encoded}`;
     window.location.href = smsUrl;
     setSmsOpened(true);
+  }
+
+  async function handleSendSmsAuto() {
+    if (!phone.trim()) {
+      toast.error("Telefone não preenchido");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch("/api/send-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          follow_up_id: followUp.id,
+          body,
+          to_phone: phone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(`Erro: ${data.error ?? res.statusText}`);
+        return;
+      }
+      toast.success(`SMS enviado pra ${phone} (SID ${data.message_sid?.slice(0, 8)}…)`);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setSending(false);
+    }
   }
 
   async function handleMarkSmsSent() {
@@ -151,6 +181,24 @@ export function SendFollowUpDialog({
                 onChange={(e) => setSubject(e.target.value)}
                 disabled={!isPending || sending}
               />
+            </div>
+          )}
+
+          {isSms && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">
+                Telefone do destinatário
+              </Label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={!isPending || sending}
+                placeholder="(857) 555-1234 ou +1 857 555 1234"
+                inputMode="tel"
+              />
+              <p className="text-[11px] text-jcn-ice/45">
+                Aceita formato US. Sistema normaliza pra +1XXXXXXXXXX antes de enviar.
+              </p>
             </div>
           )}
 
@@ -249,15 +297,33 @@ export function SendFollowUpDialog({
           )}
 
           {isPending && isSms && !smsOpened && (
-            <Button
-              onClick={handleOpenSms}
-              disabled={!body.trim() || !followUp.to_phone}
-              className="bg-violet-500/20 text-violet-200 hover:bg-violet-500/30 border-violet-400/40"
-              variant="outline"
-            >
-              <MessageSquare className="h-4 w-4" />
-              Abrir SMS no celular
-            </Button>
+            <>
+              <Button
+                onClick={handleOpenSms}
+                disabled={sending || !body.trim() || !phone.trim()}
+                className="bg-violet-500/20 text-violet-200 hover:bg-violet-500/30 border-violet-400/40"
+                variant="outline"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Abrir no celular
+              </Button>
+              <Button
+                onClick={handleSendSmsAuto}
+                disabled={sending || !body.trim() || !phone.trim()}
+              >
+                {sending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Enviando
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Enviar automático (Twilio)
+                  </>
+                )}
+              </Button>
+            </>
           )}
 
           {isPending && isSms && smsOpened && (

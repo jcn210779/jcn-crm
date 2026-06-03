@@ -1244,6 +1244,11 @@ export type FollowUp = {
 
   sent_at: string | null;
   resend_email_id: string | null;
+  /**
+   * SID retornado pela Twilio Messaging API quando SMS é enviado (migration 0038).
+   * Padrão SM<32hex>. NULL pra channel=email ou pra SMS ainda não enviados.
+   */
+  twilio_message_sid: string | null;
   error_message: string | null;
 
   notes: string | null;
