@@ -24,7 +24,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/cron/") || // Vercel cron chama sem sessão
     pathname.startsWith("/api/permits/") || // Scraper Python chama sem sessão (auth via Bearer)
     pathname.startsWith("/confirmar/") || // Página pública de confirmação de visita (auth via token opaco)
-    pathname.startsWith("/api/confirm/"); // API de confirmação (auth via token opaco no path)
+    pathname.startsWith("/api/confirm/") || // API de confirmação (auth via token opaco no path)
+    pathname === "/privacy" || // Privacy Policy pública (Twilio A2P 10DLC valida)
+    pathname === "/terms"; // Terms and Conditions pública (Twilio A2P 10DLC valida)
 
   if (!user && !isPublic) {
     const loginUrl = request.nextUrl.clone();
