@@ -4,15 +4,15 @@
  * Cliente recebe link via SMS/WhatsApp/email e abre.
  * Token opaco UUID em jobs.client_token é a única proteção (sem auth).
  *
- * MOSTRA: timeline visual + galeria de fotos + pagamentos resumo + contato.
+ * MOSTRA: timeline visual + journal + galeria de fotos + pagamentos + contato.
  * NÃO MOSTRA: margem, despesas, custos internos, subs, P&L, notas internas.
  *
  * Mobile-first. Inglês (cliente final US).
+ * Paleta JCN: jcn-midnight + jcn-gold + jcn-ice (igual /confirmar/[token]).
  */
 
 import {
   AlertTriangle,
-  Calendar,
   CheckCircle2,
   Circle,
   CloudRain,
@@ -80,19 +80,54 @@ const LOG_TYPE_LABEL_EN: Record<DailyLogType, string> = {
 function logTypeIcon(t: DailyLogType) {
   switch (t) {
     case "progress":
-      return { Icon: HardHat, color: "text-emerald-700", bg: "bg-emerald-100" };
+      return {
+        Icon: HardHat,
+        color: "text-emerald-300",
+        bg: "bg-emerald-500/15",
+        border: "border-emerald-400/30",
+      };
     case "problem":
-      return { Icon: AlertTriangle, color: "text-amber-700", bg: "bg-amber-100" };
+      return {
+        Icon: AlertTriangle,
+        color: "text-amber-300",
+        bg: "bg-amber-500/15",
+        border: "border-amber-400/30",
+      };
     case "blocker":
-      return { Icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-100" };
+      return {
+        Icon: AlertTriangle,
+        color: "text-rose-300",
+        bg: "bg-rose-500/15",
+        border: "border-rose-400/30",
+      };
     case "observation":
-      return { Icon: Eye, color: "text-zinc-700", bg: "bg-zinc-100" };
+      return {
+        Icon: Eye,
+        color: "text-white/65",
+        bg: "bg-white/[0.06]",
+        border: "border-white/[0.08]",
+      };
     case "inspection":
-      return { Icon: CheckCircle2, color: "text-blue-700", bg: "bg-blue-100" };
+      return {
+        Icon: CheckCircle2,
+        color: "text-sky-300",
+        bg: "bg-sky-500/15",
+        border: "border-sky-400/30",
+      };
     case "client_visit":
-      return { Icon: User, color: "text-purple-700", bg: "bg-purple-100" };
+      return {
+        Icon: User,
+        color: "text-jcn-gold-300",
+        bg: "bg-jcn-gold-500/15",
+        border: "border-jcn-gold-400/30",
+      };
     default:
-      return { Icon: Circle, color: "text-zinc-500", bg: "bg-zinc-100" };
+      return {
+        Icon: Circle,
+        color: "text-white/55",
+        bg: "bg-white/[0.04]",
+        border: "border-white/[0.08]",
+      };
   }
 }
 
@@ -149,9 +184,6 @@ function formatCurrencyUSD(n: number): string {
   }).format(n);
 }
 
-/**
- * Próximo passo descritivo baseado na fase atual + datas.
- */
 function nextStep(job: JobData): string {
   const phase = job.current_phase;
   const expStart = formatDate(job.expected_start);
@@ -186,12 +218,10 @@ export default async function ProjetoPage({
   params: { token: string };
 }) {
   const token = params.token;
-
-  if (!UUID_RE.test(token)) return NotFound();
+  if (!UUID_RE.test(token)) return <NotFound />;
 
   const supabase = createSupabaseAdminClient();
 
-  // 1) Job + lead
   const { data: jobRaw } = await supabase
     .from("jobs")
     .select(
@@ -201,20 +231,18 @@ export default async function ProjetoPage({
     .eq("client_token", token)
     .maybeSingle();
 
-  if (!jobRaw) return NotFound();
+  if (!jobRaw) return <NotFound />;
   const job = jobRaw as unknown as JobData;
 
-  // 2) Fotos (apenas as 12 mais recentes pra performance)
+  // Fotos
   const { data: photosRaw } = await supabase
     .from("job_photos")
     .select("id, storage_path, category, caption")
     .eq("job_id", job.id)
     .order("created_at", { ascending: false })
     .limit(12);
-
   const photos: Photo[] = (photosRaw ?? []) as Photo[];
 
-  // 2.1) Signed URLs pras fotos (válidas por 1h)
   const photoUrls: Array<{ url: string; caption: string | null; category: string }> = [];
   for (const p of photos) {
     const { data } = await supabase.storage
@@ -229,7 +257,7 @@ export default async function ProjetoPage({
     }
   }
 
-  // 3) Diário de obra — últimas 15 entries
+  // Journal
   const { data: logsRaw } = await supabase
     .from("job_daily_logs")
     .select("id, log_date, content, entry_type, weather")
@@ -237,10 +265,9 @@ export default async function ProjetoPage({
     .order("log_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(15);
-
   const logs: LogEntry[] = (logsRaw ?? []) as LogEntry[];
 
-  // 4) Pagamentos recebidos
+  // Pagamentos
   const { data: payments } = await supabase
     .from("job_payments")
     .select("amount, received_at")
@@ -262,42 +289,61 @@ export default async function ProjetoPage({
   const service = job.lead ? SERVICE_LABEL_EN[job.lead.service_interest] : "Project";
   const currentPhaseIdx = PHASE_ORDER.indexOf(job.current_phase);
 
-  // SMS pré-pronto pra cliente clicar
   const smsBody = encodeURIComponent(
     `Hi Jose, this is ${customerFirstName} about my ${service.toLowerCase()} project at ${address}. `,
   );
 
   return (
-    <main className="min-h-screen bg-zinc-50 text-zinc-900">
-      {/* HERO */}
-      <section className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 px-6 py-10 text-white">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-2 text-xs font-bold uppercase tracking-widest opacity-80">
-            JCN Construction Inc.
-          </div>
-          <h1 className="text-3xl font-black leading-tight">
-            Hi {customerFirstName}, here&apos;s your project.
+    <main className="relative min-h-screen overflow-hidden bg-jcn-midnight text-jcn-ice">
+      {/* Profundidade: radial gold + grid sutil (identidade JCN) */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_rgba(166,130,64,0.14),_transparent_60%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black_25%,transparent_75%)]"
+      />
+
+      <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-5 py-8">
+        {/* Logo */}
+        <div className="flex justify-center">
+          <Image
+            src="/brand/jcn-logo-gold.png"
+            alt="JCN Construction"
+            width={180}
+            height={54}
+            className="h-auto w-44 object-contain"
+            priority
+          />
+        </div>
+
+        {/* HERO */}
+        <section className="mt-8 rounded-3xl border border-white/[0.08] bg-white/[0.04] p-6 backdrop-blur-xl">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-jcn-gold-300">
+            Your project
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.02em] text-white md:text-4xl">
+            Hi {customerFirstName}
           </h1>
-          <p className="mt-2 text-base opacity-95">
+          <p className="mt-3 text-sm text-white/75">
             {service} {address ? `at ${address}` : ""}
           </p>
-        </div>
-      </section>
+        </section>
 
-      <div className="mx-auto max-w-2xl space-y-6 px-6 py-6">
         {/* NEXT STEP */}
-        <section className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-5">
-          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-700">
+        <section className="mt-5 rounded-3xl border border-jcn-gold-400/30 bg-jcn-gold-500/10 p-5 backdrop-blur-xl">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-jcn-gold-300">
             What&apos;s next
-          </div>
-          <p className="text-base leading-relaxed text-zinc-900">{nextStep(job)}</p>
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-white">{nextStep(job)}</p>
         </section>
 
         {/* TIMELINE */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <div className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500">
+        <section className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-xl">
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
             Project progress
-          </div>
+          </p>
           <ol className="space-y-3">
             {PHASE_ORDER.map((phase, idx) => {
               const done = idx < currentPhaseIdx;
@@ -305,28 +351,28 @@ export default async function ProjetoPage({
               return (
                 <li key={phase} className="flex items-start gap-3">
                   {done ? (
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
                   ) : current ? (
-                    <div className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-amber-500 bg-amber-100 flex items-center justify-center">
-                      <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-jcn-gold-400 bg-jcn-gold-500/30">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-jcn-gold-300" />
                     </div>
                   ) : (
-                    <Circle className="mt-0.5 h-5 w-5 shrink-0 text-zinc-300" />
+                    <Circle className="mt-0.5 h-5 w-5 shrink-0 text-white/25" />
                   )}
                   <div className="flex-1">
                     <div
                       className={
                         current
-                          ? "font-bold text-amber-700"
+                          ? "font-bold text-jcn-gold-300"
                           : done
-                            ? "font-semibold text-zinc-700"
-                            : "text-zinc-400"
+                            ? "font-semibold text-white/85"
+                            : "text-white/35"
                       }
                     >
                       {PHASE_LABEL_EN[phase]}
                     </div>
                     {current && (
-                      <div className="text-[11px] font-medium uppercase tracking-wider text-amber-600">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-gold-400/80">
                         Current stage
                       </div>
                     )}
@@ -337,15 +383,15 @@ export default async function ProjetoPage({
           </ol>
         </section>
 
-        {/* PROJECT JOURNAL */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <div className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500">
+        {/* JOURNAL */}
+        <section className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-xl">
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
             Project journal
-          </div>
+          </p>
           {logs.length > 0 ? (
             <ol className="space-y-4">
               {logs.map((log) => {
-                const { Icon, color, bg } = logTypeIcon(log.entry_type);
+                const { Icon, color, bg, border } = logTypeIcon(log.entry_type);
                 const date = new Date(log.log_date + "T12:00:00");
                 const dateStr = new Intl.DateTimeFormat("en-US", {
                   month: "short",
@@ -355,22 +401,22 @@ export default async function ProjetoPage({
                 return (
                   <li key={log.id} className="flex items-start gap-3">
                     <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${bg}`}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${bg} ${border}`}
                     >
                       <Icon className={`h-4 w-4 ${color}`} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/45">
                           {dateStr}
                         </span>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${bg} ${color}`}
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${bg} ${color} ${border}`}
                         >
                           {LOG_TYPE_LABEL_EN[log.entry_type]}
                         </span>
                         {log.weather && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-500">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-white/55">
                             {log.weather === "rainy" ? (
                               <CloudRain className="h-3 w-3" />
                             ) : (
@@ -380,7 +426,7 @@ export default async function ProjetoPage({
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-sm leading-relaxed text-zinc-800 whitespace-pre-wrap">
+                      <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-white/85">
                         {log.content}
                       </p>
                     </div>
@@ -389,9 +435,9 @@ export default async function ProjetoPage({
               })}
             </ol>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 bg-zinc-50 px-6 py-8 text-center">
-              <p className="text-sm font-semibold text-zinc-700">No updates yet</p>
-              <p className="mt-1 text-xs text-zinc-500">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 py-8 text-center">
+              <p className="text-sm font-semibold text-white/75">No updates yet</p>
+              <p className="mt-1 text-xs text-white/45">
                 Daily progress notes will appear here as work moves forward.
               </p>
             </div>
@@ -399,10 +445,10 @@ export default async function ProjetoPage({
         </section>
 
         {/* PHOTOS */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <div className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500">
+        <section className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-xl">
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
             Project photos
-          </div>
+          </p>
           {photoUrls.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {photoUrls.map((p, i) => (
@@ -411,7 +457,7 @@ export default async function ProjetoPage({
                   href={p.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="relative aspect-square overflow-hidden rounded-lg border border-zinc-200 transition hover:opacity-90"
+                  className="relative aspect-square overflow-hidden rounded-xl border border-white/[0.08] transition hover:opacity-90"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -423,8 +469,8 @@ export default async function ProjetoPage({
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-jcn-gold-500/15">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="22"
@@ -435,52 +481,53 @@ export default async function ProjetoPage({
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-amber-600"
+                  className="text-jcn-gold-300"
                 >
                   <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
                   <circle cx="9" cy="9" r="2" />
                   <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
                 </svg>
               </div>
-              <p className="text-sm font-semibold text-zinc-700">Photos coming soon</p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="text-sm font-semibold text-white/75">Photos coming soon</p>
+              <p className="mt-1 text-xs text-white/45">
                 We&apos;ll update this gallery as work progresses on your project.
               </p>
             </div>
           )}
         </section>
 
-        {/* PAYMENTS SUMMARY */}
+        {/* PAYMENTS */}
         {totalValue > 0 && (
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-            <div className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500">
+          <section className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-xl">
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
               Payments
-            </div>
+            </p>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600">Project total</span>
-                <span className="font-bold text-zinc-900">{formatCurrencyUSD(totalValue)}</span>
+                <span className="text-sm text-white/65">Project total</span>
+                <span className="font-bold text-white">
+                  {formatCurrencyUSD(totalValue)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600">Received</span>
-                <span className="font-bold text-emerald-700">
+                <span className="text-sm text-white/65">Received</span>
+                <span className="font-bold text-emerald-300">
                   {formatCurrencyUSD(totalReceived)}
                 </span>
               </div>
-              <div className="flex items-center justify-between border-t border-zinc-200 pt-3">
-                <span className="text-sm font-semibold text-zinc-700">Balance due</span>
-                <span className="text-lg font-black text-amber-700">
+              <div className="flex items-center justify-between border-t border-white/[0.08] pt-3">
+                <span className="text-sm font-semibold text-white/85">Balance due</span>
+                <span className="text-lg font-black text-jcn-gold-300">
                   {formatCurrencyUSD(pending)}
                 </span>
               </div>
-              {/* Progress bar */}
-              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
                 <div
-                  className="h-full rounded-full bg-emerald-500 transition-all"
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
                   style={{ width: `${pctReceived}%` }}
                 />
               </div>
-              <div className="text-center text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              <div className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
                 {pctReceived}% paid
               </div>
             </div>
@@ -488,28 +535,28 @@ export default async function ProjetoPage({
         )}
 
         {/* CONTACT */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <div className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500">
+        <section className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-xl">
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
             Questions? Get in touch
-          </div>
+          </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <a
               href={`tel:${PHONE.replace(/[^\d+]/g, "")}`}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 bg-emerald-50 px-4 py-3 font-bold text-emerald-700 transition hover:bg-emerald-100"
+              className="flex items-center justify-center gap-2 rounded-2xl bg-jcn-gold-500 px-4 py-3 font-bold uppercase tracking-[0.08em] text-jcn-midnight shadow-[0_12px_40px_-12px_rgba(166,130,64,0.7)] transition active:scale-[0.98]"
             >
               <Phone className="h-4 w-4" />
               Call
             </a>
             <a
               href={`sms:${PHONE.replace(/[^\d+]/g, "")}&body=${smsBody}`}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-blue-500 bg-blue-50 px-4 py-3 font-bold text-blue-700 transition hover:bg-blue-100"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] bg-white/[0.06] px-4 py-3 font-bold uppercase tracking-[0.08em] text-jcn-ice transition active:scale-[0.98]"
             >
               <MessageCircle className="h-4 w-4" />
               Text
             </a>
             <a
               href={`mailto:${EMAIL}?subject=Project at ${address}`}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-300 bg-zinc-50 px-4 py-3 font-bold text-zinc-700 transition hover:bg-zinc-100"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] bg-white/[0.06] px-4 py-3 font-bold uppercase tracking-[0.08em] text-jcn-ice transition active:scale-[0.98]"
             >
               <Mail className="h-4 w-4" />
               Email
@@ -518,16 +565,16 @@ export default async function ProjetoPage({
         </section>
 
         {/* FOOTER */}
-        <footer className="pt-4 text-center text-xs text-zinc-500">
+        <footer className="mt-10 pb-2 text-center text-xs text-white/35">
           <div className="mb-2 flex items-center justify-center gap-1">
             <MapPin className="h-3 w-3" />
-            JCN Construction Inc. — Licensed General Contractor (MA)
+            JCN Construction Inc. · Licensed General Contractor · Woburn, MA
           </div>
           <a
             href={WEBSITE}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 underline"
+            className="inline-flex items-center gap-1 text-white/55 transition hover:text-jcn-gold-300"
           >
             <Globe className="h-3 w-3" />
             jcnconstructioninc.com
@@ -540,12 +587,20 @@ export default async function ProjetoPage({
 
 function NotFound() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 text-center">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Project not found</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          This link is invalid or has been removed. Please contact JCN Construction
-          at (857) 237-5602 if you need help.
+    <main className="relative min-h-screen overflow-hidden bg-jcn-midnight text-jcn-ice">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_rgba(166,130,64,0.14),_transparent_60%)]"
+      />
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 text-center">
+        <h1 className="text-2xl font-black text-white">Project not found</h1>
+        <p className="mt-2 text-sm text-white/65">
+          This link is invalid or has been removed. Please contact JCN
+          Construction at{" "}
+          <a href="tel:+18572375602" className="text-jcn-gold-300 underline">
+            (857) 237-5602
+          </a>{" "}
+          if you need help.
         </p>
       </div>
     </main>
