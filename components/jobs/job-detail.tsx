@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Clock,
   ExternalLink,
+  Link2,
   Mail,
   MapPin,
   Phone,
@@ -241,25 +242,48 @@ export function JobDetail({
           </div>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="h-10 border-white/[0.1] bg-white/[0.04]">
-              Mover fase
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {JOB_PHASES.map((p) => (
-              <DropdownMenuItem
-                key={p}
-                disabled={p === job.current_phase}
-                onSelect={() => updatePhase(p)}
-              >
-                {JOB_PHASE_LABEL[p]}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const url = `${window.location.origin}/projeto/${job.client_token}`;
+              try {
+                await navigator.clipboard.writeText(url);
+                toast.success("Link do cliente copiado", {
+                  description: "Cole no WhatsApp/SMS/email pra mandar pro cliente.",
+                });
+              } catch {
+                // Fallback: abre o link pra cliente copiar manual
+                window.open(url, "_blank");
+                toast.info("Link aberto em nova aba — copia da barra de endereço.");
+              }
+            }}
+            className="h-10 border-sky-400/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20"
+            title="Link público que mostra progresso, fotos e pagamentos pro cliente"
+          >
+            <Link2 className="h-4 w-4" />
+            Link cliente
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 border-white/[0.1] bg-white/[0.04]">
+                Mover fase
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {JOB_PHASES.map((p) => (
+                <DropdownMenuItem
+                  key={p}
+                  disabled={p === job.current_phase}
+                  onSelect={() => updatePhase(p)}
+                >
+                  {JOB_PHASE_LABEL[p]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       <div className="grid gap-5 md:grid-cols-2">

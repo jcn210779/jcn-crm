@@ -473,6 +473,13 @@ export type Job = {
   contract_file_name: string | null;
   contract_mime: string | null;
   contract_uploaded_at: string | null;
+
+  /**
+   * Token opaco UUID pra página pública do cliente em /projeto/<token>
+   * (migration 0039). Gerado automaticamente no INSERT. Cliente acessa
+   * sem auth — token é a única proteção. Único por job.
+   */
+  client_token: string;
 };
 
 /** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */
