@@ -21,14 +21,17 @@
 --
 -- =============================================================================
 
--- 1) Enum status do permit
+-- 1) Enum status do permit DO JOB
+--    Nome 'job_permit_status' pra evitar conflito com enum 'permit_status'
+--    já existente (criado em migration 0028 pros permits scraped — valores:
+--    active, expired, completed, cancelled, unknown).
 DO $$ BEGIN
-  CREATE TYPE permit_status AS ENUM ('not_needed', 'pending', 'released');
+  CREATE TYPE job_permit_status AS ENUM ('not_needed', 'pending', 'released');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- 2) ADD COLUMNS em jobs
-ALTER TABLE jobs ADD COLUMN IF NOT EXISTS permit_status permit_status NOT NULL DEFAULT 'pending';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS permit_status job_permit_status NOT NULL DEFAULT 'pending';
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS permit_released_at TIMESTAMPTZ;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS permit_number TEXT;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS permit_notes TEXT;
