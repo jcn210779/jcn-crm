@@ -30,7 +30,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-server";
-import type { DailyLogType, JobPhase, ServiceType } from "@/lib/types";
+import type {
+  DailyLogType,
+  JobPhase,
+  JobPermitStatus,
+  ServiceType,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +47,9 @@ export const metadata: Metadata = {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Permit deixou de ser fase (migration 0040) — virou card separado.
 const PHASE_ORDER: JobPhase[] = [
   "planning",
-  "permit_released",
   "materials_ordered",
   "materials_delivered",
   "work_in_progress",
@@ -53,7 +58,7 @@ const PHASE_ORDER: JobPhase[] = [
 
 const PHASE_LABEL_EN: Record<JobPhase, string> = {
   planning: "Planning",
-  permit_released: "Permit released",
+  permit_released: "Permit released (legacy)", // não aparece na timeline nova
   materials_ordered: "Materials ordered",
   materials_delivered: "Materials delivered",
   work_in_progress: "Work in progress",
@@ -143,6 +148,8 @@ type JobData = {
   expected_end: string | null;
   actual_start: string | null;
   actual_end: string | null;
+  permit_status: JobPermitStatus;
+  permit_released_at: string | null;
   lead: {
     name: string;
     address: string | null;
@@ -188,13 +195,14 @@ function nextStep(job: JobData): string {
   const phase = job.current_phase;
   const expStart = formatDate(job.expected_start);
   const expEnd = formatDate(job.expected_end);
+  // Permit phase (legado) — trata como planning
   switch (phase) {
     case "planning":
-      return "We're finalizing the project plan. Permit application coming up.";
     case "permit_released":
-      return expStart
-        ? `Permit is approved. We'll order materials and aim to start work on ${expStart}.`
-        : "Permit is approved. We're ordering materials next.";
+      if (job.permit_status === "pending") {
+        return "We're finalizing the project plan and waiting on the permit from the town.";
+      }
+      return "We're finalizing the project plan. Materials coming up next.";
     case "materials_ordered":
       return "Materials are ordered. You'll get a heads up once they're delivered to your address.";
     case "materials_delivered":
@@ -226,6 +234,7 @@ export default async function ProjetoPage({
     .from("jobs")
     .select(
       `id, value, current_phase, expected_start, expected_end, actual_start, actual_end,
+       permit_status, permit_released_at,
        lead:leads(name, address, city, state, service_interest)`,
     )
     .eq("client_token", token)
@@ -338,6 +347,47 @@ export default async function ProjetoPage({
           </p>
           <p className="mt-2 text-sm leading-relaxed text-white">{nextStep(job)}</p>
         </section>
+
+        {/* PERMIT BADGE */}
+        {job.permit_status !== "not_needed" && (
+          <section className="mt-3 flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 backdrop-blur-xl">
+            {job.permit_status === "released" ? (
+              <>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-500/15">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/45">
+                    Permit
+                  </p>
+                  <p className="text-sm font-bold text-emerald-300">
+                    Released{" "}
+                    {job.permit_released_at &&
+                      new Intl.DateTimeFormat("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }).format(new Date(job.permit_released_at))}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/15">
+                  <AlertTriangle className="h-4 w-4 text-amber-300" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/45">
+                    Permit
+                  </p>
+                  <p className="text-sm font-bold text-amber-300">
+                    Pending approval from town
+                  </p>
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
         {/* TIMELINE */}
         <section className="mt-5 rounded-3xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-xl">

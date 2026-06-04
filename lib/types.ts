@@ -107,9 +107,16 @@ export const TASK_STATUSES: readonly TaskStatus[] = [
   "overdue",
 ] as const;
 
+/**
+ * Fases do job. `permit_released` ficou DEPRECATED desde migration 0040 —
+ * o type ainda tem pra compat com job_phase_history e jobs antigos, mas
+ * JOB_PHASES (lista usada em UI) não inclui mais. Permit virou card separado
+ * (jobs.permit_status). Jobs em phase 'permit_released' foram migrados auto
+ * pra 'planning' + permit_status='released' na migration 0040.
+ */
 export type JobPhase =
   | "planning"
-  | "permit_released"
+  | "permit_released" // @deprecated — usar permit_status
   | "materials_ordered"
   | "materials_delivered"
   | "work_in_progress"
@@ -117,11 +124,23 @@ export type JobPhase =
 
 export const JOB_PHASES: readonly JobPhase[] = [
   "planning",
-  "permit_released",
   "materials_ordered",
   "materials_delivered",
   "work_in_progress",
   "completed",
+] as const;
+
+/**
+ * Status do permit DENTRO de um job específico (migration 0040).
+ * NÃO confundir com PermitStatus mais abaixo (status de permits scraped
+ * do catálogo público da cidade).
+ */
+export type JobPermitStatus = "not_needed" | "pending" | "released";
+
+export const JOB_PERMIT_STATUSES: readonly JobPermitStatus[] = [
+  "not_needed",
+  "pending",
+  "released",
 ] as const;
 
 export type PaymentMethod =
@@ -480,6 +499,21 @@ export type Job = {
    * sem auth — token é a única proteção. Único por job.
    */
   client_token: string;
+
+  /**
+   * Permit do town/city (migration 0040). Status + dados + PDF opcional.
+   * Antes era uma fase do job (permit_released) — virou card separado pra
+   * não bloquear o fluxo de trabalho.
+   */
+  permit_status: JobPermitStatus;
+  permit_released_at: string | null;
+  permit_number: string | null;
+  permit_notes: string | null;
+  permit_path: string | null;
+  permit_file_name: string | null;
+  permit_size: number | null;
+  permit_mime: string | null;
+  permit_uploaded_at: string | null;
 };
 
 /** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */

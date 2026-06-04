@@ -24,6 +24,7 @@ import { JobPnlSection } from "@/components/jobs/pnl/job-pnl-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobInvoicesSection } from "@/components/jobs/invoices/job-invoices-section";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
+import { JobPermitCard } from "@/components/jobs/job-permit-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
 import { JobSubcontractorsSection } from "@/components/jobs/subcontractors/job-subcontractors-section";
@@ -396,6 +397,9 @@ export function JobDetail({
 
       {/* Contrato assinado */}
       <JobContractCard job={job} initialSignedUrl={contractSignedUrl} />
+
+      {/* Permit do town/city (migration 0040) */}
+      <JobPermitCard job={job} onChanged={() => router.refresh()} />
 
       {/* Pagamentos */}
       <JobPaymentsSection

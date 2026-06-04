@@ -86,11 +86,20 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 
 export const JOB_PHASE_LABEL: Record<JobPhase, string> = {
   planning: "Planejamento",
-  permit_released: "Permit liberado",
+  permit_released: "Permit liberado (legado)", // @deprecated migration 0040 — usar permit_status
   materials_ordered: "Material pedido",
   materials_delivered: "Material entregue",
   work_in_progress: "Trabalho em andamento",
   completed: "Concluído",
+};
+
+export const PERMIT_STATUS_LABEL: Record<
+  "not_needed" | "pending" | "released",
+  string
+> = {
+  not_needed: "Não precisa",
+  pending: "Aguardando",
+  released: "Liberado",
 };
 
 export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
