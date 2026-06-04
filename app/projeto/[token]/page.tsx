@@ -11,20 +11,26 @@
  */
 
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   Circle,
+  CloudRain,
+  Eye,
   Globe,
+  HardHat,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
+  Sun,
+  User,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 
 import { createSupabaseAdminClient } from "@/lib/supabase-server";
-import type { JobPhase, ServiceType } from "@/lib/types";
+import type { DailyLogType, JobPhase, ServiceType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +68,34 @@ const SERVICE_LABEL_EN: Record<ServiceType, string> = {
   other: "Project",
 };
 
+const LOG_TYPE_LABEL_EN: Record<DailyLogType, string> = {
+  progress: "Progress",
+  problem: "Issue",
+  blocker: "Blocker",
+  observation: "Note",
+  inspection: "Inspection",
+  client_visit: "Your visit",
+};
+
+function logTypeIcon(t: DailyLogType) {
+  switch (t) {
+    case "progress":
+      return { Icon: HardHat, color: "text-emerald-700", bg: "bg-emerald-100" };
+    case "problem":
+      return { Icon: AlertTriangle, color: "text-amber-700", bg: "bg-amber-100" };
+    case "blocker":
+      return { Icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-100" };
+    case "observation":
+      return { Icon: Eye, color: "text-zinc-700", bg: "bg-zinc-100" };
+    case "inspection":
+      return { Icon: CheckCircle2, color: "text-blue-700", bg: "bg-blue-100" };
+    case "client_visit":
+      return { Icon: User, color: "text-purple-700", bg: "bg-purple-100" };
+    default:
+      return { Icon: Circle, color: "text-zinc-500", bg: "bg-zinc-100" };
+  }
+}
+
 const PHONE = "+1 857-237-5602";
 const EMAIL = "info@jcnconstructioninc.com";
 const WEBSITE = "https://jcnconstructioninc.com";
@@ -85,6 +119,13 @@ type JobData = {
 
 type Photo = { id: string; storage_path: string; category: string; caption: string | null };
 type Payment = { amount: number; received_at: string };
+type LogEntry = {
+  id: string;
+  log_date: string;
+  content: string;
+  entry_type: DailyLogType;
+  weather: string | null;
+};
 
 function firstName(full: string): string {
   return full.trim().split(/\s+/)[0] ?? full;
@@ -188,7 +229,18 @@ export default async function ProjetoPage({
     }
   }
 
-  // 3) Pagamentos recebidos
+  // 3) Diário de obra — últimas 15 entries
+  const { data: logsRaw } = await supabase
+    .from("job_daily_logs")
+    .select("id, log_date, content, entry_type, weather")
+    .eq("job_id", job.id)
+    .order("log_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(15);
+
+  const logs: LogEntry[] = (logsRaw ?? []) as LogEntry[];
+
+  // 4) Pagamentos recebidos
   const { data: payments } = await supabase
     .from("job_payments")
     .select("amount, received_at")
@@ -283,6 +335,67 @@ export default async function ProjetoPage({
               );
             })}
           </ol>
+        </section>
+
+        {/* PROJECT JOURNAL */}
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="mb-4 text-xs font-bold uppercase tracking-wider text-zinc-500">
+            Project journal
+          </div>
+          {logs.length > 0 ? (
+            <ol className="space-y-4">
+              {logs.map((log) => {
+                const { Icon, color, bg } = logTypeIcon(log.entry_type);
+                const date = new Date(log.log_date + "T12:00:00");
+                const dateStr = new Intl.DateTimeFormat("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                }).format(date);
+                return (
+                  <li key={log.id} className="flex items-start gap-3">
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${bg}`}
+                    >
+                      <Icon className={`h-4 w-4 ${color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                          {dateStr}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${bg} ${color}`}
+                        >
+                          {LOG_TYPE_LABEL_EN[log.entry_type]}
+                        </span>
+                        {log.weather && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-500">
+                            {log.weather === "rainy" ? (
+                              <CloudRain className="h-3 w-3" />
+                            ) : (
+                              <Sun className="h-3 w-3" />
+                            )}
+                            {log.weather}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-zinc-800 whitespace-pre-wrap">
+                        {log.content}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 bg-zinc-50 px-6 py-8 text-center">
+              <p className="text-sm font-semibold text-zinc-700">No updates yet</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Daily progress notes will appear here as work moves forward.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* PHOTOS */}
