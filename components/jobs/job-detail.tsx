@@ -23,6 +23,7 @@ import { JobExtrasSection } from "@/components/jobs/extras/job-extras-section";
 import { JobPnlSection } from "@/components/jobs/pnl/job-pnl-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobInvoicesSection } from "@/components/jobs/invoices/job-invoices-section";
+import { FlipDashboard } from "@/components/flips/flip-dashboard";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { JobPermitCard } from "@/components/jobs/job-permit-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
@@ -210,6 +211,14 @@ export function JobDetail({
             {clientName}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-white/55">
+            {job.is_flip && (
+              <Badge
+                variant="outline"
+                className="border-jcn-gold-400/50 bg-jcn-gold-500/20 text-[10px] font-black uppercase tracking-[0.18em] text-jcn-gold-300"
+              >
+                🏠 FLIP
+              </Badge>
+            )}
             <Badge
               variant="outline"
               className={cn("font-bold", PHASE_BADGE_TONE[job.current_phase])}
@@ -394,6 +403,9 @@ export function JobDetail({
           </div>
         </SectionCard>
       </div>
+
+      {/* Módulo Flip — só quando is_flip=true (mig 0041) */}
+      {job.is_flip && <FlipDashboard jobId={job.id} />}
 
       {/* Contrato assinado */}
       <JobContractCard job={job} initialSignedUrl={contractSignedUrl} />

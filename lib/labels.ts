@@ -47,6 +47,7 @@ export const SOURCE_LABEL: Record<LeadSource, string> = {
   zillow: "Zillow",
   referral: "Indicação",
   direct: "Direto",
+  flip: "Flip (interno)",
   other: "Outro",
 };
 

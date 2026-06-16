@@ -8,6 +8,7 @@ import {
   ChevronDown,
   DollarSign,
   HardHat,
+  Home,
   KanbanSquare,
   LogOut,
   Mail,
@@ -77,6 +78,13 @@ export function AppHeader({
             icon={HardHat}
           >
             Jobs
+          </NavLink>
+          <NavLink
+            href="/flips"
+            active={pathname?.startsWith("/flips") ?? false}
+            icon={Home}
+          >
+            Flips
           </NavLink>
           <NavLink
             href="/tasks"

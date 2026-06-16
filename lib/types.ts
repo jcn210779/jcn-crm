@@ -39,6 +39,7 @@ export type LeadSource =
   | "zillow"
   | "referral"
   | "direct"
+  | "flip"
   | "other";
 
 export const LEAD_SOURCES: readonly LeadSource[] = [
@@ -49,6 +50,7 @@ export const LEAD_SOURCES: readonly LeadSource[] = [
   "zillow",
   "referral",
   "direct",
+  "flip",
   "other",
 ] as const;
 
@@ -514,6 +516,144 @@ export type Job = {
   permit_size: number | null;
   permit_mime: string | null;
   permit_uploaded_at: string | null;
+
+  /**
+   * Flag pra distinguir flip (investimento próprio) de job de cliente
+   * (migration 0041). Default false. Quando true, /job/[id] mostra
+   * seções de Flip (purchase/loan/units/draws/budget/P&L) e esconde
+   * seções inadequadas (faturas).
+   */
+  is_flip: boolean;
+};
+
+// ============================================================================
+// FLIPS (migration 0041-0043) — investimento próprio. 1 compra/loan → N units
+// ============================================================================
+
+export type FlipDetails = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  job_id: string;
+
+  property_address: string | null;
+  property_city: string | null;
+  property_state: string | null;
+  property_zip: string | null;
+
+  purchase_price: number | null;
+  purchase_closed_at: string | null;
+  closing_costs_buy: number | null;
+
+  lender_name: string | null;
+  loan_amount: number | null;
+  loan_rate: number | null;
+  loan_origination_fee: number | null;
+
+  carrying_monthly: number | null;
+  estimated_months: number | null;
+
+  rehab_budget: number | null;
+  selling_costs: number | null;
+
+  notes: string | null;
+};
+
+export type FlipUnitStatus = "planned" | "listed" | "under_contract" | "sold";
+
+export type FlipUnit = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  flip_id: string;
+  label: string;
+  description: string | null;
+  arv: number | null;
+  sale_price: number | null;
+  status: FlipUnitStatus;
+  listed_at: string | null;
+  under_contract_at: string | null;
+  sold_at: string | null;
+  display_order: number;
+  notes: string | null;
+};
+
+export type FlipDrawSource = "owner_capital" | "bank_draw" | "unit_sale" | "other";
+
+export type FlipDraw = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  flip_id: string;
+  draw_date: string;
+  source: FlipDrawSource;
+  milestone: string | null;
+  amount: number;
+  unit_id: string | null;
+  notes: string | null;
+};
+
+export type FlipBudgetLine = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  flip_id: string;
+  category: string;
+  budgeted: number;
+  committed: number;
+  display_order: number;
+  notes: string | null;
+};
+
+/** Linha agregada de v_flip_pnl (view). */
+export type FlipPnL = {
+  flip_id: string;
+  job_id: string;
+  purchase_price: number;
+  closing_costs_buy: number;
+  loan_origination_fee: number;
+  carrying_projected: number;
+  selling_costs: number;
+  rehab_budget: number;
+  rehab_expenses_actual: number;
+  subs_actual: number;
+  hours_actual: number;
+  rehab_actual_total: number;
+  units_count: number;
+  arv_total: number;
+  sold_total: number;
+  units_sold: number;
+  all_in_projected: number;
+  all_in_actual: number;
+  profit_projected: number;
+  profit_actual: number;
+};
+
+/** Linha agregada de v_flip_cash_summary. */
+export type FlipCashSummary = {
+  flip_id: string;
+  job_id: string;
+  loan_approved: number;
+  bank_drawn: number;
+  loan_remaining: number;
+  owner_capital_in: number;
+  unit_sale_in: number;
+  other_in: number;
+  total_cash_in: number;
+  last_draw_date: string | null;
+};
+
+/** Linha de v_flip_budget_vs_actual. */
+export type FlipBudgetVsActual = {
+  budget_line_id: string;
+  flip_id: string;
+  job_id: string;
+  category: string;
+  budgeted: number;
+  committed: number;
+  actual_spent: number;
+  remaining: number;
+  over_budget: boolean;
 };
 
 /** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */
@@ -1580,6 +1720,41 @@ export type Database = {
         Update: PermitUpdate;
         Relationships: [];
       };
+      flip_details: {
+        Row: FlipDetails;
+        Insert: Partial<Omit<FlipDetails, "id" | "created_at" | "updated_at">> & {
+          job_id: string;
+        };
+        Update: Partial<Omit<FlipDetails, "id" | "created_at" | "updated_at" | "job_id">>;
+        Relationships: [];
+      };
+      flip_units: {
+        Row: FlipUnit;
+        Insert: Partial<Omit<FlipUnit, "id" | "created_at" | "updated_at">> & {
+          flip_id: string;
+          label: string;
+        };
+        Update: Partial<Omit<FlipUnit, "id" | "created_at" | "updated_at" | "flip_id">>;
+        Relationships: [];
+      };
+      flip_draws: {
+        Row: FlipDraw;
+        Insert: Partial<Omit<FlipDraw, "id" | "created_at" | "updated_at">> & {
+          flip_id: string;
+          amount: number;
+        };
+        Update: Partial<Omit<FlipDraw, "id" | "created_at" | "updated_at" | "flip_id">>;
+        Relationships: [];
+      };
+      flip_budget_lines: {
+        Row: FlipBudgetLine;
+        Insert: Partial<Omit<FlipBudgetLine, "id" | "created_at" | "updated_at">> & {
+          flip_id: string;
+          category: string;
+        };
+        Update: Partial<Omit<FlipBudgetLine, "id" | "created_at" | "updated_at" | "flip_id">>;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -1640,6 +1815,18 @@ export type Database = {
       };
       v_team_payable_summary: {
         Row: TeamPayableSummaryRow;
+        Relationships: [];
+      };
+      v_flip_pnl: {
+        Row: FlipPnL;
+        Relationships: [];
+      };
+      v_flip_cash_summary: {
+        Row: FlipCashSummary;
+        Relationships: [];
+      };
+      v_flip_budget_vs_actual: {
+        Row: FlipBudgetVsActual;
         Relationships: [];
       };
       v_permits_summary: {
