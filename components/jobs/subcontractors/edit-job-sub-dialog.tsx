@@ -81,6 +81,58 @@ export function EditJobSubDialog({
 
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 1) Sync business_expense automático (migration 0044)
+    //    - Se paid > 0 e ainda não tem BE linkado → CRIA BE (method=check default)
+    //    - Se paid > 0 e já tem BE linkado → ATUALIZA BE (valor + data)
+    //    - Se paid = 0 → não mexe no BE existente (José apaga manual em /finance)
+    // ─────────────────────────────────────────────────────────────────────
+    const subDisplayName = jobSub.sub?.name ?? "Sub";
+    const expenseDescription = `Pagamento sub: ${serviceDescription.trim()} — ${subDisplayName}`;
+    let newPaidBeId: string | null = jobSub.paid_business_expense_id ?? null;
+
+    if (paid > 0) {
+      if (newPaidBeId) {
+        // Atualiza BE existente (valor mudou ou data mudou)
+        await supabase
+          .from("business_expenses")
+          .update({
+            amount: paid,
+            expense_date: paidAt || new Date().toISOString().slice(0, 10),
+            description: expenseDescription,
+            vendor: subDisplayName,
+          })
+          .eq("id", newPaidBeId);
+      } else {
+        // Cria BE novo (primeira vez que paga)
+        const { data: beData, error: beError } = await supabase
+          .from("business_expenses")
+          .insert({
+            expense_date: paidAt || new Date().toISOString().slice(0, 10),
+            category: "other",
+            vendor: subDisplayName,
+            description: expenseDescription,
+            amount: paid,
+            payment_method: "check",
+          })
+          .select("id")
+          .single();
+
+        if (beError) {
+          setSaving(false);
+          toast.error("Erro ao criar despesa do pagamento", {
+            description: beError.message,
+          });
+          return;
+        }
+        newPaidBeId = beData?.id ?? null;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 2) Salva job_subcontractor com link pro BE
+    // ─────────────────────────────────────────────────────────────────────
     const { error } = await supabase
       .from("job_subcontractors")
       .update({
@@ -89,6 +141,7 @@ export function EditJobSubDialog({
         status: nextStatus,
         amount_paid: paid,
         paid_at: paid > 0 ? paidAt || null : null,
+        paid_business_expense_id: newPaidBeId,
         notes: notes.trim() || null,
       })
       .eq("id", jobSub.id);
@@ -100,7 +153,11 @@ export function EditJobSubDialog({
       return;
     }
 
-    toast.success("Contratação atualizada");
+    toast.success(
+      paid > 0
+        ? `Contratação atualizada · ${formatCurrency(paid)} lançado em /finance`
+        : "Contratação atualizada",
+    );
     if (onDone) onDone();
   }
 

@@ -964,6 +964,12 @@ export type JobSubcontractor = {
   amount_paid: number;
   /** Data do último pagamento registrado (migration 0036). Opcional. */
   paid_at: string | null;
+  /**
+   * Business expense criado automaticamente quando amount_paid > 0
+   * (migration 0044). NULL se ainda não pago ou se José apagou a despesa
+   * manualmente em /finance.
+   */
+  paid_business_expense_id: string | null;
 
   hired_at: string;
   started_at: string | null;
