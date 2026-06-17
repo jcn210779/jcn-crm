@@ -702,6 +702,15 @@ export type StoreItemStats = StoreItem & {
   low_stock: boolean;
 };
 
+/** store_share — 1 linha global pro token de compartilhamento do depósito. */
+export type StoreShare = {
+  id: true;
+  token: string;
+  created_at: string;
+  rotated_at: string;
+  last_used_at: string | null;
+};
+
 /** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */
 export type JobInsert = Pick<Job, "lead_id"> &
   Partial<Omit<Job, "id" | "created_at" | "updated_at">>;
@@ -1827,6 +1836,12 @@ export type Database = {
           quantity: number;
         };
         Update: Partial<Omit<StoreReservation, "id" | "created_at" | "updated_at" | "item_id" | "job_id">>;
+        Relationships: [];
+      };
+      store_share: {
+        Row: StoreShare;
+        Insert: Partial<StoreShare>;
+        Update: Partial<Omit<StoreShare, "id">>;
         Relationships: [];
       };
     };

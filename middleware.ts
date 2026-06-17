@@ -27,7 +27,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/confirm/") || // API de confirmação (auth via token opaco no path)
     pathname === "/privacy" || // Privacy Policy pública (Twilio A2P 10DLC valida)
     pathname === "/terms" || // Terms and Conditions pública (Twilio A2P 10DLC valida)
-    pathname.startsWith("/projeto/"); // Página pública do job pro cliente (auth via token opaco)
+    pathname.startsWith("/projeto/") || // Página pública do job pro cliente (auth via token opaco)
+    pathname.startsWith("/deposito/") || // Link público do depósito pro menino do depósito (token opaco)
+    (pathname.startsWith("/api/deposito/") &&
+      !pathname.startsWith("/api/deposito/rotate")); // API pública do depósito (rotate é interna)
 
   if (!user && !isPublic) {
     const loginUrl = request.nextUrl.clone();

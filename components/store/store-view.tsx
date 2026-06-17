@@ -10,6 +10,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -23,6 +24,7 @@ import type { StoreItemStats } from "@/lib/types";
 
 import { ItemDialog } from "./item-dialog";
 import { MoveQuantityDialog } from "./move-quantity-dialog";
+import { ShareStoreDialog } from "./share-store-dialog";
 
 type Props = {
   initialItems: StoreItemStats[];
@@ -39,6 +41,7 @@ export function StoreView({ initialItems }: Props) {
     item: StoreItemStats;
     kind: "in" | "out";
   } | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   async function reload() {
     const supabase = createSupabaseBrowserClient();
@@ -137,10 +140,16 @@ export function StoreView({ initialItems }: Props) {
             )}
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" />
-          Novo item
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setSharing(true)}>
+            <Share2 className="h-4 w-4" />
+            Compartilhar
+          </Button>
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" />
+            Novo item
+          </Button>
+        </div>
       </div>
 
       {/* FILTROS */}
@@ -239,6 +248,11 @@ export function StoreView({ initialItems }: Props) {
           }}
         />
       )}
+
+      <ShareStoreDialog
+        open={sharing}
+        onOpenChange={setSharing}
+      />
     </div>
   );
 }
