@@ -9,6 +9,7 @@ import {
   Minus,
   Package,
   Plus,
+  Save,
   Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -47,6 +48,7 @@ export function WarehouseView({ token, initialItems, jobs }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [moving, setMoving] = useState<MoveState | null>(null);
+  const [creating, setCreating] = useState(false);
 
   async function reload() {
     const res = await fetch(`/api/deposito/${token}/items`, {
@@ -76,13 +78,24 @@ export function WarehouseView({ token, initialItems, jobs }: Props) {
     <div className="space-y-4">
       {/* HEADER */}
       <div className="rounded-3xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-xl">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-jcn-gold-300">
-          Depósito
-        </p>
-        <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
-          {items.length} item{items.length === 1 ? "" : "s"} no estoque
-        </h1>
-        <p className="mt-1 text-xs text-white/55">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-jcn-gold-300">
+              Depósito
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
+              {items.length} item{items.length === 1 ? "" : "s"} no estoque
+            </h1>
+          </div>
+          <Button
+            onClick={() => setCreating(true)}
+            className="shrink-0 bg-jcn-gold-500 text-jcn-midnight hover:bg-jcn-gold-400"
+          >
+            <Plus className="h-4 w-4" />
+            Novo item
+          </Button>
+        </div>
+        <p className="mt-3 text-xs text-white/55">
           Use os botões <strong>Entrada</strong> e <strong>Saída</strong> pra
           mexer no estoque. Toda saída precisa indicar a obra (job).
         </p>
@@ -157,7 +170,181 @@ export function WarehouseView({ token, initialItems, jobs }: Props) {
           }}
         />
       )}
+
+      <CreateItemDialog
+        open={creating}
+        token={token}
+        existingCategories={categories}
+        onOpenChange={setCreating}
+        onDone={() => {
+          setCreating(false);
+          void reload();
+        }}
+      />
     </div>
+  );
+}
+
+function CreateItemDialog({
+  open,
+  token,
+  existingCategories,
+  onOpenChange,
+  onDone,
+}: {
+  open: boolean;
+  token: string;
+  existingCategories: string[];
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [unit, setUnit] = useState("");
+  const [initialQty, setInitialQty] = useState("1");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Reset ao abrir
+  if (!open && (name || category || unit || notes !== "" || initialQty !== "1")) {
+    setName("");
+    setCategory("");
+    setUnit("");
+    setInitialQty("1");
+    setNotes("");
+  }
+
+  async function handleSave() {
+    if (!name.trim()) {
+      toast.error("Nome obrigatório");
+      return;
+    }
+    const qty = Number(initialQty);
+    if (Number.isNaN(qty) || qty < 0) {
+      toast.error("Qtd inválida");
+      return;
+    }
+
+    setSaving(true);
+    const res = await fetch(`/api/deposito/${token}/item`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name.trim(),
+        category: category.trim() || null,
+        unit: unit.trim() || null,
+        initial_quantity: qty,
+        notes: notes.trim() || null,
+      }),
+    });
+    setSaving(false);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(`Erro: ${err.error ?? res.statusText}`);
+      return;
+    }
+    toast.success(`Item "${name.trim()}" cadastrado`);
+    onDone();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Novo item</DialogTitle>
+          <DialogDescription>
+            Cadastre material novo no depósito. José completa detalhes
+            (local, estoque mínimo) depois.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">
+              Nome *
+            </Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Cedar 2x6 deck board"
+              disabled={saving}
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">
+                Categoria
+              </Label>
+              <Input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="Wood, Hardware..."
+                list="cat-suggestions"
+                disabled={saving}
+              />
+              {existingCategories.length > 0 && (
+                <datalist id="cat-suggestions">
+                  {existingCategories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">
+                Unidade
+              </Label>
+              <Input
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="tábuas, lb, saco"
+                disabled={saving}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">
+              Qtd inicial *
+            </Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={initialQty}
+              onChange={(e) => setInitialQty(e.target.value)}
+              disabled={saving}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold uppercase tracking-[0.12em] text-white/55">
+              Notas (opcional)
+            </Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Specs, marca, de onde veio..."
+              disabled={saving}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Cadastrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

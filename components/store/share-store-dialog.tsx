@@ -156,8 +156,11 @@ export function ShareStoreDialog({ open, onOpenChange }: Props) {
                 <li>Ver lista completa do depósito</li>
                 <li>Fazer entrada e saída (saída obriga indicar obra)</li>
                 <li>
-                  <strong>NÃO pode</strong> criar item novo, editar nome, nem
-                  apagar
+                  Cadastrar item novo (você completa local/mínimo depois)
+                </li>
+                <li>
+                  <strong>NÃO pode</strong> editar nome de item existente
+                  nem apagar
                 </li>
               </ul>
             </div>
