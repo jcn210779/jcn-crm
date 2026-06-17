@@ -656,6 +656,52 @@ export type FlipBudgetVsActual = {
   over_budget: boolean;
 };
 
+// ============================================================================
+// STORE (depósito de material — migration 0045)
+// ============================================================================
+
+export type StoreItem = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  category: string | null;
+  quantity: number;
+  unit: string | null;
+  min_quantity: number | null;
+  location: string | null;
+  notes: string | null;
+};
+
+export type StoreMovementKind = "in" | "out" | "adjustment";
+
+export type StoreMovement = {
+  id: string;
+  created_at: string;
+  item_id: string;
+  kind: StoreMovementKind;
+  quantity: number;
+  job_id: string | null;
+  notes: string | null;
+};
+
+export type StoreReservation = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  item_id: string;
+  job_id: string;
+  quantity: number;
+  notes: string | null;
+};
+
+/** v_store_items_stats — item com qty real, reservada, disponível, low_stock. */
+export type StoreItemStats = StoreItem & {
+  reserved_quantity: number;
+  available_quantity: number;
+  low_stock: boolean;
+};
+
 /** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */
 export type JobInsert = Pick<Job, "lead_id"> &
   Partial<Omit<Job, "id" | "created_at" | "updated_at">>;
@@ -1755,6 +1801,34 @@ export type Database = {
         Update: Partial<Omit<FlipBudgetLine, "id" | "created_at" | "updated_at" | "flip_id">>;
         Relationships: [];
       };
+      store_items: {
+        Row: StoreItem;
+        Insert: Partial<Omit<StoreItem, "id" | "created_at" | "updated_at">> & {
+          name: string;
+        };
+        Update: Partial<Omit<StoreItem, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
+      };
+      store_movements: {
+        Row: StoreMovement;
+        Insert: Partial<Omit<StoreMovement, "id" | "created_at">> & {
+          item_id: string;
+          kind: StoreMovementKind;
+          quantity: number;
+        };
+        Update: Partial<Omit<StoreMovement, "id" | "created_at" | "item_id">>;
+        Relationships: [];
+      };
+      store_reservations: {
+        Row: StoreReservation;
+        Insert: Partial<Omit<StoreReservation, "id" | "created_at" | "updated_at">> & {
+          item_id: string;
+          job_id: string;
+          quantity: number;
+        };
+        Update: Partial<Omit<StoreReservation, "id" | "created_at" | "updated_at" | "item_id" | "job_id">>;
+        Relationships: [];
+      };
     };
     Views: {
       v_leads_active: {
@@ -1833,6 +1907,10 @@ export type Database = {
         Row: PermitSummaryRow;
         Relationships: [];
       };
+      v_store_items_stats: {
+        Row: StoreItemStats;
+        Relationships: [];
+      };
     };
     Enums: {
       lead_stage: LeadStage;
@@ -1855,6 +1933,7 @@ export type Database = {
       weather_condition: WeatherCondition;
       daily_log_type: DailyLogType;
       business_expense_category: BusinessExpenseCategory;
+      store_movement_kind: StoreMovementKind;
     };
     Functions: Record<string, never>;
   };

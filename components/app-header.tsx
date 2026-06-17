@@ -12,6 +12,7 @@ import {
   KanbanSquare,
   LogOut,
   Mail,
+  Package,
   Plus,
   Users,
   Wrench,
@@ -113,6 +114,13 @@ export function AppHeader({
             icon={Wrench}
           >
             Subs
+          </NavLink>
+          <NavLink
+            href="/store"
+            active={pathname?.startsWith("/store") ?? false}
+            icon={Package}
+          >
+            Depósito
           </NavLink>
           <NavLink
             href="/permits"
