@@ -9,10 +9,11 @@ import {
   Minus,
   Package,
   Plus,
+  RefreshCw,
   Save,
   Search,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -49,15 +50,47 @@ export function WarehouseView({ token, initialItems, jobs }: Props) {
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [moving, setMoving] = useState<MoveState | null>(null);
   const [creating, setCreating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshAt, setLastRefreshAt] = useState<number>(Date.now());
+  const isMountedRef = useRef(true);
 
-  async function reload() {
-    const res = await fetch(`/api/deposito/${token}/items`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return;
-    const data = (await res.json()) as { items: StoreItemStats[] };
-    setItems(data.items);
+  async function reload(opts: { silent?: boolean } = {}) {
+    if (!opts.silent) setRefreshing(true);
+    try {
+      const res = await fetch(`/api/deposito/${token}/items`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { items: StoreItemStats[] };
+      if (!isMountedRef.current) return;
+      setItems(data.items);
+      setLastRefreshAt(Date.now());
+    } finally {
+      if (!opts.silent) setRefreshing(false);
+    }
   }
+
+  // Auto-refresh silencioso a cada 15s (mantém menino com dado fresco
+  // quando Jose mexe no /store interno do CRM).
+  useEffect(() => {
+    isMountedRef.current = true;
+    const interval = setInterval(() => {
+      void reload({ silent: true });
+    }, 15_000);
+    // Atualiza também quando aba volta a ficar visível (sai do background)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void reload({ silent: true });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -87,17 +120,34 @@ export function WarehouseView({ token, initialItems, jobs }: Props) {
               {items.length} item{items.length === 1 ? "" : "s"} no estoque
             </h1>
           </div>
-          <Button
-            onClick={() => setCreating(true)}
-            className="shrink-0 bg-jcn-gold-500 text-jcn-midnight hover:bg-jcn-gold-400"
-          >
-            <Plus className="h-4 w-4" />
-            Novo item
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => void reload()}
+              disabled={refreshing}
+              className="border-white/[0.12] bg-white/[0.04]"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+              Atualizar
+            </Button>
+            <Button
+              onClick={() => setCreating(true)}
+              className="bg-jcn-gold-500 text-jcn-midnight hover:bg-jcn-gold-400"
+            >
+              <Plus className="h-4 w-4" />
+              Novo item
+            </Button>
+          </div>
         </div>
         <p className="mt-3 text-xs text-white/55">
           Use os botões <strong>Entrada</strong> e <strong>Saída</strong> pra
           mexer no estoque. Toda saída precisa indicar a obra (job).
+        </p>
+        <p className="mt-1 text-[10px] text-white/35">
+          <RefreshAgo lastRefreshAt={lastRefreshAt} />
+          {" "}· atualiza sozinho a cada 15s
         </p>
       </div>
 
@@ -183,6 +233,19 @@ export function WarehouseView({ token, initialItems, jobs }: Props) {
       />
     </div>
   );
+}
+
+function RefreshAgo({ lastRefreshAt }: { lastRefreshAt: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(tick);
+  }, []);
+  const secs = Math.max(0, Math.floor((now - lastRefreshAt) / 1000));
+  if (secs < 5) return <>Atualizado agora</>;
+  if (secs < 60) return <>Atualizado há {secs}s</>;
+  const mins = Math.floor(secs / 60);
+  return <>Atualizado há {mins} min</>;
 }
 
 function CreateItemDialog({
