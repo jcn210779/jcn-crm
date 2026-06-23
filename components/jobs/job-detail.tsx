@@ -12,6 +12,7 @@ import {
   MapPin,
   Pencil,
   Phone,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,6 +28,7 @@ import { JobInvoicesSection } from "@/components/jobs/invoices/job-invoices-sect
 import { FlipDashboard } from "@/components/flips/flip-dashboard";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { EditJobValueDialog } from "@/components/jobs/edit-job-value-dialog";
+import { DeleteJobDialog } from "@/components/jobs/delete-job-dialog";
 import { JobPermitCard } from "@/components/jobs/job-permit-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
@@ -145,6 +147,7 @@ export function JobDetail({
   const [actualStart, setActualStart] = useState<string>(job.actual_start ?? "");
   const [actualEnd, setActualEnd] = useState<string>(job.actual_end ?? "");
   const [editValueOpen, setEditValueOpen] = useState(false);
+  const [deleteJobOpen, setDeleteJobOpen] = useState(false);
 
   async function updatePhase(newPhase: JobPhase) {
     const supabase = createSupabaseBrowserClient();
@@ -300,6 +303,17 @@ export function JobDetail({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          {lead && (
+            <Button
+              variant="outline"
+              onClick={() => setDeleteJobOpen(true)}
+              className="h-10 border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+              title="Apagar este job do planejamento (lead volta pra 'estimate enviado')"
+            >
+              <Trash2 className="h-4 w-4" />
+              Apagar job
+            </Button>
+          )}
         </div>
       </header>
 
@@ -563,6 +577,16 @@ export function JobDetail({
         open={editValueOpen}
         onOpenChange={setEditValueOpen}
       />
+
+      {lead && (
+        <DeleteJobDialog
+          jobId={job.id}
+          leadId={lead.id}
+          leadName={lead.name}
+          open={deleteJobOpen}
+          onOpenChange={setDeleteJobOpen}
+        />
+      )}
     </div>
   );
 }
