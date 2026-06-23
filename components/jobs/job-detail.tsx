@@ -10,6 +10,7 @@ import {
   Link2,
   Mail,
   MapPin,
+  Pencil,
   Phone,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +26,7 @@ import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobInvoicesSection } from "@/components/jobs/invoices/job-invoices-section";
 import { FlipDashboard } from "@/components/flips/flip-dashboard";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
+import { EditJobValueDialog } from "@/components/jobs/edit-job-value-dialog";
 import { JobPermitCard } from "@/components/jobs/job-permit-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
@@ -142,6 +144,7 @@ export function JobDetail({
   const [expectedEnd, setExpectedEnd] = useState<string>(job.expected_end ?? "");
   const [actualStart, setActualStart] = useState<string>(job.actual_start ?? "");
   const [actualEnd, setActualEnd] = useState<string>(job.actual_end ?? "");
+  const [editValueOpen, setEditValueOpen] = useState(false);
 
   async function updatePhase(newPhase: JobPhase) {
     const supabase = createSupabaseBrowserClient();
@@ -233,22 +236,26 @@ export function JobDetail({
                 addSuffix: true,
               })}
             </span>
-            {job.value > 0 && (
-              <>
-                <span>·</span>
-                <span className="font-bold text-primary">
-                  {formatCurrency(job.value + approvedExtrasValue)}
-                </span>
-                {approvedExtrasValue > 0 && (
-                  <span
-                    className="rounded-full border border-jcn-gold-400/30 bg-jcn-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-jcn-gold-200"
-                    title={`Contrato ${formatCurrency(job.value)} + extras aprovados ${formatCurrency(approvedExtrasValue)}`}
-                  >
-                    + {formatCurrency(approvedExtrasValue)} extras
-                  </span>
-                )}
-              </>
+            <span>·</span>
+            <span className="font-bold text-primary">
+              {formatCurrency(job.value + approvedExtrasValue)}
+            </span>
+            {approvedExtrasValue > 0 && (
+              <span
+                className="rounded-full border border-jcn-gold-400/30 bg-jcn-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-jcn-gold-200"
+                title={`Contrato ${formatCurrency(job.value)} + extras aprovados ${formatCurrency(approvedExtrasValue)}`}
+              >
+                + {formatCurrency(approvedExtrasValue)} extras
+              </span>
             )}
+            <button
+              type="button"
+              onClick={() => setEditValueOpen(true)}
+              className="ml-1 rounded-md p-1 text-white/45 transition hover:bg-white/[0.06] hover:text-jcn-gold-300"
+              title="Editar valor do contrato"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
 
@@ -366,6 +373,14 @@ export function JobDetail({
                     {formatCurrency(approvedExtrasValue)})
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setEditValueOpen(true)}
+                  className="ml-1 rounded-md p-1 text-white/45 transition hover:bg-white/[0.06] hover:text-jcn-gold-300"
+                  title="Editar valor do contrato"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
               </div>
             </Row>
             <Row label="Contrato assinado">
@@ -541,6 +556,13 @@ export function JobDetail({
           Salva ao sair do campo
         </p>
       </SectionCard>
+
+      <EditJobValueDialog
+        jobId={job.id}
+        currentValue={job.value}
+        open={editValueOpen}
+        onOpenChange={setEditValueOpen}
+      />
     </div>
   );
 }
