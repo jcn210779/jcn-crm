@@ -954,6 +954,9 @@ export type JobMargin = {
   margin_percent: number | null;
 };
 
+export type TeamPayType = "hourly" | "weekly";
+export const TEAM_PAY_TYPES: readonly TeamPayType[] = ["hourly", "weekly"];
+
 export type TeamMember = {
   id: string;
   created_at: string;
@@ -962,6 +965,8 @@ export type TeamMember = {
   name: string;
   role: TeamRole;
   hourly_rate: number;
+  pay_type: TeamPayType;
+  weekly_salary: number | null;
   phone: string | null;
   email: string | null;
   active: boolean;

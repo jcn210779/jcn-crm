@@ -160,20 +160,44 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
     }
   }
 
-  // Agrupa por member: SÓ horas PENDENTES (paid_at IS NULL) pro dialog de pagar
+  // Agrupa por member: SÓ horas PENDENTES (paid_at IS NULL) pro dialog de pagar.
+  // Pra member.pay_type='weekly' (mig 0048): aparece sempre com weekly_salary
+  // fixo, independente de horas. Status pago/pendente vai pra v2 — por ora
+  // José confere no /finance se já pagou esta semana.
   const payoutEntries = useMemo<PayoutEntry[]>(() => {
     const totalsByMember = new Map<string, PayoutEntry>();
+
+    // 1) Hourly: soma horas pendentes da semana
     for (const h of weekHours) {
-      if (h.paid_at) continue; // ignora hours já fechados
+      if (h.paid_at) continue;
       const m = members.find((mm) => mm.id === h.member_id);
-      if (!m) continue;
+      if (!m || m.pay_type === "weekly") continue; // weekly tratado abaixo
       const cur = totalsByMember.get(m.id);
       if (cur) {
         cur.total += Number(h.calculated_amount);
       } else {
-        totalsByMember.set(m.id, { member: m, total: Number(h.calculated_amount) });
+        totalsByMember.set(m.id, {
+          member: m,
+          total: Number(h.calculated_amount),
+        });
       }
     }
+
+    // 2) Weekly: aparece sempre com salário fixo (independente de horas)
+    for (const m of members) {
+      if (
+        m.pay_type === "weekly" &&
+        m.weekly_salary != null &&
+        Number(m.weekly_salary) > 0 &&
+        m.active
+      ) {
+        totalsByMember.set(m.id, {
+          member: m,
+          total: Number(m.weekly_salary),
+        });
+      }
+    }
+
     return Array.from(totalsByMember.values()).sort((a, b) =>
       a.member.name.localeCompare(b.member.name),
     );
@@ -199,13 +223,27 @@ export function TeamPayrollWeekly({ members, hours, jobs }: Props) {
   }, [weekHours]);
 
   // Total da semana SÓ pendente (pro botão "Pagar tudo")
-  const weekPendingAmount = useMemo(
-    () =>
-      weekHours
-        .filter((h) => !h.paid_at)
-        .reduce((s, h) => s + Number(h.calculated_amount), 0),
-    [weekHours],
-  );
+  //  = soma de horas pendentes de hourly members + soma de weekly_salary de
+  //    weekly members ativos
+  const weekPendingAmount = useMemo(() => {
+    let total = 0;
+    for (const h of weekHours) {
+      if (h.paid_at) continue;
+      const m = members.find((mm) => mm.id === h.member_id);
+      if (!m || m.pay_type === "weekly") continue;
+      total += Number(h.calculated_amount);
+    }
+    for (const m of members) {
+      if (
+        m.pay_type === "weekly" &&
+        m.weekly_salary != null &&
+        m.active
+      ) {
+        total += Number(m.weekly_salary);
+      }
+    }
+    return total;
+  }, [weekHours, members]);
 
   function handlePayAll() {
     if (weekPendingAmount === 0) {

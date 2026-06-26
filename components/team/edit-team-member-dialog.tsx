@@ -18,7 +18,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TEAM_ROLE_LABEL } from "@/lib/labels";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
-import { TEAM_ROLES, type TeamMember, type TeamRole } from "@/lib/types";
+import {
+  TEAM_ROLES,
+  type TeamMember,
+  type TeamPayType,
+  type TeamRole,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -38,7 +43,13 @@ export function EditTeamMemberDialog({
 }: Props) {
   const [name, setName] = useState(member.name);
   const [role, setRole] = useState<TeamRole>(member.role);
+  const [payType, setPayType] = useState<TeamPayType>(
+    member.pay_type ?? "hourly",
+  );
   const [hourlyRate, setHourlyRate] = useState(String(member.hourly_rate));
+  const [weeklySalary, setWeeklySalary] = useState(
+    member.weekly_salary != null ? String(member.weekly_salary) : "",
+  );
   const [phone, setPhone] = useState(member.phone ?? "");
   const [email, setEmail] = useState(member.email ?? "");
   const [notes, setNotes] = useState(member.notes ?? "");
@@ -57,6 +68,14 @@ export function EditTeamMemberDialog({
       toast.error("Taxa por hora inválida");
       return;
     }
+    let salary: number | null = null;
+    if (payType === "weekly") {
+      salary = Number(weeklySalary.replace(/[^0-9.]/g, ""));
+      if (Number.isNaN(salary) || salary <= 0) {
+        toast.error("Salário semanal inválido");
+        return;
+      }
+    }
 
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
@@ -65,7 +84,9 @@ export function EditTeamMemberDialog({
       .update({
         name: name.trim(),
         role,
+        pay_type: payType,
         hourly_rate: rate,
+        weekly_salary: salary,
         phone: phone.trim() || null,
         email: email.trim() || null,
         notes: notes.trim() || null,
@@ -297,7 +318,29 @@ export function EditTeamMemberDialog({
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="tm-edit-rate">Taxa ($/h) *</Label>
+              <Label htmlFor="tm-edit-pay-type">Tipo de pagamento</Label>
+              <select
+                id="tm-edit-pay-type"
+                className="flex h-10 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm text-jcn-ice outline-none focus:border-jcn-gold-400/40"
+                value={payType}
+                onChange={(e) => setPayType(e.target.value as TeamPayType)}
+              >
+                <option value="hourly">Por hora</option>
+                <option value="weekly">Salário semanal</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="tm-edit-rate">
+                Taxa ($/h) *
+                {payType === "weekly" && (
+                  <span className="ml-1 text-[10px] text-jcn-ice/45">
+                    (rateio P&amp;L)
+                  </span>
+                )}
+              </Label>
               <Input
                 id="tm-edit-rate"
                 type="text"
@@ -305,7 +348,25 @@ export function EditTeamMemberDialog({
                 value={hourlyRate}
                 onChange={(e) => setHourlyRate(e.target.value)}
               />
+              {payType === "weekly" && (
+                <p className="text-[10px] text-jcn-ice/45">
+                  Sugestão: salário ÷ 40h
+                </p>
+              )}
             </div>
+            {payType === "weekly" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="tm-edit-weekly">Salário semanal ($) *</Label>
+                <Input
+                  id="tm-edit-weekly"
+                  type="text"
+                  inputMode="decimal"
+                  value={weeklySalary}
+                  onChange={(e) => setWeeklySalary(e.target.value)}
+                  placeholder="1300.00"
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
