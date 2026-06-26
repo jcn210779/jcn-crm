@@ -1,9 +1,13 @@
 "use client";
 
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { AlertTriangle, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+import { AddSubPaymentDialog } from "@/components/jobs/subcontractors/add-sub-payment-dialog";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,8 +35,10 @@ import {
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import {
   JOB_SUBCONTRACTOR_STATUSES,
+  type JobSubPayment,
   type JobSubcontractorStatus,
 } from "@/lib/types";
+import { PAYMENT_METHOD_LABEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -55,12 +61,61 @@ export function EditJobSubDialog({
   );
   const [agreedValue, setAgreedValue] = useState(String(jobSub.agreed_value));
   const [status, setStatus] = useState<JobSubcontractorStatus>(jobSub.status);
-  const [amountPaid, setAmountPaid] = useState(String(jobSub.amount_paid ?? 0));
-  const [paidAt, setPaidAt] = useState<string>(jobSub.paid_at ?? "");
   const [notes, setNotes] = useState(jobSub.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<Mode>("edit");
   const [confirmText, setConfirmText] = useState("");
+
+  // Parcelas pagas (migration 0047)
+  const [payments, setPayments] = useState<JobSubPayment[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [addPaymentOpen, setAddPaymentOpen] = useState(false);
+
+  async function reloadPayments() {
+    setLoadingPayments(true);
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase
+      .from("job_sub_payments")
+      .select("*")
+      .eq("job_subcontractor_id", jobSub.id)
+      .order("paid_at", { ascending: false })
+      .order("created_at", { ascending: false });
+    setPayments((data ?? []) as JobSubPayment[]);
+    setLoadingPayments(false);
+  }
+
+  useEffect(() => {
+    if (open) void reloadPayments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, jobSub.id]);
+
+  async function handleDeletePayment(payment: JobSubPayment) {
+    if (
+      !confirm(
+        `Apagar parcela de ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(payment.amount)} de ${payment.paid_at}?\n\nA despesa correspondente em /finance também vai ser apagada.`,
+      )
+    )
+      return;
+    const supabase = createSupabaseBrowserClient();
+    // Apaga BE primeiro (FK SET NULL, não cascade)
+    if (payment.business_expense_id) {
+      await supabase
+        .from("business_expenses")
+        .delete()
+        .eq("id", payment.business_expense_id);
+    }
+    const { error } = await supabase
+      .from("job_sub_payments")
+      .delete()
+      .eq("id", payment.id);
+    if (error) {
+      toast.error("Erro ao apagar parcela", { description: error.message });
+      return;
+    }
+    toast.success("Parcela apagada");
+    await reloadPayments();
+    if (onDone) onDone();
+  }
 
   async function persistSave(nextStatus: JobSubcontractorStatus) {
     if (!serviceDescription.trim()) {
@@ -73,75 +128,18 @@ export function EditJobSubDialog({
       return;
     }
 
-    const paid = Number(amountPaid.replace(/[^0-9.]/g, "")) || 0;
-    if (Number.isNaN(paid) || paid < 0) {
-      toast.error("Valor pago inválido");
-      return;
-    }
-
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 1) Sync business_expense automático (migration 0044)
-    //    - Se paid > 0 e ainda não tem BE linkado → CRIA BE (method=check default)
-    //    - Se paid > 0 e já tem BE linkado → ATUALIZA BE (valor + data)
-    //    - Se paid = 0 → não mexe no BE existente (José apaga manual em /finance)
-    // ─────────────────────────────────────────────────────────────────────
-    const subDisplayName = jobSub.sub?.name ?? "Sub";
-    const expenseDescription = `Pagamento sub: ${serviceDescription.trim()} — ${subDisplayName}`;
-    let newPaidBeId: string | null = jobSub.paid_business_expense_id ?? null;
-
-    if (paid > 0) {
-      if (newPaidBeId) {
-        // Atualiza BE existente (valor mudou ou data mudou)
-        await supabase
-          .from("business_expenses")
-          .update({
-            amount: paid,
-            expense_date: paidAt || new Date().toISOString().slice(0, 10),
-            description: expenseDescription,
-            vendor: subDisplayName,
-          })
-          .eq("id", newPaidBeId);
-      } else {
-        // Cria BE novo (primeira vez que paga)
-        const { data: beData, error: beError } = await supabase
-          .from("business_expenses")
-          .insert({
-            expense_date: paidAt || new Date().toISOString().slice(0, 10),
-            category: "other",
-            vendor: subDisplayName,
-            description: expenseDescription,
-            amount: paid,
-            payment_method: "check",
-          })
-          .select("id")
-          .single();
-
-        if (beError) {
-          setSaving(false);
-          toast.error("Erro ao criar despesa do pagamento", {
-            description: beError.message,
-          });
-          return;
-        }
-        newPaidBeId = beData?.id ?? null;
-      }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // 2) Salva job_subcontractor com link pro BE
-    // ─────────────────────────────────────────────────────────────────────
+    // Pagamento agora é gerenciado via tabela job_sub_payments (mig 0047) —
+    // amount_paid e paid_at em job_subcontractors são cache derivado,
+    // atualizado por trigger quando parcela é inserida/apagada.
     const { error } = await supabase
       .from("job_subcontractors")
       .update({
         service_description: serviceDescription.trim(),
         agreed_value: value,
         status: nextStatus,
-        amount_paid: paid,
-        paid_at: paid > 0 ? paidAt || null : null,
-        paid_business_expense_id: newPaidBeId,
         notes: notes.trim() || null,
       })
       .eq("id", jobSub.id);
@@ -153,11 +151,7 @@ export function EditJobSubDialog({
       return;
     }
 
-    toast.success(
-      paid > 0
-        ? `Contratação atualizada · ${formatCurrency(paid)} lançado em /finance`
-        : "Contratação atualizada",
-    );
+    toast.success("Contratação atualizada");
     if (onDone) onDone();
   }
 
@@ -217,8 +211,9 @@ export function EditJobSubDialog({
               Marcar como concluído
             </DialogTitle>
             <DialogDescription>
-              Confirma que {subName} terminou o serviço e foi pago? Vai entrar
-              no histórico e contar como pagamento realizado.
+              Confirma que {subName} terminou o serviço? Marca o trabalho como
+              concluído. (Pagamento é gerenciado separado — em parcelas no card
+              de Pagamentos.)
             </DialogDescription>
           </DialogHeader>
 
@@ -404,10 +399,10 @@ export function EditJobSubDialog({
             </div>
           </div>
 
-          {/* Pagamento */}
+          {/* Pagamento ao sub — parcelas (mig 0047) */}
           {(() => {
             const agreed = Number(agreedValue.replace(/[^0-9.]/g, "")) || 0;
-            const paid = Number(amountPaid.replace(/[^0-9.]/g, "")) || 0;
+            const paid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
             const payStatus = deriveSubPaymentStatus({
               agreedValue: agreed,
               amountPaid: paid,
@@ -419,58 +414,133 @@ export function EditJobSubDialog({
             const overpaid = agreed > 0 && paid > agreed;
             const payTone =
               payStatus === "paid"
-                ? "border-emerald-400/30 bg-emerald-500/5 text-emerald-300"
+                ? "border-emerald-400/30 bg-emerald-500/5"
                 : payStatus === "partial"
-                  ? "border-orange-400/30 bg-orange-500/5 text-orange-300"
-                  : "border-white/[0.1] bg-white/[0.03] text-jcn-ice/70";
+                  ? "border-orange-400/30 bg-orange-500/5"
+                  : "border-white/[0.1] bg-white/[0.03]";
             const payLabel =
               payStatus === "paid"
                 ? "Pago"
                 : payStatus === "partial"
                   ? "Parcial"
                   : "Não pago";
+            const payLabelTone =
+              payStatus === "paid"
+                ? "text-emerald-300"
+                : payStatus === "partial"
+                  ? "text-orange-300"
+                  : "text-jcn-ice/70";
             return (
               <div className={cn("rounded-2xl border p-3", payTone)}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] opacity-80">
-                    Pagamento ao sub
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-ice/65">
+                    Pagamentos ao sub
                   </span>
-                  <span className="rounded-full border border-white/[0.15] bg-white/[0.04] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
+                  <span
+                    className={cn(
+                      "rounded-full border border-white/[0.15] bg-white/[0.04] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider",
+                      payLabelTone,
+                    )}
+                  >
                     {payLabel}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ejs-paid">Valor pago ($)</Label>
-                    <Input
-                      id="ejs-paid"
-                      type="text"
-                      inputMode="decimal"
-                      value={amountPaid}
-                      onChange={(e) => setAmountPaid(e.target.value)}
-                      className="bg-white/[0.04] text-jcn-ice"
-                    />
+
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <p className="text-[10px] uppercase text-jcn-ice/45">
+                      Combinado
+                    </p>
+                    <p className="font-bold text-jcn-ice">
+                      {formatCurrency(agreed)}
+                    </p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ejs-paid-at">Data do pagamento</Label>
-                    <Input
-                      id="ejs-paid-at"
-                      type="date"
-                      value={paidAt}
-                      onChange={(e) => setPaidAt(e.target.value)}
-                      className="bg-white/[0.04] text-jcn-ice"
-                    />
+                  <div>
+                    <p className="text-[10px] uppercase text-jcn-ice/45">
+                      Pago
+                    </p>
+                    <p className="font-bold text-jcn-ice">
+                      {formatCurrency(paid)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-jcn-ice/45">
+                      Saldo
+                    </p>
+                    <p
+                      className={cn(
+                        "font-bold",
+                        remaining > 0 ? "text-orange-300" : "text-jcn-ice/55",
+                      )}
+                    >
+                      {formatCurrency(remaining)}
+                    </p>
                   </div>
                 </div>
-                {payStatus !== "paid" && (
-                  <p className="mt-2 text-xs opacity-80">
-                    Falta pagar {formatCurrency(remaining)}.
-                  </p>
-                )}
+
+                {/* Lista de parcelas */}
+                <div className="mt-3 space-y-1.5">
+                  {loadingPayments ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-jcn-ice/45" />
+                    </div>
+                  ) : payments.length === 0 ? (
+                    <p className="text-center text-xs italic text-jcn-ice/45">
+                      Nenhuma parcela registrada ainda
+                    </p>
+                  ) : (
+                    payments.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-jcn-ice">
+                              {formatCurrency(Number(p.amount))}
+                            </span>
+                            <span className="text-jcn-ice/55">·</span>
+                            <span className="text-jcn-ice/70">
+                              {format(
+                                new Date(`${p.paid_at}T12:00:00`),
+                                "dd MMM yyyy",
+                                { locale: ptBR },
+                              )}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-jcn-ice/45">
+                            {p.method ? PAYMENT_METHOD_LABEL[p.method] : "—"}
+                            {p.check_number && ` #${p.check_number}`}
+                            {p.notes && ` · ${p.notes}`}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePayment(p)}
+                          className="shrink-0 rounded-md p-1 text-jcn-ice/35 transition hover:bg-rose-500/15 hover:text-rose-300"
+                          title="Apagar parcela (e despesa no /finance)"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAddPaymentOpen(true)}
+                  className="mt-3 w-full border-jcn-gold-400/30 bg-jcn-gold-500/10 text-jcn-gold-200 hover:bg-jcn-gold-500/20"
+                >
+                  <Plus className="h-4 w-4" />
+                  Registrar pagamento
+                </Button>
+
                 {overpaid && (
                   <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-300">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    Valor pago ({formatCurrency(paid)}) está acima do combinado
+                    Total pago ({formatCurrency(paid)}) está acima do combinado
                     ({formatCurrency(agreed)}). Confere se está certo.
                   </p>
                 )}
@@ -514,6 +584,20 @@ export function EditJobSubDialog({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <AddSubPaymentDialog
+        jobSubId={jobSub.id}
+        subName={subName}
+        serviceDescription={serviceDescription}
+        agreedValue={Number(agreedValue.replace(/[^0-9.]/g, "")) || 0}
+        alreadyPaid={payments.reduce((sum, p) => sum + Number(p.amount), 0)}
+        open={addPaymentOpen}
+        onOpenChange={setAddPaymentOpen}
+        onDone={() => {
+          void reloadPayments();
+          if (onDone) onDone();
+        }}
+      />
     </Dialog>
   );
 }

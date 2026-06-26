@@ -1189,6 +1189,24 @@ export type JobSubcontractorUpdate = Partial<
   >
 >;
 
+/** Parcela paga a sub (migration 0047). 1 row por pagamento parcial. */
+export type JobSubPayment = {
+  id: string;
+  created_at: string;
+  job_subcontractor_id: string;
+  amount: number;
+  paid_at: string;
+  method: PaymentMethod | null;
+  check_number: string | null;
+  notes: string | null;
+  business_expense_id: string | null;
+};
+
+export type JobSubPaymentInsert = Omit<JobSubPayment, "id" | "created_at">;
+export type JobSubPaymentUpdate = Partial<
+  Omit<JobSubPayment, "id" | "created_at" | "job_subcontractor_id">
+>;
+
 /** Linha agregada da view v_job_subs_summary. */
 export type JobSubsSummary = {
   job_id: string;
@@ -1731,6 +1749,12 @@ export type Database = {
         Row: JobSubcontractor;
         Insert: JobSubcontractorInsert;
         Update: JobSubcontractorUpdate;
+        Relationships: [];
+      };
+      job_sub_payments: {
+        Row: JobSubPayment;
+        Insert: JobSubPaymentInsert;
+        Update: JobSubPaymentUpdate;
         Relationships: [];
       };
       job_daily_logs: {
