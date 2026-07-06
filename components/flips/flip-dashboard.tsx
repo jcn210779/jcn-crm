@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FlipPlanning } from "@/components/flips/flip-planning";
 import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type {
@@ -140,6 +141,7 @@ export function FlipDashboard({ jobId }: Props) {
     <div className="space-y-5">
       <PnLCard pnl={pnl} cash={cash} />
       <DetailsCard details={details} onChanged={reload} />
+      <FlipPlanning flipId={details.id} />
       <UnitsSection
         flipId={details.id}
         units={units}

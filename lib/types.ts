@@ -657,6 +657,72 @@ export type FlipBudgetVsActual = {
 };
 
 // ============================================================================
+// FLIP PLANNING (fases + inspeções + tarefas — migration 0049)
+// ============================================================================
+
+export type FlipPhaseStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "blocked";
+
+export type FlipPhase = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  flip_id: string;
+  name: string;
+  display_order: number;
+  status: FlipPhaseStatus;
+  target_end_date: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  notes: string | null;
+};
+
+export type FlipInspectionType = "city" | "internal";
+export type FlipInspectionStatus =
+  | "scheduled"
+  | "passed"
+  | "failed"
+  | "rescheduled"
+  | "cancelled";
+
+export type FlipInspection = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  flip_id: string;
+  type: FlipInspectionType;
+  name: string;
+  status: FlipInspectionStatus;
+  scheduled_date: string | null;
+  done_date: string | null;
+  inspector: string | null;
+  notes: string | null;
+  attachment_path: string | null;
+  attachment_file_name: string | null;
+  attachment_mime: string | null;
+};
+
+export type FlipTaskStatus = "todo" | "in_progress" | "done" | "cancelled";
+
+export type FlipTask = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  flip_id: string;
+  phase_id: string | null;
+  title: string;
+  description: string | null;
+  status: FlipTaskStatus;
+  display_order: number;
+  due_date: string | null;
+  done_at: string | null;
+  assigned_to: string | null;
+};
+
+// ============================================================================
 // STORE (depósito de material — migration 0045)
 // ============================================================================
 
@@ -1837,6 +1903,33 @@ export type Database = {
           category: string;
         };
         Update: Partial<Omit<FlipBudgetLine, "id" | "created_at" | "updated_at" | "flip_id">>;
+        Relationships: [];
+      };
+      flip_phases: {
+        Row: FlipPhase;
+        Insert: Partial<Omit<FlipPhase, "id" | "created_at" | "updated_at">> & {
+          flip_id: string;
+          name: string;
+        };
+        Update: Partial<Omit<FlipPhase, "id" | "created_at" | "updated_at" | "flip_id">>;
+        Relationships: [];
+      };
+      flip_inspections: {
+        Row: FlipInspection;
+        Insert: Partial<Omit<FlipInspection, "id" | "created_at" | "updated_at">> & {
+          flip_id: string;
+          name: string;
+        };
+        Update: Partial<Omit<FlipInspection, "id" | "created_at" | "updated_at" | "flip_id">>;
+        Relationships: [];
+      };
+      flip_tasks: {
+        Row: FlipTask;
+        Insert: Partial<Omit<FlipTask, "id" | "created_at" | "updated_at">> & {
+          flip_id: string;
+          title: string;
+        };
+        Update: Partial<Omit<FlipTask, "id" | "created_at" | "updated_at" | "flip_id">>;
         Relationships: [];
       };
       store_items: {
