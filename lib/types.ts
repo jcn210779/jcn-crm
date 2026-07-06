@@ -723,6 +723,50 @@ export type FlipTask = {
 };
 
 // ============================================================================
+// SUB PRICE CATALOG (referência de preço de subs — migration 0050)
+// ============================================================================
+
+export type PriceUnit =
+  | "sqft"
+  | "linear_ft"
+  | "day"
+  | "hour"
+  | "flat"
+  | "each";
+
+export const PRICE_UNITS: readonly PriceUnit[] = [
+  "sqft",
+  "linear_ft",
+  "day",
+  "hour",
+  "flat",
+  "each",
+];
+
+export type SubPriceCatalog = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  category: string;
+  service_name: string;
+  description: string | null;
+  unit: PriceUnit;
+  price_min: number;
+  price_max: number;
+  notes: string | null;
+  display_order: number;
+  is_active: boolean;
+};
+
+export type SubPriceCatalogShare = {
+  id: boolean;
+  token: string;
+  created_at: string;
+  rotated_at: string;
+  last_used_at: string | null;
+};
+
+// ============================================================================
 // STORE (depósito de material — migration 0045)
 // ============================================================================
 
@@ -1964,6 +2008,23 @@ export type Database = {
         Row: StoreShare;
         Insert: Partial<StoreShare>;
         Update: Partial<Omit<StoreShare, "id">>;
+        Relationships: [];
+      };
+      sub_price_catalog: {
+        Row: SubPriceCatalog;
+        Insert: Partial<Omit<SubPriceCatalog, "id" | "created_at" | "updated_at">> & {
+          category: string;
+          service_name: string;
+          price_min: number;
+          price_max: number;
+        };
+        Update: Partial<Omit<SubPriceCatalog, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
+      };
+      sub_price_catalog_share: {
+        Row: SubPriceCatalogShare;
+        Insert: Partial<SubPriceCatalogShare>;
+        Update: Partial<Omit<SubPriceCatalogShare, "id">>;
         Relationships: [];
       };
     };

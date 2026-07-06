@@ -14,6 +14,7 @@ import {
   Mail,
   Package,
   Plus,
+  Tag,
   Users,
   Wrench,
 } from "lucide-react";
@@ -121,6 +122,13 @@ export function AppHeader({
             icon={Package}
           >
             Depósito
+          </NavLink>
+          <NavLink
+            href="/precos"
+            active={pathname?.startsWith("/precos") ?? false}
+            icon={Tag}
+          >
+            Preços
           </NavLink>
           <NavLink
             href="/permits"
