@@ -13,6 +13,7 @@
 
 import {
   Building,
+  CalendarPlus,
   CheckCircle2,
   Circle,
   ClipboardCheck,
@@ -81,6 +82,66 @@ const TASK_STATUS_LABEL: Record<FlipTaskStatus, string> = {
   cancelled: "Cancelada",
 };
 
+/**
+ * Formata ISO timestamp pra valor de <input type="datetime-local"> (YYYY-MM-DDTHH:MM).
+ * Usa timezone local do browser.
+ */
+function toDateTimeLocalValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Formata ISO pra exibição curta (dd/MM HH:mm).
+ */
+function formatDateTimeShort(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+/**
+ * Gera link do Google Calendar pré-preenchido. Abre em nova aba —
+ * José confirma no gCal e evento vai pra agenda dele.
+ */
+function googleCalendarUrl(opts: {
+  title: string;
+  startIso: string;
+  endIso?: string;
+  details?: string;
+  location?: string;
+}): string {
+  const toGoogleFormat = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return (
+      `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}` +
+      `T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
+    );
+  };
+  const startG = toGoogleFormat(opts.startIso);
+  const endG = toGoogleFormat(
+    opts.endIso ?? new Date(new Date(opts.startIso).getTime() + 60 * 60 * 1000).toISOString(),
+  );
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: opts.title,
+    dates: `${startG}/${endG}`,
+  });
+  if (opts.details) params.set("details", opts.details);
+  if (opts.location) params.set("location", opts.location);
+  return `https://www.google.com/calendar/render?${params.toString()}`;
+}
+
 export function FlipPlanning({ flipId }: Props) {
   const [loading, setLoading] = useState(true);
   const [phases, setPhases] = useState<FlipPhase[]>([]);
@@ -93,11 +154,11 @@ export function FlipPlanning({ flipId }: Props) {
   const [newInspType, setNewInspType] =
     useState<FlipInspectionType>("city");
   const [newInspName, setNewInspName] = useState("");
-  const [newInspDate, setNewInspDate] = useState("");
+  const [newInspDateTime, setNewInspDateTime] = useState("");
   // Add-task
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskPhaseId, setNewTaskPhaseId] = useState<string>("");
-  const [newTaskDueDate, setNewTaskDueDate] = useState("");
+  const [newTaskDueDateTime, setNewTaskDueDateTime] = useState("");
 
   async function reload() {
     setLoading(true);
@@ -225,19 +286,44 @@ export function FlipPlanning({ flipId }: Props) {
       toast.error("Nome obrigatório");
       return;
     }
+    const scheduled = newInspDateTime
+      ? new Date(newInspDateTime).toISOString()
+      : null;
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.from("flip_inspections").insert({
-      flip_id: flipId,
-      type: newInspType,
-      name: newInspName.trim(),
-      scheduled_date: newInspDate || null,
-    });
+    const { data, error } = await supabase
+      .from("flip_inspections")
+      .insert({
+        flip_id: flipId,
+        type: newInspType,
+        name: newInspName.trim(),
+        scheduled_date: scheduled,
+      })
+      .select("id")
+      .single();
     if (error) {
       toast.error("Erro", { description: error.message });
       return;
     }
+    // Se tem data/hora, oferece link do Google Calendar
+    if (scheduled && data) {
+      const url = googleCalendarUrl({
+        title: `${newInspType === "city" ? "Inspeção cidade" : "Inspeção interna"}: ${newInspName.trim()}`,
+        startIso: scheduled,
+        details: `Flip JCN · inspeção ${newInspType === "city" ? "da cidade" : "interna"}`,
+      });
+      toast.success("Inspeção criada", {
+        description: "Click no toast pra abrir no Google Agenda",
+        action: {
+          label: "Google Agenda",
+          onClick: () => window.open(url, "_blank"),
+        },
+        duration: 8000,
+      });
+    } else {
+      toast.success("Inspeção criada");
+    }
     setNewInspName("");
-    setNewInspDate("");
+    setNewInspDateTime("");
     await reload();
   }
 
@@ -295,21 +381,42 @@ export function FlipPlanning({ flipId }: Props) {
       tasks.length > 0
         ? Math.max(...tasks.map((t) => t.display_order)) + 1
         : 1;
+    const due = newTaskDueDateTime
+      ? new Date(newTaskDueDateTime).toISOString()
+      : null;
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from("flip_tasks").insert({
       flip_id: flipId,
       phase_id: newTaskPhaseId || null,
       title: newTaskTitle.trim(),
       display_order: nextOrder,
-      due_date: newTaskDueDate || null,
+      due_date: due,
     });
     if (error) {
       toast.error("Erro", { description: error.message });
       return;
     }
+    if (due) {
+      const phase = phases.find((p) => p.id === newTaskPhaseId);
+      const url = googleCalendarUrl({
+        title: `Tarefa: ${newTaskTitle.trim()}`,
+        startIso: due,
+        details: `Flip JCN${phase ? ` · fase ${phase.name}` : ""}`,
+      });
+      toast.success("Tarefa criada", {
+        description: "Click no toast pra abrir no Google Agenda",
+        action: {
+          label: "Google Agenda",
+          onClick: () => window.open(url, "_blank"),
+        },
+        duration: 8000,
+      });
+    } else {
+      toast.success("Tarefa criada");
+    }
     setNewTaskTitle("");
     setNewTaskPhaseId("");
-    setNewTaskDueDate("");
+    setNewTaskDueDateTime("");
     await reload();
   }
 
@@ -497,10 +604,27 @@ export function FlipPlanning({ flipId }: Props) {
                   </div>
                   <div className="mt-0.5 text-[10px] opacity-80">
                     {INSPECTION_STATUS_LABEL[insp.status]}
-                    {insp.scheduled_date && ` · ${insp.scheduled_date}`}
-                    {insp.done_date && ` · feito ${insp.done_date}`}
+                    {insp.scheduled_date &&
+                      ` · ${formatDateTimeShort(insp.scheduled_date)}`}
+                    {insp.done_date &&
+                      ` · feito ${formatDateTimeShort(insp.done_date)}`}
                   </div>
                 </button>
+                {insp.scheduled_date && (
+                  <a
+                    href={googleCalendarUrl({
+                      title: `${insp.type === "city" ? "Inspeção cidade" : "Inspeção interna"}: ${insp.name}`,
+                      startIso: insp.scheduled_date,
+                      details: `Flip JCN · ${insp.type === "city" ? "cidade" : "interna"}`,
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 rounded p-1 opacity-60 hover:bg-sky-500/20 hover:text-sky-300 hover:opacity-100"
+                    title="Adicionar ao Google Agenda"
+                  >
+                    <CalendarPlus className="h-3 w-3" />
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={() => deleteInspection(insp)}
@@ -530,9 +654,9 @@ export function FlipPlanning({ flipId }: Props) {
                 <option value="internal">Interna</option>
               </select>
               <Input
-                type="date"
-                value={newInspDate}
-                onChange={(e) => setNewInspDate(e.target.value)}
+                type="datetime-local"
+                value={newInspDateTime}
+                onChange={(e) => setNewInspDateTime(e.target.value)}
                 className="h-9 text-xs"
               />
             </div>
@@ -599,11 +723,28 @@ export function FlipPlanning({ flipId }: Props) {
                               {phase.name}
                             </span>
                           )}
-                          {task.due_date && <span>Até {task.due_date}</span>}
+                          {task.due_date && (
+                            <span>Até {formatDateTimeShort(task.due_date)}</span>
+                          )}
                         </div>
                       )}
                     </div>
                   </button>
+                  {task.due_date && task.status !== "done" && (
+                    <a
+                      href={googleCalendarUrl({
+                        title: `Tarefa: ${task.title}`,
+                        startIso: task.due_date,
+                        details: `Flip JCN${phase ? ` · fase ${phase.name}` : ""}`,
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 rounded p-1 opacity-60 hover:bg-sky-500/20 hover:text-sky-300 hover:opacity-100"
+                      title="Adicionar ao Google Agenda"
+                    >
+                      <CalendarPlus className="h-3 w-3" />
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={() => deleteTask(task)}
@@ -648,9 +789,9 @@ export function FlipPlanning({ flipId }: Props) {
                 ))}
               </select>
               <Input
-                type="date"
-                value={newTaskDueDate}
-                onChange={(e) => setNewTaskDueDate(e.target.value)}
+                type="datetime-local"
+                value={newTaskDueDateTime}
+                onChange={(e) => setNewTaskDueDateTime(e.target.value)}
                 className="h-9 text-xs"
               />
             </div>
