@@ -31,6 +31,7 @@ const METHODS: { value: PaymentMethod; label: string }[] = [
 
 type Props = {
   jobSubId: string;
+  jobIsFlip: boolean;
   subName: string;
   serviceDescription: string;
   agreedValue: number;
@@ -42,6 +43,7 @@ type Props = {
 
 export function AddSubPaymentDialog({
   jobSubId,
+  jobIsFlip,
   subName,
   serviceDescription,
   agreedValue,
@@ -86,6 +88,7 @@ export function AddSubPaymentDialog({
     const supabase = createSupabaseBrowserClient();
 
     // 1) Cria business_expense pra essa parcela (lança no /finance com a data certa)
+    // Se o job é flip, marca is_flip=true — filtra do /finance da JCN (mig 0052)
     const expenseDescription = `Pagamento sub: ${serviceDescription} — ${subName}`;
     const { data: beData, error: beError } = await supabase
       .from("business_expenses")
@@ -97,6 +100,7 @@ export function AddSubPaymentDialog({
         amount: num,
         payment_method: method,
         check_number: method === "check" ? checkNumber.trim() || null : null,
+        is_flip: jobIsFlip,
       })
       .select("id")
       .single();

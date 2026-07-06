@@ -793,10 +793,11 @@ async function loadMonthData(monthLabel: string): Promise<{
       source: "ads" as const,
     }));
 
-  // 5) business_expenses
+  // 5) business_expenses (filtro is_flip=false — flip tem PnL separado no job)
   const { data: bizData } = await supabase
     .from("business_expenses")
     .select("id, description, amount, expense_date, category, vendor, check_number")
+    .eq("is_flip", false)
     .gte("expense_date", start)
     .lte("expense_date", end)
     .order("expense_date", { ascending: false });

@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   jobId: string;
+  jobIsFlip: boolean;
   jobSubs: JobSubcontractorWithSub[];
   activeSubs: ActiveSubOption[];
 };
@@ -76,6 +77,7 @@ const SPECIALTY_ACCENT: Record<SubcontractorSpecialty, string> = {
 
 export function JobSubcontractorsSection({
   jobId,
+  jobIsFlip,
   jobSubs,
   activeSubs,
 }: Props) {
@@ -219,6 +221,7 @@ export function JobSubcontractorsSection({
       {editTarget && (
         <EditJobSubDialog
           jobSub={editTarget}
+          jobIsFlip={jobIsFlip}
           open={editTarget !== null}
           onOpenChange={(open) => {
             if (!open) setEditTarget(null);

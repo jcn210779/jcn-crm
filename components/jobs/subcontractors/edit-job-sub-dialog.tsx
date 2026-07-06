@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   jobSub: JobSubcontractorWithSub;
+  jobIsFlip: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone?: () => void;
@@ -52,6 +53,7 @@ type Mode = "edit" | "confirm-complete" | "confirm-delete";
 
 export function EditJobSubDialog({
   jobSub,
+  jobIsFlip,
   open,
   onOpenChange,
   onDone,
@@ -587,6 +589,7 @@ export function EditJobSubDialog({
 
       <AddSubPaymentDialog
         jobSubId={jobSub.id}
+        jobIsFlip={jobIsFlip}
         subName={subName}
         serviceDescription={serviceDescription}
         agreedValue={Number(agreedValue.replace(/[^0-9.]/g, "")) || 0}

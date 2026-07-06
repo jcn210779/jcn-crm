@@ -31,21 +31,30 @@ export default async function FinancePage() {
     { data: paidData, error: paidError },
   ] = await Promise.all([
     supabase.from("v_finance_monthly").select("*").limit(24),
+    // Filtro is_flip=false — flip é investimento próprio, tem PnL separado
+    // no dashboard do job. Ficha oculta em /finance da JCN (mig 0052).
     supabase
       .from("business_expenses")
       .select("*")
+      .eq("is_flip", false)
       .order("expense_date", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase.from("v_account_balance").select("*").limit(1).maybeSingle(),
+    // Flip não tem recebível de cliente — filtra via join com jobs.is_flip
     supabase
       .from("job_payments")
       .select(
-        "*, job:jobs(id, value, current_phase, lead:leads(id, name, city))",
+        "*, job:jobs!inner(id, value, current_phase, is_flip, lead:leads(id, name, city))",
       )
       .eq("status", "pending")
+      .eq("job.is_flip", false)
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
-    supabase.from("job_payments").select("job_id, amount, status").eq("status", "paid"),
+    supabase
+      .from("job_payments")
+      .select("job_id, amount, status, job:jobs!inner(is_flip)")
+      .eq("status", "paid")
+      .eq("job.is_flip", false),
   ]);
 
   const monthly = (monthlyData ?? []) as FinanceMonthly[];

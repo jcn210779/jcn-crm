@@ -1408,6 +1408,9 @@ export type BusinessExpense = {
   receipt_mime: string | null;
 
   notes: string | null;
+
+  /** true = despesa de job flip (investimento próprio). Filtrada de /finance da JCN. Migration 0052. */
+  is_flip: boolean;
 };
 
 export type BusinessExpenseInsert = Pick<

@@ -495,6 +495,7 @@ export function JobDetail({
       {/* Subempreiteiros */}
       <JobSubcontractorsSection
         jobId={job.id}
+        jobIsFlip={job.is_flip}
         jobSubs={jobSubs}
         activeSubs={activeSubs}
       />
