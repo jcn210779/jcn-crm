@@ -743,6 +743,11 @@ export const PRICE_UNITS: readonly PriceUnit[] = [
   "each",
 ];
 
+export type PriceTier = {
+  label: string;
+  price: number;
+};
+
 export type SubPriceCatalog = {
   id: string;
   created_at: string;
@@ -753,6 +758,7 @@ export type SubPriceCatalog = {
   unit: PriceUnit;
   price_min: number;
   price_max: number;
+  tiers: PriceTier[];
   notes: string | null;
   display_order: number;
   is_active: boolean;

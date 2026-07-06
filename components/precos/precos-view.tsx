@@ -4,6 +4,7 @@ import {
   Copy,
   Loader2,
   MessageCircle,
+  Minus,
   Plus,
   RefreshCw,
   Save,
@@ -28,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
-import type { PriceUnit, SubPriceCatalog } from "@/lib/types";
+import type { PriceTier, PriceUnit, SubPriceCatalog } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_CATEGORIES = [
@@ -215,18 +216,38 @@ export function PrecosView({ initialItems }: Props) {
                         <p className="font-semibold text-jcn-ice">
                           {item.service_name}
                         </p>
-                        <p className="text-sm font-black text-jcn-gold-300">
-                          {formatCurrency(item.price_min)} –{" "}
-                          {formatCurrency(item.price_max)}
-                          <span className="text-xs font-normal text-jcn-ice/55">
-                            {UNIT_SUFFIX[item.unit]}
-                          </span>
-                        </p>
+                        {(!item.tiers || item.tiers.length === 0) && (
+                          <p className="text-sm font-black text-jcn-gold-300">
+                            {formatCurrency(item.price_min)} –{" "}
+                            {formatCurrency(item.price_max)}
+                            <span className="text-xs font-normal text-jcn-ice/55">
+                              {UNIT_SUFFIX[item.unit]}
+                            </span>
+                          </p>
+                        )}
                       </div>
                       {item.description && (
                         <p className="mt-1 text-xs text-jcn-ice/65">
                           {item.description}
                         </p>
+                      )}
+                      {item.tiers && item.tiers.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {item.tiers.map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="rounded-lg border border-jcn-gold-400/30 bg-jcn-gold-500/10 px-2 py-1 text-[11px]"
+                            >
+                              <span className="text-jcn-ice/70">{t.label}:</span>{" "}
+                              <span className="font-black text-jcn-gold-300">
+                                {formatCurrency(Number(t.price))}
+                                <span className="text-[9px] font-normal text-jcn-ice/55">
+                                  {UNIT_SUFFIX[item.unit]}
+                                </span>
+                              </span>
+                            </span>
+                          ))}
+                        </div>
                       )}
                       {item.notes && (
                         <p className="mt-1 text-[11px] italic text-jcn-ice/45">
@@ -307,6 +328,12 @@ function PrecoDialog({
   const [priceMin, setPriceMin] = useState(String(item?.price_min ?? ""));
   const [priceMax, setPriceMax] = useState(String(item?.price_max ?? ""));
   const [notes, setNotes] = useState(item?.notes ?? "");
+  const [tiers, setTiers] = useState<{ label: string; price: string }[]>(
+    (item?.tiers ?? []).map((t) => ({
+      label: t.label,
+      price: String(t.price),
+    })),
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -318,8 +345,28 @@ function PrecoDialog({
       setPriceMin(String(item?.price_min ?? ""));
       setPriceMax(String(item?.price_max ?? ""));
       setNotes(item?.notes ?? "");
+      setTiers(
+        (item?.tiers ?? []).map((t) => ({
+          label: t.label,
+          price: String(t.price),
+        })),
+      );
     }
   }, [open, item]);
+
+  function addTier() {
+    setTiers((prev) => [...prev, { label: "", price: "" }]);
+  }
+
+  function removeTier(idx: number) {
+    setTiers((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updateTier(idx: number, field: "label" | "price", value: string) {
+    setTiers((prev) =>
+      prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)),
+    );
+  }
 
   async function handleSave() {
     if (!category.trim()) {
@@ -341,6 +388,23 @@ function PrecoDialog({
       return;
     }
 
+    // Valida tiers (se preenchidos, ambos campos são obrigatórios)
+    const cleanedTiers: PriceTier[] = [];
+    for (const t of tiers) {
+      const label = t.label.trim();
+      const price = Number(t.price);
+      if (!label && !t.price) continue; // linha vazia — ignora
+      if (!label) {
+        toast.error("Todas as variações precisam de nome");
+        return;
+      }
+      if (Number.isNaN(price) || price < 0) {
+        toast.error(`Preço inválido em "${label}"`);
+        return;
+      }
+      cleanedTiers.push({ label, price });
+    }
+
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
     const payload = {
@@ -350,6 +414,7 @@ function PrecoDialog({
       unit,
       price_min: min,
       price_max: max,
+      tiers: cleanedTiers,
       notes: notes.trim() || null,
     };
     const { error } = item
@@ -457,6 +522,68 @@ function PrecoDialog({
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Tiers: variações por tipo de imóvel */}
+          <div className="space-y-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <Label className="mb-0">Variações por tipo (opcional)</Label>
+                <p className="mt-0.5 text-[10px] text-jcn-ice/45">
+                  Ex: 1 família $1.000 · 2 famílias $2.000 · cottage $1.000
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addTier}
+                disabled={saving}
+                className="h-8"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar
+              </Button>
+            </div>
+            {tiers.length === 0 ? (
+              <p className="text-center text-[11px] italic text-jcn-ice/40">
+                Sem variações — usa o range mín-máx acima
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {tiers.map((tier, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      value={tier.label}
+                      onChange={(e) => updateTier(idx, "label", e.target.value)}
+                      disabled={saving}
+                      placeholder="Ex: 1 família"
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      value={tier.price}
+                      onChange={(e) => updateTier(idx, "price", e.target.value)}
+                      disabled={saving}
+                      placeholder="1000"
+                      className="w-28"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeTier(idx)}
+                      disabled={saving}
+                      className="shrink-0 rounded-md p-1.5 text-jcn-ice/40 hover:bg-rose-500/15 hover:text-rose-300"
+                      title="Remover variação"
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

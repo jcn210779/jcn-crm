@@ -108,18 +108,38 @@ export function PrecosPublicView({ items }: Props) {
                       <p className="font-semibold text-jcn-ice">
                         {item.service_name}
                       </p>
-                      <p className="text-sm font-black text-jcn-gold-300">
-                        {formatCurrency(item.price_min)} –{" "}
-                        {formatCurrency(item.price_max)}
-                        <span className="text-xs font-normal text-jcn-ice/55">
-                          {UNIT_SUFFIX[item.unit]}
-                        </span>
-                      </p>
+                      {(!item.tiers || item.tiers.length === 0) && (
+                        <p className="text-sm font-black text-jcn-gold-300">
+                          {formatCurrency(item.price_min)} –{" "}
+                          {formatCurrency(item.price_max)}
+                          <span className="text-xs font-normal text-jcn-ice/55">
+                            {UNIT_SUFFIX[item.unit]}
+                          </span>
+                        </p>
+                      )}
                     </div>
                     {item.description && (
                       <p className="mt-1 text-xs text-jcn-ice/65">
                         {item.description}
                       </p>
+                    )}
+                    {item.tiers && item.tiers.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {item.tiers.map((t, idx) => (
+                          <span
+                            key={idx}
+                            className="rounded-lg border border-jcn-gold-400/30 bg-jcn-gold-500/10 px-2 py-1 text-[11px]"
+                          >
+                            <span className="text-jcn-ice/70">{t.label}:</span>{" "}
+                            <span className="font-black text-jcn-gold-300">
+                              {formatCurrency(Number(t.price))}
+                              <span className="text-[9px] font-normal text-jcn-ice/55">
+                                {UNIT_SUFFIX[item.unit]}
+                              </span>
+                            </span>
+                          </span>
+                        ))}
+                      </div>
                     )}
                     {item.notes && (
                       <p className="mt-1 text-[11px] italic text-jcn-ice/45">
