@@ -30,11 +30,14 @@ import {
   EXPENSE_CATEGORIES,
   PAYMENT_METHODS,
   type ExpenseCategory,
+  type ExpenseKind,
   type PaymentMethod,
 } from "@/lib/types";
 
 type Props = {
   jobId: string;
+  /** 'purchase' (default) = compra normal. 'return' = devolução de material (subtrai do total). */
+  kind?: ExpenseKind;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone?: () => void;
@@ -46,7 +49,14 @@ function defaultDate(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
+export function AddExpenseDialog({
+  jobId,
+  kind = "purchase",
+  open,
+  onOpenChange,
+  onDone,
+}: Props) {
+  const isReturn = kind === "return";
   const [category, setCategory] = useState<ExpenseCategory>("materials");
   const [description, setDescription] = useState("");
   const [vendor, setVendor] = useState("");
@@ -140,6 +150,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
     const trimmedCheck = checkNumber.trim();
     const { error } = await supabase.from("job_expenses").insert({
       job_id: jobId,
+      kind,
       category,
       description: description.trim(),
       vendor: vendor.trim() || null,
@@ -168,7 +179,7 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
       return;
     }
 
-    toast.success("Despesa adicionada");
+    toast.success(isReturn ? "Devolução registrada" : "Despesa adicionada");
     reset();
     if (onDone) onDone();
   }
@@ -182,9 +193,13 @@ export function AddExpenseDialog({ jobId, open, onOpenChange, onDone }: Props) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Adicionar despesa</DialogTitle>
+          <DialogTitle>
+            {isReturn ? "Registrar devolução de material" : "Adicionar despesa"}
+          </DialogTitle>
           <DialogDescription>
-            Material, mão de obra, permit ou outros gastos da obra.
+            {isReturn
+              ? "Material que sobrou e foi devolvido pra loja. Vai subtrair do total gasto do job e refletir no /finance."
+              : "Material, mão de obra, permit ou outros gastos da obra."}
           </DialogDescription>
         </DialogHeader>
 

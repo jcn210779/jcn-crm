@@ -956,6 +956,8 @@ export type JobPhotoCounts = {
   total_count: number;
 };
 
+export type ExpenseKind = "purchase" | "return";
+
 export type JobExpense = {
   id: string;
   created_at: string;
@@ -963,6 +965,7 @@ export type JobExpense = {
 
   job_id: string;
 
+  kind: ExpenseKind;
   category: ExpenseCategory;
   vendor: string | null;
   description: string;
@@ -1044,6 +1047,9 @@ export type JobInvoiceUpdate = Partial<
 export type JobExpenseSummary = {
   job_id: string;
   expense_count: number;
+  return_count: number;
+  gross_expenses: number;
+  returns_total: number;
   total_expenses: number;
   materials_total: number;
   labor_total: number;

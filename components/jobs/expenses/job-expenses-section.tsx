@@ -12,6 +12,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  Undo2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -64,6 +65,7 @@ export function JobExpensesSection({
 }: Props) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<JobExpense | null>(null);
   const [viewerTarget, setViewerTarget] = useState<{
     expense: JobExpense;
@@ -82,10 +84,14 @@ export function JobExpensesSection({
       other: 0,
     };
     let grandTotal = 0;
+    let returnsTotal = 0;
     for (const e of expenses) {
       const amt = Number(e.amount);
-      totals[e.category] += amt;
-      grandTotal += amt;
+      const isReturn = e.kind === "return";
+      const signed = isReturn ? -amt : amt;
+      totals[e.category] += signed;
+      grandTotal += signed;
+      if (isReturn) returnsTotal += amt;
     }
     const topCategory = (Object.entries(totals) as [ExpenseCategory, number][])
       .filter(([, v]) => v > 0)
@@ -101,6 +107,7 @@ export function JobExpensesSection({
     return {
       totals,
       grandTotal,
+      returnsTotal,
       topCategory,
       margin,
       marginPercent,
@@ -133,10 +140,21 @@ export function JobExpensesSection({
             </p>
           </div>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="h-10 font-semibold">
-          <Plus className="h-4 w-4" />
-          Adicionar despesa
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setReturnOpen(true)}
+            className="h-10 border-emerald-400/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+            title="Devolveu material que sobrou pra loja e recebeu crédito"
+          >
+            <Undo2 className="h-4 w-4" />
+            Devolução
+          </Button>
+          <Button onClick={() => setAddOpen(true)} className="h-10 font-semibold">
+            <Plus className="h-4 w-4" />
+            Adicionar despesa
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -245,6 +263,17 @@ export function JobExpensesSection({
         onOpenChange={setAddOpen}
         onDone={() => {
           setAddOpen(false);
+          router.refresh();
+        }}
+      />
+
+      <AddExpenseDialog
+        jobId={job.id}
+        kind="return"
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        onDone={() => {
+          setReturnOpen(false);
           router.refresh();
         }}
       />
@@ -398,9 +427,20 @@ function ExpenseRow({ expense, receiptUrl, onView, onDelete }: ExpenseRowProps) 
 
       <div className="flex items-center gap-3 md:gap-4">
         <div className="text-right">
-          <div className="text-base font-black text-jcn-gold-300">
-            {formatCurrency(Number(expense.amount))}
-          </div>
+          {expense.kind === "return" ? (
+            <>
+              <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">
+                Devolução
+              </div>
+              <div className="text-base font-black text-emerald-300">
+                −{formatCurrency(Number(expense.amount))}
+              </div>
+            </>
+          ) : (
+            <div className="text-base font-black text-jcn-gold-300">
+              {formatCurrency(Number(expense.amount))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
