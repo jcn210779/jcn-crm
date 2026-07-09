@@ -7,6 +7,7 @@ import {
   FileText,
   Image as ImageIcon,
   Paperclip,
+  Pencil,
   Plus,
   Receipt,
   Trash2,
@@ -67,6 +68,7 @@ export function JobExpensesSection({
   const [addOpen, setAddOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<JobExpense | null>(null);
+  const [editTarget, setEditTarget] = useState<JobExpense | null>(null);
   const [viewerTarget, setViewerTarget] = useState<{
     expense: JobExpense;
     url: string;
@@ -250,6 +252,7 @@ export function JobExpensesSection({
                 e.receipt_path ? (receiptUrls[e.receipt_path] ?? null) : null
               }
               onView={(url) => setViewerTarget({ expense: e, url })}
+              onEdit={() => setEditTarget(e)}
               onDelete={() => setDeleteTarget(e)}
             />
           ))
@@ -274,6 +277,19 @@ export function JobExpensesSection({
         onOpenChange={setReturnOpen}
         onDone={() => {
           setReturnOpen(false);
+          router.refresh();
+        }}
+      />
+
+      <AddExpenseDialog
+        jobId={job.id}
+        expense={editTarget}
+        open={editTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditTarget(null);
+        }}
+        onDone={() => {
+          setEditTarget(null);
           router.refresh();
         }}
       />
@@ -358,10 +374,17 @@ type ExpenseRowProps = {
   expense: JobExpense;
   receiptUrl: string | null;
   onView: (url: string) => void;
+  onEdit: () => void;
   onDelete: () => void;
 };
 
-function ExpenseRow({ expense, receiptUrl, onView, onDelete }: ExpenseRowProps) {
+function ExpenseRow({
+  expense,
+  receiptUrl,
+  onView,
+  onEdit,
+  onDelete,
+}: ExpenseRowProps) {
   const isImage = expense.receipt_mime?.startsWith("image/");
   const isPdf = expense.receipt_mime === "application/pdf";
   const hasReceipt = expense.receipt_path !== null;
@@ -463,6 +486,15 @@ function ExpenseRow({ expense, receiptUrl, onView, onDelete }: ExpenseRowProps) 
               )}
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+            className="h-9 w-9 p-0 text-jcn-ice/60 hover:text-jcn-gold-300"
+            title="Editar despesa"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="sm"
