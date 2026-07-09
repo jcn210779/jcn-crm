@@ -37,9 +37,10 @@ COMMENT ON COLUMN job_expenses.kind IS
   'purchase = compra (soma no total do job). return = devolução (subtrai). Amount continua positivo (o sinal vem do kind).';
 
 -- =============================================================================
--- Recriar v_job_expense_summary com NET (purchases - returns)
+-- Recriar v_job_expense_summary com NET (purchases - returns).
+-- CASCADE porque v_job_margin depende. Recriamos v_job_margin logo abaixo.
 -- =============================================================================
-DROP VIEW IF EXISTS v_job_expense_summary;
+DROP VIEW IF EXISTS v_job_expense_summary CASCADE;
 
 CREATE OR REPLACE VIEW v_job_expense_summary AS
 SELECT
@@ -58,6 +59,41 @@ SELECT
   COALESCE(SUM(CASE WHEN kind = 'return' THEN -amount ELSE amount END) FILTER (WHERE category = 'other'), 0) AS other_total
 FROM job_expenses
 GROUP BY job_id;
+
+-- =============================================================================
+-- Recriar v_job_margin (dropada pelo CASCADE acima) — idêntica à mig 0014,
+-- só a semântica de total_expenses agora é NET (compra - devolução).
+-- =============================================================================
+CREATE OR REPLACE VIEW v_job_margin AS
+SELECT
+  j.id AS job_id,
+  j.value AS contract_value,
+  COALESCE(xs.approved_value_total, 0) AS approved_extras_value,
+  j.value + COALESCE(xs.approved_value_total, 0) AS effective_contract_value,
+  COALESCE(es.total_expenses, 0) AS total_expenses,
+  COALESCE(hs.total_labor_cost, 0) AS total_labor,
+  COALESCE(ss.active_sub_cost, 0) AS total_subs,
+  (j.value + COALESCE(xs.approved_value_total, 0))
+    - COALESCE(es.total_expenses, 0)
+    - COALESCE(hs.total_labor_cost, 0)
+    - COALESCE(ss.active_sub_cost, 0)
+    AS estimated_margin,
+  CASE
+    WHEN (j.value + COALESCE(xs.approved_value_total, 0)) > 0 THEN
+      ROUND(
+        (((j.value + COALESCE(xs.approved_value_total, 0))
+          - COALESCE(es.total_expenses, 0)
+          - COALESCE(hs.total_labor_cost, 0)
+          - COALESCE(ss.active_sub_cost, 0))
+          / (j.value + COALESCE(xs.approved_value_total, 0)) * 100)::numeric, 1
+      )
+    ELSE NULL
+  END AS margin_percent
+FROM jobs j
+LEFT JOIN v_job_expense_summary es ON es.job_id = j.id
+LEFT JOIN v_job_hours_summary hs ON hs.job_id = j.id
+LEFT JOIN v_job_extras_summary xs ON xs.job_id = j.id
+LEFT JOIN v_job_subs_summary ss ON ss.job_id = j.id;
 
 -- =============================================================================
 -- Recriar v_finance_monthly com net de job_expenses (purchase - return)
