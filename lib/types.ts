@@ -827,6 +827,13 @@ export type StoreShare = {
   last_used_at: string | null;
 };
 
+/** flip_playbook — 1 linha global com a árvore do processo de flip (JSON). */
+export type FlipPlaybook = {
+  id: true;
+  data: unknown;
+  updated_at: string;
+};
+
 /** Campos obrigatorios pra INSERT em jobs (defaults preenchem o resto). */
 export type JobInsert = Pick<Job, "lead_id"> &
   Partial<Omit<Job, "id" | "created_at" | "updated_at">>;
@@ -2023,6 +2030,12 @@ export type Database = {
         Row: StoreShare;
         Insert: Partial<StoreShare>;
         Update: Partial<Omit<StoreShare, "id">>;
+        Relationships: [];
+      };
+      flip_playbook: {
+        Row: FlipPlaybook;
+        Insert: Partial<FlipPlaybook>;
+        Update: Partial<Omit<FlipPlaybook, "id">>;
         Relationships: [];
       };
       sub_price_catalog: {

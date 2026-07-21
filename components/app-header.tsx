@@ -10,6 +10,7 @@ import {
   HardHat,
   Home,
   KanbanSquare,
+  ListTree,
   LogOut,
   Mail,
   Package,
@@ -87,6 +88,13 @@ export function AppHeader({
             icon={Home}
           >
             Flips
+          </NavLink>
+          <NavLink
+            href="/playbook"
+            active={pathname?.startsWith("/playbook") ?? false}
+            icon={ListTree}
+          >
+            Playbook
           </NavLink>
           <NavLink
             href="/tasks"
