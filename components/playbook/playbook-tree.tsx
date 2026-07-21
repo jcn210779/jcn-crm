@@ -1,6 +1,15 @@
 "use client";
 
-import { Check, ChevronRight, Phone, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  FileText,
+  Loader2,
+  Paperclip,
+  Phone,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
@@ -11,6 +20,14 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 export type StepStatus = "todo" | "doing" | "done" | "blocked";
 
+export type PlaybookAttachment = {
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+  size: number;
+};
+
 export type PlaybookStep = {
   id: string;
   title: string;
@@ -18,7 +35,11 @@ export type PlaybookStep = {
   responsavel: string;
   telefone: string;
   notas: string;
+  anexos: PlaybookAttachment[];
 };
+
+const BUCKET = "playbook-files";
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 export type PlaybookPhase = {
   id: string;
@@ -70,6 +91,30 @@ const STATUS_META: Record<
 const uid = () =>
   Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 
+function generateUuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function fileExt(file: File): string {
+  const fromName = file.name.split(".").pop()?.toLowerCase();
+  if (fromName && fromName.length <= 5) return fromName;
+  const fromMime = file.type.split("/")[1]?.toLowerCase();
+  return fromMime || "bin";
+}
+
+function humanSize(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function mkStep(
   title: string,
   extra?: Partial<Omit<PlaybookStep, "id" | "title">>,
@@ -81,6 +126,7 @@ function mkStep(
     responsavel: extra?.responsavel ?? "",
     telefone: extra?.telefone ?? "",
     notas: extra?.notas ?? "",
+    anexos: extra?.anexos ?? [],
   };
 }
 
@@ -193,6 +239,15 @@ function normalize(input: PlaybookData | null): PlaybookData {
           responsavel: s.responsavel ?? "",
           telefone: s.telefone ?? "",
           notas: s.notas ?? "",
+          anexos: Array.isArray(s.anexos)
+            ? s.anexos.map((a) => ({
+                id: a.id ?? uid(),
+                name: a.name ?? "arquivo",
+                path: a.path ?? "",
+                type: a.type ?? "",
+                size: a.size ?? 0,
+              }))
+            : [],
         })),
       })),
     };
@@ -259,9 +314,12 @@ export function PlaybookTree({ initialData }: { initialData: PlaybookData | null
   const [supabase] = useState(() => createSupabaseBrowserClient());
   const [data, setData] = useState<PlaybookData>(() => normalize(initialData));
   const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [uploadingSteps, setUploadingSteps] = useState<Record<string, boolean>>({});
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
   const seededRef = useRef(false);
+  const dataRef = useRef(data);
+  dataRef.current = data;
 
   const persist = useCallback(
     async (next: PlaybookData) => {
@@ -347,6 +405,97 @@ export function PlaybookTree({ initialData }: { initialData: PlaybookData | null
   const delStep = (pid: string, sid: string, title: string) => {
     if (!confirm(`Remover a etapa "${title || "sem título"}"?`)) return;
     patchPhase(pid, (p) => ({ ...p, steps: p.steps.filter((s) => s.id !== sid) }));
+  };
+
+  // ---- anexos (Supabase Storage) ----
+  const appendAnexos = (pid: string, sid: string, added: PlaybookAttachment[]) => {
+    const d = dataRef.current;
+    commit({
+      ...d,
+      phases: d.phases.map((p) =>
+        p.id === pid
+          ? {
+              ...p,
+              steps: p.steps.map((s) =>
+                s.id === sid ? { ...s, anexos: [...s.anexos, ...added] } : s,
+              ),
+            }
+          : p,
+      ),
+    });
+  };
+
+  const uploadFiles = async (pid: string, sid: string, files: FileList | null) => {
+    const list = Array.from(files ?? []);
+    if (!list.length) return;
+    setUploadingSteps((m) => ({ ...m, [sid]: true }));
+    const added: PlaybookAttachment[] = [];
+    const errors: string[] = [];
+    for (const file of list) {
+      if (file.size > MAX_FILE_BYTES) {
+        errors.push(`${file.name} — grande demais (máx 25 MB)`);
+        continue;
+      }
+      const mime = file.type || "application/octet-stream";
+      const path = `playbook/${sid}/${generateUuid()}.${fileExt(file)}`;
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file, { cacheControl: "3600", upsert: false, contentType: mime });
+      if (error) {
+        errors.push(`${file.name} — ${error.message}`);
+        continue;
+      }
+      added.push({
+        id: uid(),
+        name: file.name || "arquivo",
+        path,
+        type: mime,
+        size: file.size,
+      });
+    }
+    setUploadingSteps((m) => {
+      const next = { ...m };
+      delete next[sid];
+      return next;
+    });
+    if (added.length) appendAnexos(pid, sid, added);
+    if (errors.length) alert(`Alguns arquivos não subiram:\n${errors.join("\n")}`);
+  };
+
+  const openAttachment = async (att: PlaybookAttachment) => {
+    const { data: signed, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(att.path, 3600);
+    if (error || !signed?.signedUrl) {
+      alert("Não consegui abrir o anexo.");
+      return;
+    }
+    window.open(signed.signedUrl, "_blank");
+  };
+
+  const deleteAttachment = async (
+    pid: string,
+    sid: string,
+    att: PlaybookAttachment,
+  ) => {
+    if (!confirm(`Remover "${att.name}"?`)) return;
+    await supabase.storage.from(BUCKET).remove([att.path]);
+    const d = dataRef.current;
+    commit({
+      ...d,
+      phases: d.phases.map((p) =>
+        p.id === pid
+          ? {
+              ...p,
+              steps: p.steps.map((s) =>
+                s.id === sid
+                  ? { ...s, anexos: s.anexos.filter((a) => a.id !== att.id) }
+                  : s,
+              ),
+            }
+          : p,
+      ),
+    });
   };
 
   const addPhase = () =>
@@ -473,11 +622,17 @@ export function PlaybookTree({ initialData }: { initialData: PlaybookData | null
                       <StepCard
                         key={step.id}
                         step={step}
+                        uploading={!!uploadingSteps[step.id]}
                         onCycle={() => cycleStatus(phase.id, step.id)}
                         onField={(field, v) =>
                           patchStep(phase.id, step.id, (s) => ({ ...s, [field]: v }))
                         }
                         onDelete={() => delStep(phase.id, step.id, step.title)}
+                        onUpload={(files) => uploadFiles(phase.id, step.id, files)}
+                        onOpenAttachment={openAttachment}
+                        onDeleteAttachment={(att) =>
+                          deleteAttachment(phase.id, step.id, att)
+                        }
                       />
                     ))}
                     <button
@@ -533,18 +688,30 @@ function SaveBadge({ state }: { state: SaveState }) {
 
 function StepCard({
   step,
+  uploading,
   onCycle,
   onField,
   onDelete,
+  onUpload,
+  onOpenAttachment,
+  onDeleteAttachment,
 }: {
   step: PlaybookStep;
+  uploading: boolean;
   onCycle: () => void;
-  onField: (field: keyof PlaybookStep, value: string) => void;
+  onField: (
+    field: "title" | "responsavel" | "telefone" | "notas",
+    value: string,
+  ) => void;
   onDelete: () => void;
+  onUpload: (files: FileList | null) => void;
+  onOpenAttachment: (att: PlaybookAttachment) => void;
+  onDeleteAttachment: (att: PlaybookAttachment) => void;
 }) {
   const meta = STATUS_META[step.status];
   const tel = step.telefone.replace(/[^0-9+]/g, "");
   const callable = tel.length >= 5;
+  const fileRef = useRef<HTMLInputElement | null>(null);
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
       <div className="flex items-start gap-2.5">
@@ -628,6 +795,68 @@ function StepCard({
             className="min-h-[38px] rounded-lg border border-white/[0.08] bg-background/50 px-2.5 py-1.5 text-sm leading-relaxed text-foreground outline-none focus:border-primary/50"
           />
         </label>
+
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Exemplos / anexos
+          </span>
+          {step.anexos.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              {step.anexos.map((att) => (
+                <div
+                  key={att.id}
+                  className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-background/50 px-2 py-1.5"
+                >
+                  <FileText className="h-4 w-4 flex-none text-primary/70" />
+                  <button
+                    type="button"
+                    onClick={() => onOpenAttachment(att)}
+                    title={`Abrir ${att.name}`}
+                    className="min-w-0 flex-1 truncate text-left text-sm text-foreground transition hover:text-primary hover:underline"
+                  >
+                    {att.name}
+                  </button>
+                  <span className="flex-none text-[11px] tabular-nums text-muted-foreground">
+                    {humanSize(att.size)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteAttachment(att)}
+                    aria-label="Remover anexo"
+                    className="flex-none rounded-md p-1 text-muted-foreground/50 transition hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                onUpload(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center gap-1.5 self-start rounded-lg border border-dashed border-white/15 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/50 hover:text-primary disabled:opacity-60"
+            >
+              {uploading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Paperclip className="h-3.5 w-3.5" />
+              )}
+              {uploading ? "Enviando…" : "Anexar documento(s)"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
