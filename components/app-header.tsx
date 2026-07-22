@@ -98,13 +98,6 @@ export function AppHeader({
             Playbook
           </NavLink>
           <NavLink
-            href="/tasks"
-            active={pathname?.startsWith("/tasks") ?? false}
-            icon={CalendarCheck2}
-          >
-            Tasks
-          </NavLink>
-          <NavLink
             href="/follow-ups"
             active={pathname?.startsWith("/follow-ups") ?? false}
             icon={Mail}
@@ -131,20 +124,6 @@ export function AppHeader({
             icon={Package}
           >
             Depósito
-          </NavLink>
-          <NavLink
-            href="/precos"
-            active={pathname?.startsWith("/precos") ?? false}
-            icon={Tag}
-          >
-            Preços
-          </NavLink>
-          <NavLink
-            href="/permits"
-            active={pathname?.startsWith("/permits") ?? false}
-            icon={Building2}
-          >
-            Permits
           </NavLink>
           <NavLink
             href="/schedule"
