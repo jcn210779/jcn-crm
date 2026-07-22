@@ -23,6 +23,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { GlobalSearch } from "@/components/global-search";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -169,6 +170,7 @@ export function AppHeader({
         </nav>
 
         <div className="flex items-center gap-2">
+          <GlobalSearch />
           {showNewLead && (
             <Button asChild size="sm" className="hidden font-semibold md:inline-flex">
               <Link href="/lead/novo">
