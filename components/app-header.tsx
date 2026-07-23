@@ -3,6 +3,7 @@
 import {
   BarChart3,
   Building2,
+  Calculator,
   CalendarCheck2,
   CalendarRange,
   ChevronDown,
@@ -131,6 +132,13 @@ export function AppHeader({
             icon={CalendarRange}
           >
             Agenda
+          </NavLink>
+          <NavLink
+            href="/calc/deck"
+            active={pathname?.startsWith("/calc") ?? false}
+            icon={Calculator}
+          >
+            Calc
           </NavLink>
           <NavLink
             href="/finance"

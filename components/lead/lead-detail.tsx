@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Clock,
   ExternalLink,
+  Calculator,
   FileText,
   HardHat,
   Image as ImageIcon,
@@ -381,6 +382,15 @@ export function LeadDetail({
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Button
+            asChild
+            className="h-10 bg-jcn-gold-500 text-jcn-midnight hover:bg-jcn-gold-400"
+          >
+            <Link href="/calc/deck">
+              <Calculator className="h-4 w-4" />
+              Calcular material
+            </Link>
+          </Button>
           <Button
             variant="outline"
             className="h-10 border-white/[0.1] bg-white/[0.04]"
