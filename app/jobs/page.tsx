@@ -7,28 +7,36 @@ import { KanbanSkeleton } from "@/components/kanban/kanban-skeleton";
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { Job, Lead } from "@/lib/types";
+import { getViewMode } from "@/lib/view-mode";
 
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
   const user = await requireUser();
+  const viewMode = getViewMode();
   return (
     <main className="relative min-h-screen pb-24">
       <DecorBackground />
-      <AppHeader userEmail={user.email ?? ""} showNewLead={false} title="Jobs" />
+      <AppHeader
+        userEmail={user.email ?? ""}
+        showNewLead={false}
+        title={viewMode === "flip" ? "Jobs (Flip)" : "Jobs"}
+        viewMode={viewMode}
+      />
       <Suspense fallback={<KanbanSkeleton />}>
-        <JobsLoader />
+        <JobsLoader isFlipMode={viewMode === "flip"} />
       </Suspense>
     </main>
   );
 }
 
-async function JobsLoader() {
+async function JobsLoader({ isFlipMode }: { isFlipMode: boolean }) {
   const supabase = createSupabaseServerClient();
 
   const { data: jobs, error: jobsError } = await supabase
     .from("jobs")
     .select("*")
+    .eq("is_flip", isFlipMode)
     .order("contract_signed_at", { ascending: false });
 
   if (jobsError) {

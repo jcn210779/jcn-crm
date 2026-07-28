@@ -25,8 +25,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { GlobalSearch } from "@/components/global-search";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { ViewMode } from "@/lib/view-mode";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,12 +42,14 @@ type AppHeaderProps = {
   userEmail: string;
   showNewLead?: boolean;
   title?: string;
+  viewMode?: ViewMode;
 };
 
 export function AppHeader({
   userEmail,
   showNewLead = true,
   title = "Pipeline",
+  viewMode = "jcn",
 }: AppHeaderProps) {
   const pathname = usePathname();
   return (
@@ -164,6 +168,7 @@ export function AppHeader({
         </nav>
 
         <div className="flex items-center gap-2">
+          <ModeToggle initialMode={viewMode} />
           <GlobalSearch />
           {showNewLead && (
             <Button asChild size="sm" className="hidden font-semibold md:inline-flex">

@@ -14,6 +14,7 @@ import {
 import { requireUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { JobPhase } from "@/lib/types";
+import { getViewMode } from "@/lib/view-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,8 @@ function daysSince(iso: string): number {
 export default async function CentralPage() {
   const user = await requireUser();
   const supabase = createSupabaseServerClient();
+  const viewMode = getViewMode();
+  const isFlipMode = viewMode === "flip";
 
   const now = new Date();
   const in7d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -44,13 +47,14 @@ export default async function CentralPage() {
   const nowDate = now.toISOString().slice(0, 10);
   const in7dDate = in7d.toISOString().slice(0, 10);
 
-  // 1. Obras ativas
+  // 1. Obras ativas (filtra por is_flip conforme modo)
   const activeJobsRes = await supabase
     .from("jobs")
     .select(
       "id, current_phase, value, is_flip, actual_start, expected_end, lead:leads(name, city)",
     )
     .in("current_phase", ACTIVE_PHASES)
+    .eq("is_flip", isFlipMode)
     .order("actual_start", { ascending: true, nullsFirst: false });
 
   const activeJobs: ActiveJob[] = (activeJobsRes.data ?? []).map(
@@ -81,7 +85,8 @@ export default async function CentralPage() {
   const permitRes = await supabase
     .from("jobs")
     .select("id, current_phase, permit_status, lead:leads(name)")
-    .in("current_phase", ACTIVE_PHASES);
+    .in("current_phase", ACTIVE_PHASES)
+    .eq("is_flip", isFlipMode);
 
   const permitAlerts: PermitAlert[] = (permitRes.data ?? [])
     .map((j: unknown) => {
@@ -256,13 +261,14 @@ export default async function CentralPage() {
     },
   );
 
-  // 5. Subs com saldo a pagar
+  // 5. Subs com saldo a pagar (filtra por is_flip via join)
   const subsRes = await supabase
     .from("job_subcontractors")
     .select(
-      "id, agreed_value, amount_paid, service_description, job:jobs(id, lead:leads(name)), sub:subcontractors(name)",
+      "id, agreed_value, amount_paid, service_description, job:jobs!inner(id, is_flip, lead:leads(name)), sub:subcontractors(name)",
     )
-    .neq("status", "cancelled");
+    .neq("status", "cancelled")
+    .eq("job.is_flip", isFlipMode);
 
   const subBalances: SubBalance[] = (subsRes.data ?? [])
     .map((s: unknown) => {
@@ -271,7 +277,11 @@ export default async function CentralPage() {
         agreed_value: number;
         amount_paid: number;
         service_description: string;
-        job: { id: string; lead: { name: string } | null } | null;
+        job: {
+          id: string;
+          is_flip: boolean;
+          lead: { name: string } | null;
+        } | null;
         sub: { name: string } | null;
       };
       const remaining = Number(js.agreed_value) - Number(js.amount_paid ?? 0);
@@ -386,6 +396,7 @@ export default async function CentralPage() {
         userEmail={user.email ?? ""}
         showNewLead={false}
         title="Central"
+        viewMode={viewMode}
       />
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="mb-5">
