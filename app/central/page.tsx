@@ -5,6 +5,7 @@ import {
   type EstimateStale,
   type LowStock,
   type PaymentDue,
+  type PendingInspection,
   type PendingTask,
   type PermitAlert,
   type SubBalance,
@@ -101,8 +102,8 @@ export default async function CentralPage() {
       (p) => p.status !== "released" && p.status !== "not_needed",
     );
 
-  // 3. Inspeções próximas (7 dias)
-  const inspRes = await supabase
+  // 3a. Inspeções de flip próximas 7 dias
+  const flipInspRes = await supabase
     .from("flip_inspections")
     .select("id, name, type, scheduled_date, status, flip_id")
     .gte("scheduled_date", nowIso)
@@ -110,7 +111,7 @@ export default async function CentralPage() {
     .in("status", ["scheduled", "rescheduled"])
     .order("scheduled_date");
 
-  const inspList = (inspRes.data ?? []) as {
+  const flipInspList = (flipInspRes.data ?? []) as {
     id: string;
     name: string;
     type: string;
@@ -119,8 +120,7 @@ export default async function CentralPage() {
     flip_id: string;
   }[];
 
-  // Puxa flip_details pra pegar job_id e endereço
-  const flipIds = inspList.map((i) => i.flip_id);
+  const flipIds = flipInspList.map((i) => i.flip_id);
   const flipDetailsMap = new Map<
     string,
     { job_id: string; property_address: string | null }
@@ -143,19 +143,78 @@ export default async function CentralPage() {
     });
   }
 
-  const upcomingInspections: UpcomingInspection[] = inspList.map((i) => {
-    const flip = flipDetailsMap.get(i.flip_id);
-    return {
+  // 3b. Inspeções de job regular (mig 0055) — próximas 7d + sem data
+  const jobInspRes = await supabase
+    .from("job_inspections")
+    .select(
+      "id, name, type, scheduled_date, status, job_id, job:jobs(lead:leads(name), current_phase)",
+    )
+    .in("status", ["pending", "scheduled"]);
+
+  const jobInspList = (jobInspRes.data ?? []) as unknown as {
+    id: string;
+    name: string;
+    type: string;
+    scheduled_date: string | null;
+    status: string;
+    job_id: string;
+    job: {
+      lead: { name: string } | null;
+      current_phase: string;
+    } | null;
+  }[];
+
+  // Agendadas nos próximos 7 dias (flip + job juntos, ordenados)
+  const upcomingInspections: UpcomingInspection[] = [
+    ...flipInspList.map((i) => {
+      const flip = flipDetailsMap.get(i.flip_id);
+      return {
+        id: i.id,
+        source: "flip" as const,
+        job_id: flip?.job_id ?? "",
+        context: flip?.property_address ?? null,
+        name: i.name,
+        type: i.type,
+        scheduled_date: i.scheduled_date,
+        status: i.status,
+      };
+    }),
+    ...jobInspList
+      .filter(
+        (i) =>
+          i.scheduled_date &&
+          i.scheduled_date >= nowIso &&
+          i.scheduled_date <= in7dIso,
+      )
+      .map((i) => ({
+        id: i.id,
+        source: "job" as const,
+        job_id: i.job_id,
+        context: i.job?.lead?.name ?? null,
+        name: i.name,
+        type: i.type,
+        scheduled_date: i.scheduled_date!,
+        status: i.status,
+      })),
+  ].sort((a, b) =>
+    a.scheduled_date < b.scheduled_date ? -1 : 1,
+  );
+
+  // Pendentes: inspeções de job REGULAR sem data marcada, em jobs ATIVOS
+  const pendingInspections: PendingInspection[] = jobInspList
+    .filter(
+      (i) =>
+        !i.scheduled_date &&
+        i.status === "pending" &&
+        i.job?.current_phase &&
+        ACTIVE_PHASES.includes(i.job.current_phase as JobPhase),
+    )
+    .map((i) => ({
       id: i.id,
-      flip_id: i.flip_id,
-      job_id: flip?.job_id ?? "",
-      flip_address: flip?.property_address ?? null,
+      job_id: i.job_id,
+      lead_name: i.job?.lead?.name ?? "?",
       name: i.name,
-      type: i.type,
-      scheduled_date: i.scheduled_date,
-      status: i.status,
-    };
-  });
+    }));
 
   // 4. Pagamentos a receber vencidos ou vencendo em 7d
   const paymentsRes = await supabase
@@ -342,6 +401,7 @@ export default async function CentralPage() {
           activeJobs={activeJobs}
           permitAlerts={permitAlerts}
           upcomingInspections={upcomingInspections}
+          pendingInspections={pendingInspections}
           paymentsDue={paymentsDue}
           subBalances={subBalances}
           estimatesStale={estimatesStale}

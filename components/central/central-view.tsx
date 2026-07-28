@@ -58,13 +58,20 @@ export type PermitAlert = {
 
 export type UpcomingInspection = {
   id: string;
-  flip_id: string;
+  source: "flip" | "job";
   job_id: string;
-  flip_address: string | null;
+  context: string | null; // endereço do flip ou nome do cliente
   name: string;
   type: string;
   scheduled_date: string;
   status: string;
+};
+
+export type PendingInspection = {
+  id: string;
+  job_id: string;
+  lead_name: string;
+  name: string;
 };
 
 export type PaymentDue = {
@@ -116,6 +123,7 @@ type Props = {
   activeJobs: ActiveJob[];
   permitAlerts: PermitAlert[];
   upcomingInspections: UpcomingInspection[];
+  pendingInspections: PendingInspection[];
   paymentsDue: PaymentDue[];
   subBalances: SubBalance[];
   estimatesStale: EstimateStale[];
@@ -137,6 +145,7 @@ export function CentralView(props: Props) {
     activeJobs,
     permitAlerts,
     upcomingInspections,
+    pendingInspections,
     paymentsDue,
     subBalances,
     estimatesStale,
@@ -251,45 +260,96 @@ export function CentralView(props: Props) {
           )}
         </Card>
 
-        {/* 3. Inspeções próximas */}
+        {/* 3. Inspeções (próximas + sem data) */}
         <Card
-          title="Inspeções próximas (7 dias)"
+          title="Inspeções"
           icon={ClipboardCheck}
-          count={upcomingInspections.length}
+          count={upcomingInspections.length + pendingInspections.length}
         >
-          {upcomingInspections.length === 0 ? (
-            <Empty>Nenhuma inspeção agendada</Empty>
+          {upcomingInspections.length === 0 && pendingInspections.length === 0 ? (
+            <Empty>Nenhuma inspeção agendada ou pendente</Empty>
           ) : (
-            <ul className="space-y-2">
-              {upcomingInspections.map((i) => (
-                <li key={i.id}>
-                  <Link
-                    href={`/job/${i.job_id}`}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-sky-400/20 bg-sky-500/5 p-3 transition hover:bg-sky-500/10"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-jcn-ice">
-                        {i.name}
-                      </p>
-                      <p className="text-[11px] text-sky-200/85">
-                        {i.type === "city" ? "Cidade" : "Interna"}
-                        {i.flip_address && ` · ${i.flip_address}`}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-[10px] font-bold uppercase text-sky-200/70">
-                        {new Intl.DateTimeFormat("pt-BR", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }).format(new Date(i.scheduled_date))}
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+              {upcomingInspections.length > 0 && (
+                <div>
+                  <p className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.15em] text-sky-300">
+                    Próximas 7 dias ({upcomingInspections.length})
+                  </p>
+                  <ul className="space-y-2">
+                    {upcomingInspections.map((i) => (
+                      <li key={`${i.source}-${i.id}`}>
+                        <Link
+                          href={`/job/${i.job_id}`}
+                          className="flex items-center justify-between gap-2 rounded-xl border border-sky-400/20 bg-sky-500/5 p-3 transition hover:bg-sky-500/10"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold text-jcn-ice">
+                              {i.name}
+                              {i.source === "flip" && (
+                                <span className="ml-1 text-[10px] text-jcn-gold-300">
+                                  🏠 FLIP
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-sky-200/85">
+                              {i.source === "flip"
+                                ? i.type === "city"
+                                  ? "Cidade"
+                                  : "Interna"
+                                : (i.context ?? "cliente")}
+                              {i.source === "flip" && i.context && ` · ${i.context}`}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[10px] font-bold uppercase text-sky-200/70">
+                              {new Intl.DateTimeFormat("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }).format(new Date(i.scheduled_date))}
+                            </p>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {pendingInspections.length > 0 && (
+                <div>
+                  <p className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-300">
+                    Sem data marcada ({pendingInspections.length})
+                  </p>
+                  <ul className="space-y-2">
+                    {pendingInspections.slice(0, 6).map((p) => (
+                      <li key={p.id}>
+                        <Link
+                          href={`/job/${p.job_id}`}
+                          className="flex items-center justify-between gap-2 rounded-xl border border-amber-400/20 bg-amber-500/5 p-3 transition hover:bg-amber-500/10"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold text-jcn-ice">
+                              {p.name}
+                            </p>
+                            <p className="text-[11px] text-amber-200/85">
+                              {p.lead_name} · precisa agendar
+                            </p>
+                          </div>
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
+                        </Link>
+                      </li>
+                    ))}
+                    {pendingInspections.length > 6 && (
+                      <li className="text-center text-[10px] italic text-jcn-ice/40">
+                        +{pendingInspections.length - 6} outras
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
         </Card>
 
