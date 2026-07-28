@@ -71,6 +71,13 @@ export function AppHeader({
         </Link>
 
         <nav className="flex items-center gap-1">
+          <NavLink
+            href="/central"
+            active={pathname?.startsWith("/central") ?? false}
+            icon={ListTree}
+          >
+            Central
+          </NavLink>
           <NavLink href="/" active={pathname === "/"} icon={KanbanSquare}>
             Pipeline
           </NavLink>
