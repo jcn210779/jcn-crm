@@ -183,11 +183,18 @@ function PnLCard({
 
   return (
     <section className="rounded-3xl border border-jcn-gold-400/30 bg-gradient-to-br from-jcn-gold-500/[0.08] to-white/[0.02] p-5 backdrop-blur-xl md:p-6">
-      <div className="flex items-center gap-2">
-        <TrendingUp className="h-5 w-5 text-jcn-gold-300" />
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-jcn-gold-300">
-          P&amp;L do Flip
-        </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-jcn-gold-300" />
+          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-jcn-gold-300">
+            P&amp;L do Flip
+          </h2>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <EditShortcut targetId="flip-details" label="Aquisição/Loan" />
+          <EditShortcut targetId="flip-units" label="Unidades" />
+          <EditShortcut targetId="flip-budget" label="Orçamento" />
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -340,6 +347,7 @@ function DetailsCard({
     return (
       <Card
         title="Aquisição & Loan"
+        id="flip-details"
         right={
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             Editar
@@ -510,6 +518,7 @@ function UnitsSection({
   return (
     <Card
       title="Unidades vendáveis"
+      id="flip-units"
       right={
         !adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -787,6 +796,7 @@ function BudgetSection({
   return (
     <Card
       title="Orçamento × Real"
+      id="flip-budget"
       right={
         !adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -864,15 +874,60 @@ function BudgetSection({
 // Helpers
 // ────────────────────────────────────────────────────────────────────────
 
-function Card({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
+function Card({
+  title,
+  right,
+  children,
+  id,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  id?: string;
+}) {
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
+    <section
+      id={id}
+      className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl transition-shadow scroll-mt-24 md:p-6"
+    >
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">{title}</h2>
         {right}
       </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * Botão pequeno no card P&L que scrolla até um card alvo (por id)
+ * e destaca com glow dourado por 2 segundos pra usuário achar rápido
+ * onde editar.
+ */
+function EditShortcut({
+  targetId,
+  label,
+}: {
+  targetId: string;
+  label: string;
+}) {
+  function jump() {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    el.style.boxShadow = "0 0 0 3px rgba(212, 175, 55, 0.5), 0 0 30px rgba(212, 175, 55, 0.3)";
+    setTimeout(() => {
+      el.style.boxShadow = "";
+    }, 2000);
+  }
+  return (
+    <button
+      type="button"
+      onClick={jump}
+      className="rounded-full border border-jcn-gold-400/30 bg-jcn-gold-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-jcn-gold-200 transition hover:bg-jcn-gold-500/20"
+    >
+      ✏ {label}
+    </button>
   );
 }
 
