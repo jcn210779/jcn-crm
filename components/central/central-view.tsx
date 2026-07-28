@@ -149,8 +149,8 @@ export function CentralView(props: Props) {
       {/* Header com resumo geral */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi
-          label="Obras ativas"
-          value={activeJobs.length}
+          label="Em obra"
+          value={activeJobs.filter((j) => j.current_phase === "work_in_progress").length}
           icon={Home}
           tone="text-jcn-gold-300"
         />
@@ -181,45 +181,36 @@ export function CentralView(props: Props) {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {/* 1. Obras em andamento */}
-        <Card
-          title="Obras em andamento"
-          icon={Home}
-          count={activeJobs.length}
-        >
+        {/* 1. Obras (separadas por status real) */}
+        <Card title="Obras" icon={Home} count={activeJobs.length}>
           {activeJobs.length === 0 ? (
-            <Empty>Nenhuma obra em andamento</Empty>
+            <Empty>Nenhuma obra ativa</Empty>
           ) : (
-            <ul className="space-y-2">
-              {activeJobs.map((j) => (
-                <li key={j.id}>
-                  <Link
-                    href={`/job/${j.id}`}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:bg-white/[0.06]"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-jcn-ice">
-                        {j.lead_name}
-                        {j.is_flip && (
-                          <span className="ml-1 text-xs text-jcn-gold-300">
-                            🏠 FLIP
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[11px] text-jcn-ice/55">
-                        {PHASE_LABEL[j.current_phase] ?? j.current_phase}
-                        {j.lead_city && ` · ${j.lead_city}`}
-                        {j.actual_start &&
-                          ` · início ${formatDistanceToNow(new Date(j.actual_start), { locale: ptBR, addSuffix: true })}`}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-black text-jcn-gold-300">
-                      {formatCurrency(j.value)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+              <JobGroup
+                label="Em obra"
+                tone="text-jcn-gold-300"
+                jobs={activeJobs.filter(
+                  (j) => j.current_phase === "work_in_progress",
+                )}
+              />
+              <JobGroup
+                label="Aguardando material"
+                tone="text-sky-300"
+                jobs={activeJobs.filter(
+                  (j) =>
+                    j.current_phase === "materials_ordered" ||
+                    j.current_phase === "materials_delivered",
+                )}
+              />
+              <JobGroup
+                label="Planejamento"
+                tone="text-jcn-ice/60"
+                jobs={activeJobs.filter(
+                  (j) => j.current_phase === "planning",
+                )}
+              />
+            </div>
           )}
         </Card>
 
@@ -499,6 +490,62 @@ export function CentralView(props: Props) {
           )}
         </Card>
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Grupo de jobs (sub-seção dentro do card Obras)
+// ============================================================================
+
+function JobGroup({
+  label,
+  tone,
+  jobs,
+}: {
+  label: string;
+  tone: string;
+  jobs: ActiveJob[];
+}) {
+  if (jobs.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-2 px-1">
+        <span className={cn("text-[10px] font-bold uppercase tracking-[0.15em]", tone)}>
+          {label}
+        </span>
+        <span className="text-[10px] text-jcn-ice/45">({jobs.length})</span>
+      </div>
+      <ul className="space-y-2">
+        {jobs.map((j) => (
+          <li key={j.id}>
+            <Link
+              href={`/job/${j.id}`}
+              className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition hover:bg-white/[0.06]"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-jcn-ice">
+                  {j.lead_name}
+                  {j.is_flip && (
+                    <span className="ml-1 text-xs text-jcn-gold-300">
+                      🏠 FLIP
+                    </span>
+                  )}
+                </p>
+                <p className="text-[11px] text-jcn-ice/55">
+                  {j.lead_city && `${j.lead_city} · `}
+                  {j.actual_start
+                    ? `início ${formatDistanceToNow(new Date(j.actual_start), { locale: ptBR, addSuffix: true })}`
+                    : "sem data de início"}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-black text-jcn-gold-300">
+                {formatCurrency(j.value)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
