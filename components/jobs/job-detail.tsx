@@ -29,6 +29,7 @@ import { FlipDashboard } from "@/components/flips/flip-dashboard";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { EditJobValueDialog } from "@/components/jobs/edit-job-value-dialog";
 import { DeleteJobDialog } from "@/components/jobs/delete-job-dialog";
+import { JobInspectionsCard } from "@/components/jobs/job-inspections-card";
 import { JobPermitCard } from "@/components/jobs/job-permit-card";
 import { JobPaymentsSection } from "@/components/jobs/payments/job-payments-section";
 import { JobPhotosSection } from "@/components/jobs/photos/job-photos-section";
@@ -441,6 +442,9 @@ export function JobDetail({
 
       {/* Permit do town/city (migration 0040) */}
       <JobPermitCard job={job} onChanged={() => router.refresh()} />
+
+      {/* Inspeções da cidade (footing/framing/finish) — só pra job regular */}
+      {!job.is_flip && <JobInspectionsCard jobId={job.id} />}
 
       {/* Pagamentos */}
       <JobPaymentsSection

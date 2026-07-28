@@ -773,6 +773,40 @@ export type SubPriceCatalogShare = {
 };
 
 // ============================================================================
+// JOB INSPECTIONS (inspeções da cidade por job — migration 0055)
+// ============================================================================
+
+export type JobInspectionType =
+  | "footing"
+  | "framing"
+  | "finish"
+  | "electrical"
+  | "plumbing"
+  | "other";
+
+export type JobInspectionStatus =
+  | "pending"
+  | "scheduled"
+  | "passed"
+  | "failed"
+  | "skipped";
+
+export type JobInspection = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  job_id: string;
+  type: JobInspectionType;
+  name: string;
+  status: JobInspectionStatus;
+  scheduled_date: string | null;
+  done_date: string | null;
+  inspector: string | null;
+  notes: string | null;
+  display_order: number;
+};
+
+// ============================================================================
 // STORE (depósito de material — migration 0045)
 // ============================================================================
 
@@ -1886,6 +1920,15 @@ export type Database = {
         Row: JobSubcontractor;
         Insert: JobSubcontractorInsert;
         Update: JobSubcontractorUpdate;
+        Relationships: [];
+      };
+      job_inspections: {
+        Row: JobInspection;
+        Insert: Partial<Omit<JobInspection, "id" | "created_at" | "updated_at">> & {
+          job_id: string;
+          name: string;
+        };
+        Update: Partial<Omit<JobInspection, "id" | "created_at" | "updated_at" | "job_id">>;
         Relationships: [];
       };
       job_sub_payments: {
