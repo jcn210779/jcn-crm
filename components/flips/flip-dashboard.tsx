@@ -7,6 +7,7 @@ import {
   DollarSign,
   Home,
   Loader2,
+  Pencil,
   Plus,
   Save,
   TrendingDown,
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EditPnlDialog } from "@/components/flips/edit-pnl-dialog";
 import { FlipPlanning } from "@/components/flips/flip-planning";
 import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
@@ -139,7 +141,13 @@ export function FlipDashboard({ jobId }: Props) {
 
   return (
     <div className="space-y-5">
-      <PnLCard pnl={pnl} cash={cash} />
+      <PnLCard
+        pnl={pnl}
+        cash={cash}
+        flipId={details.id}
+        jobId={jobId}
+        onChanged={reload}
+      />
       <DetailsCard details={details} onChanged={reload} />
       <FlipPlanning flipId={details.id} />
       <UnitsSection
@@ -171,10 +179,17 @@ export function FlipDashboard({ jobId }: Props) {
 function PnLCard({
   pnl,
   cash,
+  flipId,
+  jobId,
+  onChanged,
 }: {
   pnl: FlipPnL | null;
   cash: FlipCashSummary | null;
+  flipId: string;
+  jobId: string;
+  onChanged: () => void;
 }) {
+  const [editOpen, setEditOpen] = useState(false);
   const profitProj = Number(pnl?.profit_projected ?? 0);
   const profitActual = Number(pnl?.profit_actual ?? 0);
   const arv = Number(pnl?.arv_total ?? 0);
@@ -190,11 +205,14 @@ function PnLCard({
             P&amp;L do Flip
           </h2>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <EditShortcut targetId="flip-details" label="Aquisição/Loan" />
-          <EditShortcut targetId="flip-units" label="Unidades" />
-          <EditShortcut targetId="flip-budget" label="Orçamento" />
-        </div>
+        <Button
+          onClick={() => setEditOpen(true)}
+          size="sm"
+          className="bg-jcn-gold-500 text-jcn-midnight hover:bg-jcn-gold-400"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Editar P&L
+        </Button>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -246,6 +264,14 @@ function PnLCard({
           />
         </div>
       )}
+
+      <EditPnlDialog
+        flipId={flipId}
+        jobId={jobId}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onChanged={onChanged}
+      />
     </section>
   );
 }
