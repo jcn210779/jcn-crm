@@ -15,17 +15,24 @@ import {
   CheckCircle2,
   Circle,
   ClipboardCheck,
+  FileText,
   Loader2,
+  Paperclip,
   Plus,
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  deleteExtraAttachment,
+  getSignedExtraUrl,
+  uploadExtraAttachment,
+} from "@/lib/job-extras";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type {
   JobInspection,
@@ -103,6 +110,8 @@ export function JobInspectionsCard({ jobId }: Props) {
   const [addName, setAddName] = useState("");
   const [addType, setAddType] = useState<JobInspectionType>("other");
   const [addDateTime, setAddDateTime] = useState("");
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function reload() {
     setLoading(true);
@@ -163,6 +172,86 @@ export function JobInspectionsCard({ jobId }: Props) {
       toast.error("Erro", { description: error.message });
       return;
     }
+    await reload();
+  }
+
+  async function uploadAttachment(insp: JobInspection, file: File) {
+    setUploadingId(insp.id);
+    const supabase = createSupabaseBrowserClient();
+
+    // Upload novo
+    const up = await uploadExtraAttachment({
+      supabase,
+      jobId: insp.job_id,
+      file,
+    });
+    if (up.error) {
+      setUploadingId(null);
+      toast.error(up.error);
+      return;
+    }
+
+    // Se tinha anexo antigo, remove do storage
+    if (insp.attachment_path) {
+      await deleteExtraAttachment({
+        supabase,
+        storagePath: insp.attachment_path,
+      });
+    }
+
+    // Update row
+    const { error } = await supabase
+      .from("job_inspections")
+      .update({
+        attachment_path: up.path ?? null,
+        attachment_file_name: up.fileName ?? null,
+        attachment_mime: up.mimeType ?? null,
+      })
+      .eq("id", insp.id);
+    setUploadingId(null);
+    if (error) {
+      toast.error("Erro ao salvar anexo", { description: error.message });
+      return;
+    }
+    toast.success("Anexo salvo");
+    await reload();
+  }
+
+  async function viewAttachment(insp: JobInspection) {
+    if (!insp.attachment_path) return;
+    const supabase = createSupabaseBrowserClient();
+    const url = await getSignedExtraUrl({
+      supabase,
+      storagePath: insp.attachment_path,
+    });
+    if (!url) {
+      toast.error("Não consegui abrir o anexo");
+      return;
+    }
+    window.open(url, "_blank");
+  }
+
+  async function removeAttachment(insp: JobInspection) {
+    if (!insp.attachment_path) return;
+    if (!confirm("Remover o anexo desta inspeção?")) return;
+    const supabase = createSupabaseBrowserClient();
+    await deleteExtraAttachment({
+      supabase,
+      storagePath: insp.attachment_path,
+    });
+    const { error } = await supabase
+      .from("job_inspections")
+      .update({
+        attachment_path: null,
+        attachment_file_name: null,
+        attachment_mime: null,
+      })
+      .eq("id", insp.id);
+    if (error) {
+      toast.error("Erro", { description: error.message });
+      return;
+    }
+    toast.success("Anexo removido");
     await reload();
   }
 
@@ -335,6 +424,78 @@ export function JobInspectionsCard({ jobId }: Props) {
                   className="h-8 text-xs"
                 />
               </div>
+
+              {/* Anexo (laudo/foto/PDF) */}
+              <div className="mt-2">
+                <Label className="text-[9px] uppercase tracking-wider opacity-70">
+                  Documento (laudo/foto)
+                </Label>
+                <input
+                  ref={(el) => {
+                    fileInputsRef.current[insp.id] = el;
+                  }}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadAttachment(insp, f);
+                    e.target.value = "";
+                  }}
+                />
+                {insp.attachment_path ? (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => viewAttachment(insp)}
+                      className="flex flex-1 items-center gap-1.5 truncate rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1.5 text-[11px] hover:bg-white/[0.06]"
+                    >
+                      <FileText className="h-3 w-3 shrink-0" />
+                      <span className="truncate">
+                        {insp.attachment_file_name ?? "Ver anexo"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        fileInputsRef.current[insp.id]?.click()
+                      }
+                      disabled={uploadingId === insp.id}
+                      className="shrink-0 rounded p-1.5 text-jcn-ice/45 hover:bg-white/[0.06] hover:text-jcn-gold-300"
+                      title="Substituir anexo"
+                    >
+                      {uploadingId === insp.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Paperclip className="h-3 w-3" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(insp)}
+                      className="shrink-0 rounded p-1.5 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
+                      title="Remover anexo"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputsRef.current[insp.id]?.click()}
+                    disabled={uploadingId === insp.id}
+                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-white/[0.15] bg-white/[0.02] px-2 py-1.5 text-[11px] text-jcn-ice/55 hover:bg-white/[0.05] hover:text-jcn-gold-300"
+                  >
+                    {uploadingId === insp.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-3 w-3" />
+                    )}
+                    Anexar documento
+                  </button>
+                )}
+              </div>
+
             </div>
           ))}
         </div>

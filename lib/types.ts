@@ -804,6 +804,10 @@ export type JobInspection = {
   inspector: string | null;
   notes: string | null;
   display_order: number;
+  /** Anexo de laudo/foto (mig 0057). Bucket job-extras, path inspections/<id>.<ext>. */
+  attachment_path: string | null;
+  attachment_file_name: string | null;
+  attachment_mime: string | null;
 };
 
 // ============================================================================
