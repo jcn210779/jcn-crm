@@ -668,6 +668,11 @@ function DrawsSection({
     }
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
+    // Novo draw entra no fim da lista (max+1) pra evitar display_order=0 duplicado
+    const nextOrder =
+      draws.length > 0
+        ? Math.max(...draws.map((d) => d.display_order ?? 0)) + 1
+        : 1;
     const { error } = await supabase.from("flip_draws").insert({
       flip_id: flipId,
       draw_date: form.draw_date,
@@ -675,6 +680,7 @@ function DrawsSection({
       milestone: form.milestone.trim() || null,
       amount: amt,
       unit_id: form.unit_id || null,
+      display_order: nextOrder,
     });
     setSaving(false);
     if (error) {
