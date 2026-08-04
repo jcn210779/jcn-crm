@@ -7,7 +7,7 @@
  * do requerimento com categorias vindas do orçamento (flip_budget_lines).
  */
 
-import { ChevronDown, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import {
   COLOR_CLASSES,
@@ -99,6 +99,35 @@ export function DrawItemsList({
       .eq("id", id);
     if (error) {
       toast.error("Erro ao salvar", { description: error.message });
+      return;
+    }
+    await reload();
+  }
+
+  async function moveItem(id: string, direction: "up" | "down") {
+    const idx = items.findIndex((i) => i.id === id);
+    if (idx === -1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= items.length) return;
+
+    const a = items[idx]!;
+    const b = items[swapIdx]!;
+    const supabase = createSupabaseBrowserClient();
+    // Swap dos display_orders — 2 updates paralelos
+    const [r1, r2] = await Promise.all([
+      supabase
+        .from("flip_draw_items")
+        .update({ display_order: b.display_order })
+        .eq("id", a.id),
+      supabase
+        .from("flip_draw_items")
+        .update({ display_order: a.display_order })
+        .eq("id", b.id),
+    ]);
+    if (r1.error || r2.error) {
+      toast.error("Erro ao mover", {
+        description: r1.error?.message ?? r2.error?.message,
+      });
       return;
     }
     await reload();
@@ -200,6 +229,8 @@ export function DrawItemsList({
                 manualColor: bl?.color ?? null,
                 category: it.category,
               });
+              const isFirst = items.indexOf(it) === 0;
+              const isLast = items.indexOf(it) === items.length - 1;
               return (
                 <div
                   key={it.id}
@@ -218,6 +249,24 @@ export function DrawItemsList({
                         </span>
                       )}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => moveItem(it.id, "up")}
+                      disabled={isFirst}
+                      className="shrink-0 rounded p-1 text-jcn-ice/45 hover:bg-white/[0.08] hover:text-jcn-ice disabled:cursor-not-allowed disabled:opacity-25"
+                      title="Mover pra cima"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveItem(it.id, "down")}
+                      disabled={isLast}
+                      className="shrink-0 rounded p-1 text-jcn-ice/45 hover:bg-white/[0.08] hover:text-jcn-ice disabled:cursor-not-allowed disabled:opacity-25"
+                      title="Mover pra baixo"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => setEditingItem(it)}
