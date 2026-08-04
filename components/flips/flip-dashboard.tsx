@@ -25,7 +25,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { EditPnlDialog } from "@/components/flips/edit-pnl-dialog";
 import { DrawItemsList } from "@/components/flips/draw-items-list";
 import { FlipPlanning } from "@/components/flips/flip-planning";
+import {
+  COLOR_CLASSES,
+  COLOR_LABEL,
+  COLOR_TOKENS,
+  resolveCategoryColor,
+  type ColorToken,
+} from "@/lib/category-colors";
 import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type {
   FlipBudgetLine,
@@ -640,6 +648,7 @@ function DrawsSection({
 }) {
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingDraw, setEditingDraw] = useState<FlipDraw | null>(null);
   const [form, setForm] = useState({
     draw_date: new Date().toISOString().slice(0, 10),
     source: "bank_draw" as FlipDrawSource,
@@ -723,32 +732,54 @@ function DrawsSection({
         <p className="text-sm text-jcn-ice/55">Nenhum draw lançado.</p>
       )}
       <div className="space-y-2">
-        {draws.map((d) => (
-          <div key={d.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <CreditCard className="h-3.5 w-3.5 text-jcn-ice/45 shrink-0" />
-                <span className="text-xs text-jcn-ice/65 shrink-0">{d.draw_date}</span>
-                <Badge variant="outline" className="text-[10px] shrink-0">
-                  {DRAW_SOURCE_LABEL[d.source]}
-                </Badge>
-                {d.milestone && <span className="text-xs text-jcn-ice/75 truncate">{d.milestone}</span>}
+        {draws.map((d) => {
+          const drawTone = resolveCategoryColor({
+            manualColor: d.color ?? null,
+            category: d.milestone ?? DRAW_SOURCE_LABEL[d.source],
+          });
+          const hasColor = !!d.color;
+          return (
+            <div
+              key={d.id}
+              className={cn(
+                "rounded-xl border p-3",
+                hasColor ? `${drawTone.bg} ${drawTone.border}` : "border-white/[0.06] bg-white/[0.02]",
+              )}
+            >
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <CreditCard className="h-3.5 w-3.5 text-jcn-ice/45 shrink-0" />
+                  <span className="text-xs text-jcn-ice/65 shrink-0">{d.draw_date}</span>
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {DRAW_SOURCE_LABEL[d.source]}
+                  </Badge>
+                  {d.milestone && <span className="text-xs text-jcn-ice/75 truncate">{d.milestone}</span>}
+                </div>
+                <span className="font-bold text-jcn-gold-300">{formatCurrency(Number(d.amount))}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingDraw(d)}
+                  className="h-7 w-7 p-0 text-jcn-gold-300 hover:bg-jcn-gold-500/15"
+                  title="Editar draw"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => del(d.id)} className="h-7 w-7 p-0 text-rose-300 hover:bg-rose-500/15">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
-              <span className="font-bold text-jcn-gold-300">{formatCurrency(Number(d.amount))}</span>
-              <Button variant="ghost" size="sm" onClick={() => del(d.id)} className="h-7 w-7 p-0 text-rose-300 hover:bg-rose-500/15">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              {/* Breakdown do draw request pro banco (mig 0058) — só faz sentido pra bank_draw */}
+              {d.source === "bank_draw" && (
+                <DrawItemsList
+                  drawId={d.id}
+                  drawAmount={Number(d.amount)}
+                  budgetLines={budgetLines}
+                />
+              )}
             </div>
-            {/* Breakdown do draw request pro banco (mig 0058) — só faz sentido pra bank_draw */}
-            {d.source === "bank_draw" && (
-              <DrawItemsList
-                drawId={d.id}
-                drawAmount={Number(d.amount)}
-                budgetLines={budgetLines}
-              />
-            )}
-          </div>
-        ))}
+          );
+        })}
         {adding && (
           <div className="rounded-2xl border border-jcn-gold-400/30 bg-jcn-gold-500/[0.05] p-3">
             <div className="grid grid-cols-2 gap-2">
@@ -778,7 +809,231 @@ function DrawsSection({
           </div>
         )}
       </div>
+
+      {editingDraw && (
+        <EditDrawDialog
+          draw={editingDraw}
+          units={units}
+          onClose={() => setEditingDraw(null)}
+          onSaved={() => {
+            setEditingDraw(null);
+            onChanged();
+          }}
+        />
+      )}
     </Card>
+  );
+}
+
+// ============================================================================
+// EditDrawDialog — edita 1 draw individual (data, tipo, valor, milestone, cor)
+// ============================================================================
+
+function EditDrawDialog({
+  draw,
+  units,
+  onClose,
+  onSaved,
+}: {
+  draw: FlipDraw;
+  units: FlipUnit[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [drawDate, setDrawDate] = useState(draw.draw_date);
+  const [source, setSource] = useState<FlipDrawSource>(draw.source);
+  const [amount, setAmount] = useState(String(draw.amount));
+  const [milestone, setMilestone] = useState(draw.milestone ?? "");
+  const [unitId, setUnitId] = useState(draw.unit_id ?? "");
+  const [color, setColor] = useState<string | null>(draw.color ?? null);
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const amt = Number(amount);
+    if (Number.isNaN(amt) || amt <= 0) {
+      toast.error("Valor inválido");
+      return;
+    }
+    if (!drawDate) {
+      toast.error("Data obrigatória");
+      return;
+    }
+    setSaving(true);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("flip_draws")
+      .update({
+        draw_date: drawDate,
+        source,
+        amount: amt,
+        milestone: milestone.trim() || null,
+        unit_id: unitId || null,
+        color,
+      })
+      .eq("id", draw.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Erro ao salvar", { description: error.message });
+      return;
+    }
+    toast.success("Draw atualizado");
+    onSaved();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-white/[0.1] bg-jcn-midnight shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-white/[0.08] p-4">
+          <h2 className="text-lg font-black text-jcn-gold-300">Editar draw</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-jcn-ice/45 hover:bg-white/[0.06] hover:text-jcn-ice"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-3 p-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-[10px] uppercase text-jcn-ice/55">
+                Data
+              </Label>
+              <Input
+                type="date"
+                value={drawDate}
+                onChange={(e) => setDrawDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase text-jcn-ice/55">
+                Fonte
+              </Label>
+              <select
+                value={source}
+                onChange={(e) => setSource(e.target.value as FlipDrawSource)}
+                className="flex h-10 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 text-sm text-jcn-ice"
+              >
+                {(Object.keys(DRAW_SOURCE_LABEL) as FlipDrawSource[]).map((s) => (
+                  <option key={s} value={s}>
+                    {DRAW_SOURCE_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-[10px] uppercase text-jcn-ice/55">
+              Valor ($)
+            </Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="font-black text-jcn-gold-300"
+            />
+          </div>
+
+          <div>
+            <Label className="text-[10px] uppercase text-jcn-ice/55">
+              Milestone / descrição
+            </Label>
+            <Input
+              value={milestone}
+              onChange={(e) => setMilestone(e.target.value)}
+              placeholder="Ex: Rough-in framing"
+            />
+          </div>
+
+          {source === "unit_sale" && units.length > 0 && (
+            <div>
+              <Label className="text-[10px] uppercase text-jcn-ice/55">
+                Unidade vendida
+              </Label>
+              <select
+                value={unitId}
+                onChange={(e) => setUnitId(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 text-sm text-jcn-ice"
+              >
+                <option value="">—</option>
+                {units.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <Label className="text-[10px] uppercase text-jcn-ice/55">
+              Cor do draw
+            </Label>
+            <p className="mb-1 text-[10px] text-jcn-ice/45">
+              Cor de fundo do card pra identificação visual.
+            </p>
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => setColor(null)}
+                title="Sem cor"
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-bold",
+                  color === null
+                    ? "border-jcn-gold-400 text-jcn-gold-300 ring-2 ring-jcn-gold-400/50"
+                    : "border-white/[0.1] text-jcn-ice/40 hover:border-white/30",
+                )}
+              >
+                —
+              </button>
+              {COLOR_TOKENS.map((tok) => {
+                const classes = COLOR_CLASSES[tok];
+                const active = color === tok;
+                return (
+                  <button
+                    key={tok}
+                    type="button"
+                    onClick={() => setColor(tok as ColorToken)}
+                    title={COLOR_LABEL[tok]}
+                    className={cn(
+                      "h-7 w-7 rounded-full border transition",
+                      classes.swatch,
+                      active
+                        ? "border-white ring-2 ring-white/60"
+                        : "border-white/20 hover:scale-110",
+                    )}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-white/[0.08] p-3">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={save}
+            disabled={saving}
+            className="bg-jcn-gold-500 text-jcn-midnight hover:bg-jcn-gold-400"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

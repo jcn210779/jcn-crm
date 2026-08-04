@@ -591,6 +591,8 @@ export type FlipDraw = {
   amount: number;
   unit_id: string | null;
   notes: string | null;
+  /** Token da palette (mig 0061). NULL = fundo cinza default. */
+  color: string | null;
 };
 
 export type FlipBudgetLine = {
