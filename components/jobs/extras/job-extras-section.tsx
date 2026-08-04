@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { AddExtraDialog } from "@/components/jobs/extras/add-extra-dialog";
 import { DeleteExtraDialog } from "@/components/jobs/extras/delete-extra-dialog";
 import { EditExtraDialog } from "@/components/jobs/extras/edit-extra-dialog";
@@ -77,29 +78,24 @@ export function JobExtrasSection({
   }, [extras]);
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
-      {/* Header */}
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black tracking-tight text-jcn-ice">
-              Extras e change orders
-            </h3>
-            <p className="text-xs text-jcn-ice/55">
-              Trabalhos adicionais que aparecem durante a obra. Cobre prova de
-              aprovação e contrato anexo.
-            </p>
-          </div>
-        </div>
+    <CollapsibleCard
+      title="Extras e change orders"
+      storageKey={`job:${jobId}:extras`}
+      icon={<Sparkles className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {stats.count === 0
+            ? "Trabalhos adicionais que aparecem durante a obra."
+            : `${stats.count} extra${stats.count === 1 ? "" : "s"} · ${formatCurrency(stats.approvedValue)} aprovado`}
+        </>
+      }
+      right={
         <Button onClick={() => setAddOpen(true)} className="h-10 font-semibold">
           <Plus className="h-4 w-4" />
           Adicionar extra
         </Button>
-      </div>
-
+      }
+    >
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
@@ -199,7 +195,7 @@ export function JobExtrasSection({
           }}
         />
       )}
-    </section>
+    </CollapsibleCard>
   );
 }
 

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import type {
@@ -130,33 +131,28 @@ export function JobPnlSection({
           : "bad";
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-5 backdrop-blur-xl md:p-6">
-      <header className="mb-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-            <PiggyBank className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-black tracking-tight text-jcn-ice md:text-xl">
-              P&amp;L do job
-            </h2>
-            <p className="text-[11px] text-jcn-ice/55">
-              {isCompleted
-                ? "Margem REAL desta obra concluída."
-                : "Projeção atual baseada nos lançamentos. Atualiza em tempo real."}
-            </p>
-          </div>
-        </div>
-        {isCompleted && (
+    <CollapsibleCard
+      title="P&L do job"
+      storageKey={`job:${job.id}:pnl`}
+      icon={<PiggyBank className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {isCompleted
+            ? "Margem REAL desta obra concluída."
+            : "Projeção atual baseada nos lançamentos. Atualiza em tempo real."}
+        </>
+      }
+      right={
+        isCompleted ? (
           <Badge
             variant="outline"
             className="border-emerald-400/40 bg-emerald-500/15 text-[10px] font-bold text-emerald-300"
           >
             ✓ FINAL
           </Badge>
-        )}
-      </header>
-
+        ) : undefined
+      }
+    >
       {/* KPIs grandes */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <BigKpi
@@ -360,7 +356,7 @@ export function JobPnlSection({
           </p>
         </div>
       )}
-    </section>
+    </CollapsibleCard>
   );
 }
 

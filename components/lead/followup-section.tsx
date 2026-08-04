@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,18 +95,17 @@ export function FollowUpSection({ lead, tasks, userEmail }: Props) {
   }
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/45">
-          Follow-ups
-        </h3>
-        {pending.length > 0 && (
+    <CollapsibleCard
+      title="Follow-ups"
+      storageKey={`lead:${lead.id}:followups`}
+      right={
+        pending.length > 0 && (
           <Badge variant="secondary" className="text-[10px]">
             {pending.length} pendente{pending.length === 1 ? "" : "s"}
           </Badge>
-        )}
-      </div>
-
+        )
+      }
+    >
       {/* Lista pendentes */}
       {pending.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.01] px-4 py-6 text-center">
@@ -250,7 +250,7 @@ export function FollowUpSection({ lead, tasks, userEmail }: Props) {
         lead={lead}
         userEmail={userEmail}
       />
-    </section>
+    </CollapsibleCard>
   );
 }
 

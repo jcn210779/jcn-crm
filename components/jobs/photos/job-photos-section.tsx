@@ -3,6 +3,7 @@
 import { Camera, ImageIcon, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { PhotoLightbox } from "@/components/jobs/photos/photo-lightbox";
 import { UploadPhotoDialog } from "@/components/jobs/photos/upload-photo-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -109,30 +110,17 @@ export function JobPhotosSection({
   }
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/45">
-            Fotos da obra
-          </h3>
-          <div className="mt-2 flex flex-wrap items-baseline gap-2">
-            <span className="text-2xl font-black tracking-[-0.02em] text-white">
-              {photos.length}
-            </span>
-            <span className="text-sm font-semibold text-white/45">
-              {photos.length === 1 ? "foto" : "fotos"} no total
-            </span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-white/55">
-            <span>{counts.before} antes</span>
-            <span className="text-white/20">·</span>
-            <span>{counts.during} durante</span>
-            <span className="text-white/20">·</span>
-            <span>{counts.after} depois</span>
-          </div>
-        </div>
-
+    <CollapsibleCard
+      title="Fotos da obra"
+      storageKey={`job:${jobId}:photos`}
+      icon={<Camera className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {photos.length} {photos.length === 1 ? "foto" : "fotos"} · {counts.before} antes ·{" "}
+          {counts.during} durante · {counts.after} depois
+        </>
+      }
+      right={
         <Button
           onClick={() => setUploadOpen(true)}
           className="h-10 font-semibold"
@@ -140,6 +128,23 @@ export function JobPhotosSection({
           <Plus className="h-4 w-4" />
           Adicionar foto
         </Button>
+      }
+    >
+      {/* Header expandido: contadores destacados */}
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="text-2xl font-black tracking-[-0.02em] text-white">
+          {photos.length}
+        </span>
+        <span className="text-sm font-semibold text-white/45">
+          {photos.length === 1 ? "foto" : "fotos"} no total
+        </span>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-white/55">
+        <span>{counts.before} antes</span>
+        <span className="text-white/20">·</span>
+        <span>{counts.during} durante</span>
+        <span className="text-white/20">·</span>
+        <span>{counts.after} depois</span>
       </div>
 
       {/* Tabs */}
@@ -238,7 +243,7 @@ export function JobPhotosSection({
         signedUrls={signedUrls}
         initialIndex={lightboxIndex}
       />
-    </section>
+    </CollapsibleCard>
   );
 }
 

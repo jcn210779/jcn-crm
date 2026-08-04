@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { EstimateUploadDialog } from "@/components/lead/estimate-upload-dialog";
 import { FollowUpSection } from "@/components/lead/followup-section";
 import { LeadEditDialog } from "@/components/lead/lead-edit-dialog";
@@ -840,13 +841,11 @@ function SectionCard({
   title: string;
   children: React.ReactNode;
 }) {
+  const storageKey = `lead:section:${title.toLowerCase().replace(/\s+/g, "-")}`;
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-      <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.25em] text-white/45">
-        {title}
-      </h3>
+    <CollapsibleCard title={title} storageKey={storageKey}>
       {children}
-    </section>
+    </CollapsibleCard>
   );
 }
 

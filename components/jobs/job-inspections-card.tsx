@@ -25,6 +25,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -318,21 +319,16 @@ export function JobInspectionsCard({ jobId }: Props) {
   const total = inspections.length;
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ClipboardCheck className="h-4 w-4 text-jcn-gold-300" />
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">
-            Inspeções
-          </h2>
-          {total > 0 && (
-            <span className="text-[10px] text-jcn-ice/55">
-              {passed}/{total} aprovadas
-            </span>
-          )}
-        </div>
-      </div>
-
+    <CollapsibleCard
+      title="Inspeções"
+      storageKey={`job:${jobId}:inspections`}
+      icon={<ClipboardCheck className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        total > 0 ? (
+          <>{passed}/{total} aprovadas</>
+        ) : undefined
+      }
+    >
       {loading ? (
         <div className="flex items-center justify-center py-6">
           <Loader2 className="h-5 w-5 animate-spin text-jcn-gold-300" />
@@ -557,6 +553,6 @@ export function JobInspectionsCard({ jobId }: Props) {
           </Button>
         </div>
       </div>
-    </section>
+    </CollapsibleCard>
   );
 }

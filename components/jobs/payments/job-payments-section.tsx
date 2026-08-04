@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { AddPaymentDialog } from "@/components/jobs/payments/add-payment-dialog";
 import { DeletePaymentDialog } from "@/components/jobs/payments/delete-payment-dialog";
 import { EditPaymentDialog } from "@/components/jobs/payments/edit-payment-dialog";
@@ -150,39 +151,25 @@ export function JobPaymentsSection({
   }
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/45">
-            Pagamentos
-          </h3>
-          <div className="mt-2 flex flex-wrap items-baseline gap-2">
-            <span className="text-2xl font-black tracking-[-0.02em] text-primary">
-              {formatCurrency(totalPaid)}
-            </span>
-            <span className="text-sm font-semibold text-white/45">
-              de {formatCurrency(reference)}
-            </span>
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-primary">
-              {paidPercent}% pago
-            </span>
-            {(approvedExtrasValue ?? 0) > 0 && baseContractValue !== undefined && (
-              <span
-                className="rounded-full border border-jcn-gold-400/30 bg-jcn-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-gold-200"
-                title={`Contrato ${formatCurrency(baseContractValue)} + extras aprovados ${formatCurrency(approvedExtrasValue ?? 0)}`}
-              >
-                + {formatCurrency(approvedExtrasValue ?? 0)} extras
-              </span>
-            )}
-          </div>
-          {totalPending > 0 ? (
-            <p className="mt-1 text-xs font-semibold text-white/55">
-              {formatCurrency(totalPending)} a receber
-            </p>
-          ) : null}
-        </div>
-
+    <CollapsibleCard
+      title="Pagamentos"
+      storageKey={`job:${jobId}:payments`}
+      icon={<CircleDollarSign className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <span className="flex flex-wrap items-baseline gap-1.5">
+          <span className="text-primary font-bold">
+            {formatCurrency(totalPaid)}
+          </span>
+          <span>de {formatCurrency(reference)}</span>
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
+            {paidPercent}% pago
+          </span>
+          {totalPending > 0 && (
+            <span>· {formatCurrency(totalPending)} a receber</span>
+          )}
+        </span>
+      }
+      right={
         <Button
           onClick={() => setAddOpen(true)}
           className="h-10 font-semibold"
@@ -190,7 +177,33 @@ export function JobPaymentsSection({
           <Plus className="h-4 w-4" />
           Adicionar parcela
         </Button>
+      }
+    >
+      {/* Header expandido: valor completo + badges */}
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="text-2xl font-black tracking-[-0.02em] text-primary">
+          {formatCurrency(totalPaid)}
+        </span>
+        <span className="text-sm font-semibold text-white/45">
+          de {formatCurrency(reference)}
+        </span>
+        <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-primary">
+          {paidPercent}% pago
+        </span>
+        {(approvedExtrasValue ?? 0) > 0 && baseContractValue !== undefined && (
+          <span
+            className="rounded-full border border-jcn-gold-400/30 bg-jcn-gold-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-jcn-gold-200"
+            title={`Contrato ${formatCurrency(baseContractValue)} + extras aprovados ${formatCurrency(approvedExtrasValue ?? 0)}`}
+          >
+            + {formatCurrency(approvedExtrasValue ?? 0)} extras
+          </span>
+        )}
       </div>
+      {totalPending > 0 ? (
+        <p className="mt-1 text-xs font-semibold text-white/55">
+          {formatCurrency(totalPending)} a receber
+        </p>
+      ) : null}
 
       {/* Barra de progresso */}
       <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
@@ -304,7 +317,7 @@ export function JobPaymentsSection({
         onOpenChange={setDeleteOpen}
         payment={selected}
       />
-    </section>
+    </CollapsibleCard>
   );
 }
 

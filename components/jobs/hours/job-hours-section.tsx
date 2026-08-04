@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { AddHoursDialog } from "@/components/jobs/hours/add-hours-dialog";
 import { DeleteHoursDialog } from "@/components/jobs/hours/delete-hours-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -54,23 +55,18 @@ export function JobHoursSection({ jobId, hours, activeMembers }: Props) {
   }, [hours]);
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
-      {/* Header */}
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-            <Clock className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black tracking-tight text-jcn-ice">
-              Horas trabalhadas
-            </h3>
-            <p className="text-xs text-jcn-ice/55">
-              Registre quem trabalhou, quando, quantas horas. Mão de obra
-              calculada na hora.
-            </p>
-          </div>
-        </div>
+    <CollapsibleCard
+      title="Horas trabalhadas"
+      storageKey={`job:${jobId}:hours`}
+      icon={<Clock className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {stats.count === 0
+            ? "Registre quem trabalhou, quando, quantas horas."
+            : `${stats.totalHours.toFixed(2)}h · ${formatCurrency(stats.totalCost)}`}
+        </>
+      }
+      right={
         <Button
           onClick={() => setAddOpen(true)}
           disabled={activeMembers.length === 0}
@@ -79,8 +75,8 @@ export function JobHoursSection({ jobId, hours, activeMembers }: Props) {
           <Plus className="h-4 w-4" />
           Registrar horas
         </Button>
-      </div>
-
+      }
+    >
       {/* Total banner */}
       {stats.count > 0 && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-jcn-gold-400/30 bg-jcn-gold-500/10 px-4 py-3">
@@ -140,7 +136,7 @@ export function JobHoursSection({ jobId, hours, activeMembers }: Props) {
           }}
         />
       )}
-    </section>
+    </CollapsibleCard>
   );
 }
 

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { Button } from "@/components/ui/button";
 import {
   ALLOWED_EXTRA_MIME_TYPES,
@@ -170,62 +171,37 @@ export function JobContractCard({ job, initialSignedUrl }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 backdrop-blur-xl">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,application/pdf"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) handleUpload(f);
-          // Reset pra permitir re-upload do mesmo arquivo se necessário
-          e.target.value = "";
-        }}
-      />
-
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-              hasContract
-                ? "bg-emerald-500/15 text-emerald-300"
-                : "bg-white/[0.05] text-jcn-ice/40"
-            }`}
-          >
-            {hasContract ? (
-              <CheckCircle2 className="h-5 w-5" />
-            ) : (
-              <FileText className="h-5 w-5" />
+    <CollapsibleCard
+      title="Contrato assinado"
+      storageKey={`job:${job.id}:contract`}
+      icon={
+        hasContract ? (
+          <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+        ) : (
+          <FileText className="h-4 w-4 text-jcn-ice/45" />
+        )
+      }
+      subtitle={
+        hasContract ? (
+          <span className="truncate">
+            {job.contract_file_name || "arquivo"}
+            {job.contract_uploaded_at && (
+              <>
+                {" "}
+                · anexado em{" "}
+                {format(new Date(job.contract_uploaded_at), "d MMM yyyy", {
+                  locale: ptBR,
+                })}
+              </>
             )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-jcn-ice">
-              Contrato assinado
-            </p>
-            {hasContract ? (
-              <p className="truncate text-xs text-jcn-ice/55">
-                {job.contract_file_name || "arquivo"}
-                {job.contract_uploaded_at && (
-                  <>
-                    {" "}
-                    · anexado em{" "}
-                    {format(new Date(job.contract_uploaded_at), "d MMM yyyy", {
-                      locale: ptBR,
-                    })}
-                  </>
-                )}
-                {isPdf && " · PDF"}
-              </p>
-            ) : (
-              <p className="text-xs text-jcn-ice/55">
-                Anexe o PDF ou foto do contrato assinado pra ter à mão.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
+            {isPdf && " · PDF"}
+          </span>
+        ) : (
+          <>Anexe o PDF ou foto do contrato assinado pra ter à mão.</>
+        )
+      }
+      right={
+        <div className="flex items-center gap-1.5">
           {hasContract && (
             <>
               <Button
@@ -269,7 +245,32 @@ export function JobContractCard({ job, initialSignedUrl }: Props) {
             </Button>
           )}
         </div>
-      </div>
-    </div>
+      }
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleUpload(f);
+          // Reset pra permitir re-upload do mesmo arquivo se necessário
+          e.target.value = "";
+        }}
+      />
+
+      {hasContract ? (
+        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.06] p-3 text-xs text-emerald-200/90">
+          Contrato anexado. Use os botões no cabeçalho pra visualizar, substituir
+          ou remover.
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] p-4 text-center text-xs text-jcn-ice/55">
+          Nenhum contrato anexado ainda. Clique em <strong>Anexar contrato</strong> pra
+          enviar o PDF ou foto do contrato assinado.
+        </div>
+      )}
+    </CollapsibleCard>
   );
 }

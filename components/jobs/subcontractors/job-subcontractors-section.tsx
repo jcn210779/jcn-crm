@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { EditJobSubDialog } from "@/components/jobs/subcontractors/edit-job-sub-dialog";
 import { HireSubDialog } from "@/components/jobs/subcontractors/hire-sub-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -120,23 +121,18 @@ export function JobSubcontractorsSection({
   }, [jobSubs]);
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
-      {/* Header */}
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-            <Wrench className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black tracking-tight text-jcn-ice">
-              Subempreiteiros
-            </h3>
-            <p className="text-xs text-jcn-ice/55">
-              Eletricista, encanador, pintor e outros externos contratados pra
-              esta obra.
-            </p>
-          </div>
-        </div>
+    <CollapsibleCard
+      title="Subempreiteiros"
+      storageKey={`job:${jobId}:subs`}
+      icon={<Wrench className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {stats.total === 0
+            ? "Eletricista, encanador, pintor e outros externos."
+            : `${stats.total} contratado${stats.total === 1 ? "" : "s"}${stats.totalRemaining > 0 ? ` · ${formatCurrency(stats.totalRemaining)} a pagar` : ""}`}
+        </>
+      }
+      right={
         <Button
           onClick={() => setAddOpen(true)}
           className="h-10 font-semibold"
@@ -150,8 +146,8 @@ export function JobSubcontractorsSection({
           <Plus className="h-4 w-4" />
           Contratar subempreiteiro
         </Button>
-      </div>
-
+      }
+    >
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
@@ -232,7 +228,7 @@ export function JobSubcontractorsSection({
           }}
         />
       )}
-    </section>
+    </CollapsibleCard>
   );
 }
 

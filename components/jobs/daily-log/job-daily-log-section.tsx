@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { AddDailyLogDialog } from "@/components/jobs/daily-log/add-daily-log-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,30 +70,24 @@ export function JobDailyLogSection({
   }
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
-      {/* Header */}
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-            <BookOpen className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black tracking-tight text-jcn-ice">
-              Diário de obra
-            </h3>
-            <p className="text-xs text-jcn-ice/55">
-              {logs.length === 0
-                ? "Anota o que acontece a cada dia. Vira memória útil pra depois."
-                : `${logs.length} ${logs.length === 1 ? "entrada" : "entradas"}`}
-            </p>
-          </div>
-        </div>
+    <CollapsibleCard
+      title="Diário de obra"
+      storageKey={`job:${jobId}:daily-log`}
+      icon={<BookOpen className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {logs.length === 0
+            ? "Anota o que acontece a cada dia. Vira memória útil pra depois."
+            : `${logs.length} ${logs.length === 1 ? "entrada" : "entradas"}`}
+        </>
+      }
+      right={
         <Button onClick={() => setAddOpen(true)} className="h-10 font-semibold">
           <Plus className="h-4 w-4" />
           Registrar dia
         </Button>
-      </div>
-
+      }
+    >
       {/* Lista */}
       {logs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
@@ -196,6 +191,6 @@ export function JobDailyLogSection({
           }}
         />
       )}
-    </section>
+    </CollapsibleCard>
   );
 }

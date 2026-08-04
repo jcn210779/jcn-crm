@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { AddInvoiceDialog } from "@/components/jobs/invoices/add-invoice-dialog";
 import { DeleteInvoiceDialog } from "@/components/jobs/invoices/delete-invoice-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -46,28 +47,24 @@ export function JobInvoicesSection({ jobId, invoices, invoiceUrls }: Props) {
   }, [invoices]);
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
-      {/* Header */}
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-            <Send className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black tracking-tight text-jcn-ice">
-              Faturas enviadas
-            </h3>
-            <p className="text-xs text-jcn-ice/55">
-              Invoices que você mandou pro cliente cobrar.
-            </p>
-          </div>
-        </div>
+    <CollapsibleCard
+      title="Faturas enviadas"
+      storageKey={`job:${jobId}:invoices`}
+      icon={<Send className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {stats.count === 0
+            ? "Invoices que você mandou pro cliente cobrar."
+            : `${stats.count} fatura${stats.count === 1 ? "" : "s"} · ${formatCurrency(stats.totalSent)} total`}
+        </>
+      }
+      right={
         <Button onClick={() => setAddOpen(true)} className="h-10 font-semibold">
           <Plus className="h-4 w-4" />
           Anexar fatura
         </Button>
-      </div>
-
+      }
+    >
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-jcn-gold-400/30 bg-jcn-gold-500/10 p-3 text-jcn-gold-300 backdrop-blur-xl">
@@ -134,7 +131,7 @@ export function JobInvoicesSection({ jobId, invoices, invoiceUrls }: Props) {
           }}
         />
       )}
-    </section>
+    </CollapsibleCard>
   );
 }
 

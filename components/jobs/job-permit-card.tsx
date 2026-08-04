@@ -17,6 +17,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -200,35 +201,25 @@ export function JobPermitCard({ job, onChanged }: Props) {
   // VIEW MODE
   if (!editing) {
     return (
-      <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-xl border",
-                STATUS_TONE[job.permit_status],
-              )}
-            >
-              <StatusIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
-                Permit
-              </p>
-              <p
-                className={cn(
-                  "text-base font-black",
-                  job.permit_status === "released"
-                    ? "text-emerald-300"
-                    : job.permit_status === "pending"
-                      ? "text-amber-300"
-                      : "text-jcn-ice/55",
-                )}
-              >
-                {PERMIT_STATUS_LABEL[job.permit_status]}
-              </p>
-            </div>
-          </div>
+      <CollapsibleCard
+        title="Permit"
+        storageKey={`job:${job.id}:permit`}
+        icon={<StatusIcon className={cn("h-4 w-4", job.permit_status === "released" ? "text-emerald-300" : job.permit_status === "pending" ? "text-amber-300" : "text-jcn-ice/55")} />}
+        subtitle={
+          <span
+            className={cn(
+              "font-bold",
+              job.permit_status === "released"
+                ? "text-emerald-300"
+                : job.permit_status === "pending"
+                  ? "text-amber-300"
+                  : "text-jcn-ice/55",
+            )}
+          >
+            {PERMIT_STATUS_LABEL[job.permit_status]}
+          </span>
+        }
+        right={
           <Button
             variant="outline"
             size="sm"
@@ -238,8 +229,8 @@ export function JobPermitCard({ job, onChanged }: Props) {
             <Pencil className="h-3.5 w-3.5" />
             Editar
           </Button>
-        </div>
-
+        }
+      >
         {/* Detalhes quando released */}
         {job.permit_status === "released" && (
           <div className="mt-4 space-y-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.06] p-3 text-sm">
@@ -287,17 +278,20 @@ export function JobPermitCard({ job, onChanged }: Props) {
             </span>
           </div>
         )}
-      </section>
+      </CollapsibleCard>
     );
   }
 
   // EDIT MODE
+  // Sem storageKey + defaultOpen: edit mode é transiente, precisa aparecer aberto
+  // enquanto o usuário está editando; ao cancelar/salvar, volta pra view mode que
+  // usa a storageKey estável de "permit".
   return (
-    <section className="rounded-3xl border border-jcn-gold-400/30 bg-jcn-gold-500/[0.05] p-5 backdrop-blur-xl md:p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-jcn-gold-300">
-          Editando permit
-        </p>
+    <CollapsibleCard
+      title="Editando permit"
+      variant="gold"
+      defaultOpen
+      right={
         <Button
           variant="ghost"
           size="sm"
@@ -316,8 +310,8 @@ export function JobPermitCard({ job, onChanged }: Props) {
         >
           <X className="h-3.5 w-3.5" />
         </Button>
-      </div>
-
+      }
+    >
       <div className="space-y-4">
         {/* Status — 3 botões */}
         <div className="space-y-1.5">
@@ -479,6 +473,6 @@ export function JobPermitCard({ job, onChanged }: Props) {
           </Button>
         </div>
       </div>
-    </section>
+    </CollapsibleCard>
   );
 }

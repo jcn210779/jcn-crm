@@ -25,6 +25,7 @@ import { JobExtrasSection } from "@/components/jobs/extras/job-extras-section";
 import { JobPnlSection } from "@/components/jobs/pnl/job-pnl-section";
 import { JobHoursSection } from "@/components/jobs/hours/job-hours-section";
 import { JobInvoicesSection } from "@/components/jobs/invoices/job-invoices-section";
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { FlipDashboard } from "@/components/flips/flip-dashboard";
 import { JobContractCard } from "@/components/jobs/job-contract-card";
 import { EditJobValueDialog } from "@/components/jobs/edit-job-value-dialog";
@@ -603,13 +604,11 @@ function SectionCard({
   title: string;
   children: React.ReactNode;
 }) {
+  const storageKey = `job:section:${title.toLowerCase().replace(/\s+/g, "-")}`;
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-      <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.25em] text-white/45">
-        {title}
-      </h3>
+    <CollapsibleCard title={title} storageKey={storageKey}>
       {children}
-    </section>
+    </CollapsibleCard>
   );
 }
 

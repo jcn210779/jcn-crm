@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { AddExpenseDialog } from "@/components/jobs/expenses/add-expense-dialog";
 import { DeleteExpenseDialog } from "@/components/jobs/expenses/delete-expense-dialog";
 import { ReceiptViewer } from "@/components/jobs/expenses/receipt-viewer";
@@ -126,22 +127,18 @@ export function JobExpensesSection({
   ]);
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
-      {/* Header */}
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-jcn-gold-500/15 text-jcn-gold-300">
-            <Receipt className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black tracking-tight text-jcn-ice">
-              Despesas e recibos
-            </h3>
-            <p className="text-xs text-jcn-ice/55">
-              Tudo que sai do bolso pra fazer essa obra
-            </p>
-          </div>
-        </div>
+    <CollapsibleCard
+      title="Despesas e recibos"
+      storageKey={`job:${job.id}:expenses`}
+      icon={<Receipt className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        <>
+          {stats.count === 0
+            ? "Tudo que sai do bolso pra fazer essa obra"
+            : `${stats.count} recibo${stats.count === 1 ? "" : "s"} · ${formatCurrency(stats.grandTotal)}`}
+        </>
+      }
+      right={
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -157,8 +154,8 @@ export function JobExpensesSection({
             Adicionar despesa
           </Button>
         </div>
-      </div>
-
+      }
+    >
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
@@ -317,7 +314,7 @@ export function JobExpensesSection({
           onClose={() => setViewerTarget(null)}
         />
       )}
-    </section>
+    </CollapsibleCard>
   );
 }
 
