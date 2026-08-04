@@ -603,6 +603,8 @@ export type FlipBudgetLine = {
   committed: number;
   display_order: number;
   notes: string | null;
+  /** Token da palette (mig 0060). NULL = cor auto por keyword. */
+  color: string | null;
 };
 
 /** Line item de draw request pro banco (mig 0058). */

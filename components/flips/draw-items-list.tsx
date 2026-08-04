@@ -9,61 +9,7 @@
 
 import { ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
 
-/**
- * Palette de cores por categoria — auto-atribuída.
- * Keywords conhecidas mapeiam pra cores semânticas. Outras categorias
- * caem em cor por hash pra manter consistência (mesma categoria = mesma cor).
- */
-const KEYWORD_COLORS: Array<[string, { bg: string; border: string }]> = [
-  ["permit",    { bg: "bg-sky-500/10",     border: "border-sky-400/40" }],
-  ["framing",   { bg: "bg-amber-700/15",   border: "border-amber-600/40" }],
-  ["demol",     { bg: "bg-stone-500/15",   border: "border-stone-400/40" }],
-  ["eletric",   { bg: "bg-yellow-500/10",  border: "border-yellow-400/40" }],
-  ["electric",  { bg: "bg-yellow-500/10",  border: "border-yellow-400/40" }],
-  ["hidra",     { bg: "bg-cyan-500/10",    border: "border-cyan-400/40" }],
-  ["plumb",     { bg: "bg-cyan-500/10",    border: "border-cyan-400/40" }],
-  ["hvac",      { bg: "bg-violet-500/10",  border: "border-violet-400/40" }],
-  ["isolam",    { bg: "bg-pink-500/10",    border: "border-pink-400/40" }],
-  ["insulat",   { bg: "bg-pink-500/10",    border: "border-pink-400/40" }],
-  ["drywall",   { bg: "bg-slate-500/15",   border: "border-slate-400/40" }],
-  ["piso",      { bg: "bg-emerald-500/10", border: "border-emerald-400/40" }],
-  ["floor",     { bg: "bg-emerald-500/10", border: "border-emerald-400/40" }],
-  ["telhad",    { bg: "bg-rose-500/10",    border: "border-rose-400/40" }],
-  ["roof",      { bg: "bg-rose-500/10",    border: "border-rose-400/40" }],
-  ["siding",    { bg: "bg-orange-500/10",  border: "border-orange-400/40" }],
-  ["cozinha",   { bg: "bg-red-500/10",     border: "border-red-400/40" }],
-  ["kitchen",   { bg: "bg-red-500/10",     border: "border-red-400/40" }],
-  ["banho",     { bg: "bg-teal-500/10",    border: "border-teal-400/40" }],
-  ["bathroom",  { bg: "bg-teal-500/10",    border: "border-teal-400/40" }],
-  ["material",  { bg: "bg-indigo-500/10",  border: "border-indigo-400/40" }],
-  ["mao",       { bg: "bg-fuchsia-500/10", border: "border-fuchsia-400/40" }],
-  ["labor",     { bg: "bg-fuchsia-500/10", border: "border-fuchsia-400/40" }],
-];
-
-const FALLBACK_PALETTE = [
-  { bg: "bg-jcn-gold-500/10", border: "border-jcn-gold-400/40" },
-  { bg: "bg-sky-500/10",      border: "border-sky-400/40" },
-  { bg: "bg-emerald-500/10",  border: "border-emerald-400/40" },
-  { bg: "bg-violet-500/10",   border: "border-violet-400/40" },
-  { bg: "bg-orange-500/10",   border: "border-orange-400/40" },
-  { bg: "bg-pink-500/10",     border: "border-pink-400/40" },
-  { bg: "bg-teal-500/10",     border: "border-teal-400/40" },
-  { bg: "bg-rose-500/10",     border: "border-rose-400/40" },
-];
-
-function colorForCategory(category: string): { bg: string; border: string } {
-  const norm = category.toLowerCase().trim();
-  // Keyword match primeiro
-  for (const [kw, color] of KEYWORD_COLORS) {
-    if (norm.includes(kw)) return color;
-  }
-  // Fallback: hash simples do nome pra pegar sempre a mesma cor da palette
-  let hash = 0;
-  for (let i = 0; i < norm.length; i++) {
-    hash = (hash * 31 + norm.charCodeAt(i)) >>> 0;
-  }
-  return FALLBACK_PALETTE[hash % FALLBACK_PALETTE.length]!;
-}
+import { resolveCategoryColor } from "@/lib/category-colors";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -130,6 +76,22 @@ export function DrawItemsList({
       .eq("id", id);
     if (error) {
       toast.error("Erro ao salvar gasto", { description: error.message });
+      return;
+    }
+    await reload();
+  }
+
+  async function updateItem(
+    id: string,
+    patch: { category?: string; amount?: number; notes?: string | null },
+  ) {
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("flip_draw_items")
+      .update(patch)
+      .eq("id", id);
+    if (error) {
+      toast.error("Erro ao salvar", { description: error.message });
       return;
     }
     await reload();
@@ -226,7 +188,11 @@ export function DrawItemsList({
               const planned = Number(it.amount);
               const spent = Number(it.spent_amount ?? 0);
               const remaining = planned - spent;
-              const tone = colorForCategory(it.category);
+              const bl = budgetLines.find((b) => b.id === it.budget_line_id);
+              const tone = resolveCategoryColor({
+                manualColor: bl?.color ?? null,
+                category: it.category,
+              });
               return (
                 <div
                   key={it.id}
@@ -237,14 +203,16 @@ export function DrawItemsList({
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <span className="flex-1 truncate text-jcn-ice">
-                      {it.category}
-                      {it.notes && (
-                        <span className="ml-1 text-jcn-ice/45">
-                          — {it.notes}
-                        </span>
-                      )}
-                    </span>
+                    <Input
+                      defaultValue={it.category}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v && v !== it.category) {
+                          updateItem(it.id, { category: v });
+                        }
+                      }}
+                      className="h-6 flex-1 border-transparent bg-transparent px-1 py-0 font-semibold text-jcn-ice hover:border-white/[0.1]"
+                    />
                     <button
                       type="button"
                       onClick={() => deleteItem(it.id)}
@@ -258,9 +226,20 @@ export function DrawItemsList({
                       <p className="text-[9px] uppercase text-jcn-ice/40">
                         Planejado
                       </p>
-                      <p className="font-black text-jcn-gold-300">
-                        {formatCurrency(planned)}
-                      </p>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        defaultValue={planned || ""}
+                        onBlur={(e) => {
+                          const num = Number(e.target.value);
+                          if (!Number.isNaN(num) && num > 0 && num !== planned) {
+                            updateItem(it.id, { amount: num });
+                          }
+                        }}
+                        className="h-6 border-white/[0.06] bg-white/[0.02] px-1 py-0 text-[11px] font-black text-jcn-gold-300"
+                      />
                     </div>
                     <div>
                       <p className="text-[9px] uppercase text-jcn-ice/40">
@@ -295,6 +274,17 @@ export function DrawItemsList({
                       </p>
                     </div>
                   </div>
+                  <Input
+                    defaultValue={it.notes ?? ""}
+                    placeholder="Notas (opcional)"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if ((v || null) !== (it.notes ?? null)) {
+                        updateItem(it.id, { notes: v || null });
+                      }
+                    }}
+                    className="mt-1 h-6 border-white/[0.05] bg-white/[0.02] px-1 py-0 text-[10px] text-jcn-ice/70"
+                  />
                 </div>
               );
             })

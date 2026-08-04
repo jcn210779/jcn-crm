@@ -20,6 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  COLOR_CLASSES,
+  COLOR_LABEL,
+  COLOR_TOKENS,
+  type ColorToken,
+} from "@/lib/category-colors";
 import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type {
@@ -558,7 +564,7 @@ function BudgetTab({
 
   async function updateLine(
     id: string,
-    patch: { category?: string; budgeted?: number },
+    patch: { category?: string; budgeted?: number; color?: string | null },
   ) {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
@@ -644,6 +650,10 @@ function BudgetTab({
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
+          <ColorPicker
+            currentColor={b.color ?? null}
+            onPick={(c) => updateLine(b.id, { color: c })}
+          />
         </div>
       ))}
 
@@ -710,6 +720,60 @@ function FF({
         {label}
       </Label>
       {children}
+    </div>
+  );
+}
+
+// ============================================================================
+// ColorPicker — 16 cores + "auto" (deixa cor por keyword)
+// ============================================================================
+
+function ColorPicker({
+  currentColor,
+  onPick,
+}: {
+  currentColor: string | null;
+  onPick: (color: string | null) => void;
+}) {
+  return (
+    <div className="mt-2">
+      <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-jcn-ice/45">
+        Cor da categoria
+      </p>
+      <div className="flex flex-wrap gap-1">
+        <button
+          type="button"
+          onClick={() => onPick(null)}
+          title="Auto (cor por keyword)"
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-bold",
+            currentColor === null
+              ? "border-jcn-gold-400 text-jcn-gold-300 ring-2 ring-jcn-gold-400/50"
+              : "border-white/[0.1] text-jcn-ice/40 hover:border-white/30",
+          )}
+        >
+          A
+        </button>
+        {COLOR_TOKENS.map((tok) => {
+          const classes = COLOR_CLASSES[tok];
+          const active = currentColor === tok;
+          return (
+            <button
+              key={tok}
+              type="button"
+              onClick={() => onPick(tok)}
+              title={COLOR_LABEL[tok]}
+              className={cn(
+                "h-6 w-6 rounded-full border transition",
+                classes.swatch,
+                active
+                  ? "border-white ring-2 ring-white/60"
+                  : "border-white/20 hover:scale-110",
+              )}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
