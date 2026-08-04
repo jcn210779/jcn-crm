@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type {
   FlipInspection,
@@ -470,19 +471,16 @@ export function FlipPlanning({ flipId }: Props) {
   ).length;
 
   return (
-    <section className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl md:p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">
-            Planejamento do flip
-          </h2>
-          <p className="mt-1 text-[11px] text-jcn-ice/45">
-            {completedPhases}/{totalPhases} fases · {openTasks} tarefa(s) aberta(s) ·{" "}
-            {pendingInspections} inspeção(ões) pendente(s)
-          </p>
-        </div>
-      </div>
-
+    <CollapsibleCard
+      title="Planejamento do flip"
+      storageKey={`flip:${flipId}:planning-open`}
+      subtitle={
+        <>
+          {completedPhases}/{totalPhases} fases · {openTasks} tarefa(s) aberta(s) ·{" "}
+          {pendingInspections} inspeção(ões) pendente(s)
+        </>
+      }
+    >
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Fases */}
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
@@ -806,6 +804,6 @@ export function FlipPlanning({ flipId }: Props) {
           </div>
         </div>
       </div>
-    </section>
+    </CollapsibleCard>
   );
 }
