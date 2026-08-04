@@ -612,7 +612,10 @@ export type FlipDrawItem = {
   draw_id: string;
   budget_line_id: string | null;
   category: string;
+  /** Valor planejado no requerimento (mig 0058). */
   amount: number;
+  /** Valor realmente gasto (mig 0059). Default 0. */
+  spent_amount: number;
   notes: string | null;
   display_order: number;
 };

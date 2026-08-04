@@ -59,8 +59,25 @@ export function DrawItemsList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, drawId]);
 
-  const total = items.reduce((s, i) => s + Number(i.amount), 0);
-  const diff = drawAmount - total;
+  const totalPlanned = items.reduce((s, i) => s + Number(i.amount), 0);
+  const totalSpent = items.reduce((s, i) => s + Number(i.spent_amount ?? 0), 0);
+  const diffPlannedVsDraw = drawAmount - totalPlanned;
+  const drawRemaining = drawAmount - totalSpent;
+
+  async function updateSpent(id: string, value: string) {
+    const num = Number(value);
+    if (Number.isNaN(num) || num < 0) return;
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("flip_draw_items")
+      .update({ spent_amount: num })
+      .eq("id", id);
+    if (error) {
+      toast.error("Erro ao salvar gasto", { description: error.message });
+      return;
+    }
+    await reload();
+  }
 
   async function addItem() {
     const amt = Number(amount);
@@ -149,52 +166,123 @@ export function DrawItemsList({
               Sem linhas cadastradas
             </p>
           ) : (
-            items.map((it) => (
-              <div
-                key={it.id}
-                className="flex items-center gap-2 rounded-md border border-white/[0.05] bg-white/[0.02] px-2 py-1.5 text-[11px]"
-              >
-                <span className="flex-1 truncate text-jcn-ice">
-                  {it.category}
-                  {it.notes && (
-                    <span className="ml-1 text-jcn-ice/45">— {it.notes}</span>
-                  )}
-                </span>
-                <span className="shrink-0 font-black text-jcn-gold-300">
-                  {formatCurrency(Number(it.amount))}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => deleteItem(it.id)}
-                  className="shrink-0 rounded p-0.5 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
+            items.map((it) => {
+              const planned = Number(it.amount);
+              const spent = Number(it.spent_amount ?? 0);
+              const remaining = planned - spent;
+              return (
+                <div
+                  key={it.id}
+                  className="rounded-md border border-white/[0.05] bg-white/[0.02] p-2 text-[11px]"
                 >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            ))
+                  <div className="flex items-start gap-2">
+                    <span className="flex-1 truncate text-jcn-ice">
+                      {it.category}
+                      {it.notes && (
+                        <span className="ml-1 text-jcn-ice/45">
+                          — {it.notes}
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteItem(it.id)}
+                      className="shrink-0 rounded p-0.5 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <div className="mt-1.5 grid grid-cols-3 gap-2">
+                    <div>
+                      <p className="text-[9px] uppercase text-jcn-ice/40">
+                        Planejado
+                      </p>
+                      <p className="font-black text-jcn-gold-300">
+                        {formatCurrency(planned)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase text-jcn-ice/40">
+                        Gasto
+                      </p>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        defaultValue={spent || ""}
+                        onBlur={(e) => updateSpent(it.id, e.target.value)}
+                        placeholder="0"
+                        className="h-6 border-white/[0.06] bg-white/[0.02] px-1 py-0 text-[11px] font-black text-jcn-ice"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase text-jcn-ice/40">
+                        {remaining >= 0 ? "Sobrou" : "Excedeu"}
+                      </p>
+                      <p
+                        className={cn(
+                          "font-black",
+                          Math.abs(remaining) < 0.01
+                            ? "text-jcn-ice/55"
+                            : remaining > 0
+                              ? "text-emerald-300"
+                              : "text-rose-300",
+                        )}
+                      >
+                        {formatCurrency(Math.abs(remaining))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
 
           {items.length > 0 && (
-            <div className="flex items-center justify-between border-t border-white/[0.05] pt-2 text-[11px]">
-              <span className="text-jcn-ice/55">Total das linhas</span>
-              <span
-                className={cn(
-                  "font-black",
-                  Math.abs(diff) < 0.01
-                    ? "text-emerald-300"
-                    : diff > 0
-                      ? "text-amber-300"
-                      : "text-rose-300",
-                )}
-              >
-                {formatCurrency(total)}
-                {Math.abs(diff) >= 0.01 && (
-                  <span className="ml-1 text-[9px] font-normal">
-                    ({diff > 0 ? "falta " : "excesso "}
-                    {formatCurrency(Math.abs(diff))})
-                  </span>
-                )}
-              </span>
+            <div className="space-y-1 border-t border-white/[0.05] pt-2 text-[11px]">
+              <div className="flex items-center justify-between">
+                <span className="text-jcn-ice/55">Planejado (total das linhas)</span>
+                <span
+                  className={cn(
+                    "font-black",
+                    Math.abs(diffPlannedVsDraw) < 0.01
+                      ? "text-emerald-300"
+                      : diffPlannedVsDraw > 0
+                        ? "text-amber-300"
+                        : "text-rose-300",
+                  )}
+                >
+                  {formatCurrency(totalPlanned)}
+                  {Math.abs(diffPlannedVsDraw) >= 0.01 && (
+                    <span className="ml-1 text-[9px] font-normal">
+                      ({diffPlannedVsDraw > 0 ? "falta " : "excesso "}
+                      {formatCurrency(Math.abs(diffPlannedVsDraw))})
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-jcn-ice/55">Gasto (real)</span>
+                <span className="font-black text-jcn-ice">
+                  {formatCurrency(totalSpent)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t border-white/[0.05] pt-1">
+                <span className="font-bold text-jcn-ice/70">Sobra do draw</span>
+                <span
+                  className={cn(
+                    "font-black",
+                    drawRemaining > 0
+                      ? "text-emerald-300"
+                      : drawRemaining < 0
+                        ? "text-rose-300"
+                        : "text-jcn-ice/55",
+                  )}
+                >
+                  {formatCurrency(drawRemaining)}
+                </span>
+              </div>
             </div>
           )}
 
