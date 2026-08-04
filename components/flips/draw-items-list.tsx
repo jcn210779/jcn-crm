@@ -240,7 +240,27 @@ export function DrawItemsList({
                     tone.border,
                   )}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => moveItem(it.id, "up")}
+                        disabled={isFirst}
+                        className="rounded p-0.5 text-jcn-ice/60 hover:bg-white/[0.08] hover:text-jcn-gold-300 disabled:cursor-not-allowed disabled:opacity-20"
+                        title="Mover pra cima"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(it.id, "down")}
+                        disabled={isLast}
+                        className="rounded p-0.5 text-jcn-ice/60 hover:bg-white/[0.08] hover:text-jcn-gold-300 disabled:cursor-not-allowed disabled:opacity-20"
+                        title="Mover pra baixo"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </div>
                     <span className="min-w-0 flex-1 truncate font-semibold text-jcn-ice">
                       {it.category}
                       {it.notes && (
@@ -249,24 +269,6 @@ export function DrawItemsList({
                         </span>
                       )}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => moveItem(it.id, "up")}
-                      disabled={isFirst}
-                      className="shrink-0 rounded p-1 text-jcn-ice/45 hover:bg-white/[0.08] hover:text-jcn-ice disabled:cursor-not-allowed disabled:opacity-25"
-                      title="Mover pra cima"
-                    >
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveItem(it.id, "down")}
-                      disabled={isLast}
-                      className="shrink-0 rounded p-1 text-jcn-ice/45 hover:bg-white/[0.08] hover:text-jcn-ice disabled:cursor-not-allowed disabled:opacity-25"
-                      title="Mover pra baixo"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </button>
                     <button
                       type="button"
                       onClick={() => setEditingItem(it)}
