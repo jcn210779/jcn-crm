@@ -1,22 +1,24 @@
 "use client";
 
 /**
- * Dialog "Cofrinho" — histórico de saques/despesas/juros de UMA linha do breakdown.
+ * Cofrinho por linha do breakdown do draw.
  *
- * Mostra 4 KPIs (Aprovado / Recebido / Sobra / Disponível pra sacar), lista
- * cronológica de transações e formulário pra adicionar novo saque, despesa
- * ou juros. Total refletido no spent_amount do item pra bater com view mãe.
+ * 6 tipos de transacao: Saque (entrada), Mortgage, Despesa House,
+ * Despesa Cottage, Despesa geral, Salario. Recebido - saidas = Lucro.
  */
 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowDownCircle,
-  ArrowUpCircle,
+  Banknote,
+  Building2,
+  Home,
   Loader2,
-  Percent,
   Plus,
   Trash2,
+  Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -40,17 +42,92 @@ type Props = {
   onSaved: () => void;
 };
 
-const KIND_LABEL: Record<FlipDrawItemTxnKind, string> = {
-  withdrawal: "Saque do banco",
-  expense: "Despesa paga",
-  interest: "Juros pagos",
+type KindMeta = {
+  label: string;
+  short: string;
+  tone: string;
+  btn: { active: string; inactive: string };
+  icon: React.ComponentType<{ className?: string }>;
+  outflow: boolean;
 };
 
-const KIND_TONE: Record<FlipDrawItemTxnKind, string> = {
-  withdrawal: "text-emerald-300",
-  expense: "text-rose-300",
-  interest: "text-amber-300",
+const KIND_META: Record<FlipDrawItemTxnKind, KindMeta> = {
+  withdrawal: {
+    label: "Saque do banco",
+    short: "Saque",
+    tone: "text-emerald-300",
+    btn: {
+      active: "border-emerald-400/50 bg-emerald-500/15 text-emerald-200",
+      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
+    },
+    icon: ArrowDownCircle,
+    outflow: false,
+  },
+  mortgage: {
+    label: "Mortgage",
+    short: "Mortgage",
+    tone: "text-violet-300",
+    btn: {
+      active: "border-violet-400/50 bg-violet-500/15 text-violet-200",
+      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
+    },
+    icon: Banknote,
+    outflow: true,
+  },
+  expense_house: {
+    label: "Despesa House",
+    short: "Desp. House",
+    tone: "text-rose-300",
+    btn: {
+      active: "border-rose-400/50 bg-rose-500/15 text-rose-200",
+      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
+    },
+    icon: Home,
+    outflow: true,
+  },
+  expense_cottage: {
+    label: "Despesa Cottage",
+    short: "Desp. Cottage",
+    tone: "text-orange-300",
+    btn: {
+      active: "border-orange-400/50 bg-orange-500/15 text-orange-200",
+      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
+    },
+    icon: Building2,
+    outflow: true,
+  },
+  expense_general: {
+    label: "Despesa geral",
+    short: "Despesa",
+    tone: "text-pink-300",
+    btn: {
+      active: "border-pink-400/50 bg-pink-500/15 text-pink-200",
+      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
+    },
+    icon: Wallet,
+    outflow: true,
+  },
+  salary: {
+    label: "Salário",
+    short: "Salário",
+    tone: "text-sky-300",
+    btn: {
+      active: "border-sky-400/50 bg-sky-500/15 text-sky-200",
+      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
+    },
+    icon: Users,
+    outflow: true,
+  },
 };
+
+const KIND_ORDER: FlipDrawItemTxnKind[] = [
+  "withdrawal",
+  "mortgage",
+  "expense_house",
+  "expense_cottage",
+  "expense_general",
+  "salary",
+];
 
 export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
   const [txns, setTxns] = useState<FlipDrawItemTransaction[]>([]);
@@ -81,15 +158,12 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
 
   const approved = Number(item.amount);
   const received = txns
-    .filter((t) => t.kind === "withdrawal")
+    .filter((t) => !KIND_META[t.kind].outflow)
     .reduce((s, t) => s + Number(t.amount), 0);
-  const expensed = txns
-    .filter((t) => t.kind === "expense")
+  const totalOut = txns
+    .filter((t) => KIND_META[t.kind].outflow)
     .reduce((s, t) => s + Number(t.amount), 0);
-  const interest = txns
-    .filter((t) => t.kind === "interest")
-    .reduce((s, t) => s + Number(t.amount), 0);
-  const cashInHand = received - expensed - interest;
+  const profit = received - totalOut;
   const availableToPull = approved - received;
 
   async function addTxn() {
@@ -116,10 +190,7 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
       return;
     }
 
-    // Sincroniza spent_amount do item = SUM(expense) + SUM(interest)
-    // pra bater visualmente no card mãe do breakdown.
-    const newSpent =
-      expensed + interest + (kind === "expense" || kind === "interest" ? amt : 0);
+    const newSpent = totalOut + (KIND_META[kind].outflow ? amt : 0);
     await supabase
       .from("flip_draw_items")
       .update({ spent_amount: newSpent })
@@ -144,10 +215,9 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
       toast.error("Erro", { description: error.message });
       return;
     }
-    // Recalcula spent_amount depois de apagar
     const remaining = txns.filter((x) => x.id !== t.id);
     const newSpent = remaining
-      .filter((x) => x.kind === "expense" || x.kind === "interest")
+      .filter((x) => KIND_META[x.kind].outflow)
       .reduce((s, x) => s + Number(x.amount), 0);
     await supabase
       .from("flip_draw_items")
@@ -164,7 +234,7 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.1] bg-jcn-midnight shadow-2xl"
+        className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/[0.1] bg-jcn-midnight shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -198,14 +268,14 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
             value={availableToPull}
             tone={availableToPull > 0 ? "text-jcn-gold-300" : "text-jcn-ice/45"}
           />
-          <Kpi label="Gasto" value={expensed + interest} tone="text-rose-300" />
+          <Kpi label="Total gasto" value={totalOut} tone="text-rose-300" />
           <Kpi
-            label="Sobra em caixa"
-            value={cashInHand}
+            label="Lucro"
+            value={profit}
             tone={
-              cashInHand > 0
+              profit > 0
                 ? "text-emerald-300"
-                : cashInHand < 0
+                : profit < 0
                   ? "text-rose-300"
                   : "text-jcn-ice/55"
             }
@@ -225,36 +295,27 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
           ) : (
             <ul className="space-y-1.5">
               {txns.map((t) => {
-                const Icon =
-                  t.kind === "withdrawal"
-                    ? ArrowDownCircle
-                    : t.kind === "interest"
-                      ? Percent
-                      : ArrowUpCircle;
-                const sign = t.kind === "withdrawal" ? "+" : "−";
+                const meta = KIND_META[t.kind];
+                const Icon = meta.icon;
+                const sign = meta.outflow ? "−" : "+";
                 return (
                   <li
                     key={t.id}
                     className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5"
                   >
-                    <Icon className={cn("h-4 w-4 shrink-0", KIND_TONE[t.kind])} />
+                    <Icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold text-jcn-ice">
-                        {t.description ?? KIND_LABEL[t.kind]}
+                        {t.description ?? meta.label}
                       </p>
                       <p className="text-[10px] text-jcn-ice/45">
                         {format(new Date(t.txn_date + "T12:00:00"), "dd MMM", {
                           locale: ptBR,
                         })}{" "}
-                        · {KIND_LABEL[t.kind]}
+                        · {meta.label}
                       </p>
                     </div>
-                    <span
-                      className={cn(
-                        "shrink-0 text-sm font-black",
-                        KIND_TONE[t.kind],
-                      )}
-                    >
+                    <span className={cn("shrink-0 text-sm font-black", meta.tone)}>
                       {sign}
                       {formatCurrency(Number(t.amount))}
                     </span>
@@ -274,28 +335,26 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
 
         {/* Form adicionar */}
         <div className="space-y-2 border-t border-white/[0.08] bg-white/[0.02] p-3">
-          <div className="flex gap-1">
-            <KindBtn
-              active={kind === "withdrawal"}
-              onClick={() => setKind("withdrawal")}
-              icon={ArrowDownCircle}
-              label="Saque"
-              tone="emerald"
-            />
-            <KindBtn
-              active={kind === "expense"}
-              onClick={() => setKind("expense")}
-              icon={ArrowUpCircle}
-              label="Despesa"
-              tone="rose"
-            />
-            <KindBtn
-              active={kind === "interest"}
-              onClick={() => setKind("interest")}
-              icon={Percent}
-              label="Juros"
-              tone="amber"
-            />
+          <div className="grid grid-cols-3 gap-1">
+            {KIND_ORDER.map((k) => {
+              const meta = KIND_META[k];
+              const Icon = meta.icon;
+              const active = kind === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setKind(k)}
+                  className={cn(
+                    "flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider transition",
+                    active ? meta.btn.active : meta.btn.inactive,
+                  )}
+                >
+                  <Icon className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{meta.short}</span>
+                </button>
+              );
+            })}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -326,7 +385,7 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descrição (ex: 50% do requerimento / pgto City Somerville)"
+            placeholder="Descrição (ex: pgto City Somerville / mortgage jun)"
             className="h-8 text-xs"
           />
           <Button
@@ -339,7 +398,7 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
             ) : (
               <Plus className="h-3.5 w-3.5" />
             )}
-            Adicionar {KIND_LABEL[kind]}
+            Adicionar {KIND_META[kind].label}
           </Button>
         </div>
       </div>
@@ -363,47 +422,5 @@ function Kpi({
       </p>
       <p className={cn("text-sm font-black", tone)}>{formatCurrency(value)}</p>
     </div>
-  );
-}
-
-function KindBtn({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-  tone,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  tone: "emerald" | "rose" | "amber";
-}) {
-  const toneMap = {
-    emerald: {
-      active: "border-emerald-400/50 bg-emerald-500/15 text-emerald-200",
-      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
-    },
-    rose: {
-      active: "border-rose-400/50 bg-rose-500/15 text-rose-200",
-      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
-    },
-    amber: {
-      active: "border-amber-400/50 bg-amber-500/15 text-amber-200",
-      inactive: "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55",
-    },
-  }[tone];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-1 items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider transition",
-        active ? toneMap.active : toneMap.inactive,
-      )}
-    >
-      <Icon className="h-3 w-3" />
-      {label}
-    </button>
   );
 }

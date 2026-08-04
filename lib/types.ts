@@ -612,7 +612,13 @@ export type FlipBudgetLine = {
 };
 
 /** Transação por linha do breakdown do draw (mig 0063). */
-export type FlipDrawItemTxnKind = "withdrawal" | "expense" | "interest";
+export type FlipDrawItemTxnKind =
+  | "withdrawal"
+  | "mortgage"
+  | "expense_house"
+  | "expense_cottage"
+  | "expense_general"
+  | "salary";
 
 export type FlipDrawItemTransaction = {
   id: string;
