@@ -7,7 +7,7 @@
  * do requerimento com categorias vindas do orçamento (flip_budget_lines).
  */
 
-import { ChevronDown, ChevronUp, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 
 import {
   COLOR_CLASSES,
@@ -26,6 +26,7 @@ import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import type { FlipBudgetLine, FlipDrawItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { DrawItemTransactions } from "./draw-item-transactions";
 
 type Props = {
   drawId: string;
@@ -50,6 +51,7 @@ export function DrawItemsList({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<FlipDrawItem | null>(null);
+  const [txnItem, setTxnItem] = useState<FlipDrawItem | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -249,6 +251,14 @@ export function DrawItemsList({
                     </span>
                     <button
                       type="button"
+                      onClick={() => setTxnItem(it)}
+                      className="shrink-0 rounded p-1 text-emerald-300 hover:bg-emerald-500/15"
+                      title="Saques / despesas / juros"
+                    >
+                      <Wallet className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setEditingItem(it)}
                       className="shrink-0 rounded p-1 text-jcn-gold-300 hover:bg-jcn-gold-500/15"
                       title="Editar linha"
@@ -439,6 +449,16 @@ export function DrawItemsList({
           onClose={() => setEditingItem(null)}
           onSaved={() => {
             setEditingItem(null);
+            void reload();
+          }}
+        />
+      )}
+
+      {txnItem && (
+        <DrawItemTransactions
+          item={txnItem}
+          onClose={() => setTxnItem(null)}
+          onSaved={() => {
             void reload();
           }}
         />

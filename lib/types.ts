@@ -611,6 +611,20 @@ export type FlipBudgetLine = {
   color: string | null;
 };
 
+/** Transação por linha do breakdown do draw (mig 0063). */
+export type FlipDrawItemTxnKind = "withdrawal" | "expense" | "interest";
+
+export type FlipDrawItemTransaction = {
+  id: string;
+  created_at: string;
+  draw_item_id: string;
+  txn_date: string;
+  kind: FlipDrawItemTxnKind;
+  amount: number;
+  description: string | null;
+  notes: string | null;
+};
+
 /** Line item de draw request pro banco (mig 0058). */
 export type FlipDrawItem = {
   id: string;
@@ -2047,6 +2061,16 @@ export type Database = {
           amount: number;
         };
         Update: Partial<Omit<FlipDrawItem, "id" | "created_at" | "draw_id">>;
+        Relationships: [];
+      };
+      flip_draw_item_transactions: {
+        Row: FlipDrawItemTransaction;
+        Insert: Partial<Omit<FlipDrawItemTransaction, "id" | "created_at">> & {
+          draw_item_id: string;
+          kind: FlipDrawItemTxnKind;
+          amount: number;
+        };
+        Update: Partial<Omit<FlipDrawItemTransaction, "id" | "created_at" | "draw_item_id">>;
         Relationships: [];
       };
       flip_phases: {
