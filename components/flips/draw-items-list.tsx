@@ -203,28 +203,33 @@ export function DrawItemsList({
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <Input
-                      defaultValue={it.category}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        if (v && v !== it.category) {
-                          updateItem(it.id, { category: v });
-                        }
-                      }}
-                      className="h-6 flex-1 border-transparent bg-transparent px-1 py-0 font-semibold text-jcn-ice hover:border-white/[0.1]"
-                    />
+                    <div className="flex-1">
+                      <p className="text-[9px] uppercase text-jcn-ice/40">
+                        Categoria (click pra editar)
+                      </p>
+                      <Input
+                        defaultValue={it.category}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v && v !== it.category) {
+                            updateItem(it.id, { category: v });
+                          }
+                        }}
+                        className="h-7 w-full border-white/[0.15] bg-white/[0.05] px-2 py-0 font-semibold text-jcn-ice"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => deleteItem(it.id)}
-                      className="shrink-0 rounded p-0.5 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
+                      className="mt-4 shrink-0 rounded p-1 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <div className="mt-1.5 grid grid-cols-3 gap-2">
+                  <div className="mt-2 grid grid-cols-3 gap-2">
                     <div>
                       <p className="text-[9px] uppercase text-jcn-ice/40">
-                        Planejado
+                        Planejado ($)
                       </p>
                       <Input
                         type="number"
@@ -238,12 +243,12 @@ export function DrawItemsList({
                             updateItem(it.id, { amount: num });
                           }
                         }}
-                        className="h-6 border-white/[0.06] bg-white/[0.02] px-1 py-0 text-[11px] font-black text-jcn-gold-300"
+                        className="h-7 border-white/[0.15] bg-white/[0.05] px-2 py-0 text-[12px] font-black text-jcn-gold-300"
                       />
                     </div>
                     <div>
                       <p className="text-[9px] uppercase text-jcn-ice/40">
-                        Gasto
+                        Gasto ($)
                       </p>
                       <Input
                         type="number"
@@ -253,7 +258,7 @@ export function DrawItemsList({
                         defaultValue={spent || ""}
                         onBlur={(e) => updateSpent(it.id, e.target.value)}
                         placeholder="0"
-                        className="h-6 border-white/[0.06] bg-white/[0.02] px-1 py-0 text-[11px] font-black text-jcn-ice"
+                        className="h-7 border-white/[0.15] bg-white/[0.05] px-2 py-0 text-[12px] font-black text-jcn-ice"
                       />
                     </div>
                     <div>
@@ -274,17 +279,22 @@ export function DrawItemsList({
                       </p>
                     </div>
                   </div>
-                  <Input
-                    defaultValue={it.notes ?? ""}
-                    placeholder="Notas (opcional)"
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if ((v || null) !== (it.notes ?? null)) {
-                        updateItem(it.id, { notes: v || null });
-                      }
-                    }}
-                    className="mt-1 h-6 border-white/[0.05] bg-white/[0.02] px-1 py-0 text-[10px] text-jcn-ice/70"
-                  />
+                  <div className="mt-2">
+                    <p className="text-[9px] uppercase text-jcn-ice/40">
+                      Notas
+                    </p>
+                    <Input
+                      defaultValue={it.notes ?? ""}
+                      placeholder="Ex: pago via cheque 1234"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if ((v || null) !== (it.notes ?? null)) {
+                          updateItem(it.id, { notes: v || null });
+                        }
+                      }}
+                      className="h-7 border-white/[0.15] bg-white/[0.05] px-2 py-0 text-[11px] text-jcn-ice/85"
+                    />
+                  </div>
                 </div>
               );
             })
