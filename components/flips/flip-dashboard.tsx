@@ -4,6 +4,7 @@ import {
   Building2,
   Calendar,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   CreditCard,
   DollarSign,
@@ -389,6 +390,9 @@ function DetailsCard({
       <Card
         title="Aquisição & Loan"
         id="flip-details"
+        collapsible
+        storageKey="flip:details-open"
+        defaultOpen={false}
         right={
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             Editar
@@ -560,6 +564,9 @@ function UnitsSection({
     <Card
       title="Unidades vendáveis"
       id="flip-units"
+      collapsible
+      storageKey="flip:units-open"
+      defaultOpen={false}
       right={
         !adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -740,6 +747,9 @@ function DrawsSection({
   return (
     <Card
       title="Caixa & Draws"
+      collapsible
+      storageKey="flip:draws-open"
+      defaultOpen={false}
       right={
         !adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -1153,6 +1163,9 @@ function BudgetSection({
     <Card
       title="Orçamento × Real"
       id="flip-budget"
+      collapsible
+      storageKey="flip:budget-open"
+      defaultOpen={false}
       right={
         !adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -1235,22 +1248,103 @@ function Card({
   right,
   children,
   id,
+  collapsible,
+  storageKey,
+  defaultOpen = true,
+  subtitle,
 }: {
   title: string;
   right?: React.ReactNode;
   children: React.ReactNode;
   id?: string;
+  collapsible?: boolean;
+  storageKey?: string;
+  defaultOpen?: boolean;
+  subtitle?: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [hydrated, setHydrated] = useState(!collapsible);
+
+  useEffect(() => {
+    if (!collapsible) return;
+    if (!storageKey) {
+      setHydrated(true);
+      return;
+    }
+    try {
+      const v = localStorage.getItem(storageKey);
+      if (v === "1") setOpen(true);
+      else if (v === "0") setOpen(false);
+    } catch {
+      // ignore
+    }
+    setHydrated(true);
+  }, [collapsible, storageKey]);
+
+  function toggle() {
+    if (!collapsible) return;
+    const next = !open;
+    setOpen(next);
+    if (storageKey) {
+      try {
+        localStorage.setItem(storageKey, next ? "1" : "0");
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const showBody = collapsible ? hydrated && open : true;
+
   return (
     <section
       id={id}
-      className="rounded-3xl border border-white/[0.06] bg-white/[0.025] p-5 backdrop-blur-xl transition-shadow scroll-mt-24 md:p-6"
+      className="overflow-hidden rounded-3xl border border-white/[0.06] bg-white/[0.025] backdrop-blur-xl transition-shadow scroll-mt-24"
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">{title}</h2>
-        {right}
+      <div
+        className={cn(
+          "flex items-center justify-between gap-3 px-5 py-4 md:px-6",
+          collapsible && "cursor-pointer transition hover:bg-white/[0.03]",
+        )}
+        onClick={collapsible ? toggle : undefined}
+        role={collapsible ? "button" : undefined}
+        aria-expanded={collapsible ? open : undefined}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {collapsible &&
+            (open ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-jcn-gold-300" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0 text-jcn-ice/45" />
+            ))}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-xs font-bold uppercase tracking-[0.18em] text-white/55">
+              {title}
+            </h2>
+            {subtitle && (
+              <div className="mt-0.5 text-[11px] text-jcn-ice/50">{subtitle}</div>
+            )}
+          </div>
+        </div>
+        {right && (
+          <div
+            className="shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {right}
+          </div>
+        )}
       </div>
-      {children}
+      {showBody && (
+        <div
+          className={cn(
+            "px-5 pb-5 md:px-6 md:pb-6",
+            collapsible ? "border-t border-white/[0.05] pt-4" : "pt-0",
+          )}
+        >
+          {children}
+        </div>
+      )}
     </section>
   );
 }

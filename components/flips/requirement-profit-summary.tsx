@@ -13,7 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { Loader2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Card } from "@/components/ui/card";
+import { CollapsibleCard } from "@/components/flips/collapsible-card";
 import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import { resolveCategoryColor } from "@/lib/category-colors";
@@ -146,14 +146,30 @@ export function RequirementProfitSummary({ flipId }: Props) {
   const totalAvailable = totalApproved - totalReceived;
 
   return (
-    <Card className="overflow-hidden border-white/[0.06] bg-jcn-midnight/60 p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Wallet className="h-5 w-5 text-jcn-gold-300" />
-        <h2 className="text-base font-black uppercase tracking-wider text-jcn-gold-300">
-          Lucro por Requerimento
-        </h2>
-      </div>
-
+    <CollapsibleCard
+      title="Lucro por Requerimento"
+      storageKey={`flip:${flipId}:profit-summary-open`}
+      icon={<Wallet className="h-4 w-4 text-jcn-gold-300" />}
+      subtitle={
+        !loading && rows.length > 0 ? (
+          <span>
+            {rows.length} requerimento{rows.length > 1 ? "s" : ""} · Lucro geral{" "}
+            <span
+              className={cn(
+                "font-black",
+                totalProfit > 0
+                  ? "text-emerald-300"
+                  : totalProfit < 0
+                    ? "text-rose-300"
+                    : "text-jcn-ice/55",
+              )}
+            >
+              {formatCurrency(totalProfit)}
+            </span>
+          </span>
+        ) : undefined
+      }
+    >
       {/* KPIs consolidados no topo */}
       <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
         <BigKpi
@@ -286,7 +302,7 @@ export function RequirementProfitSummary({ flipId }: Props) {
           </div>
         </div>
       )}
-    </Card>
+    </CollapsibleCard>
   );
 }
 
