@@ -8,6 +8,62 @@
  */
 
 import { ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
+
+/**
+ * Palette de cores por categoria — auto-atribuída.
+ * Keywords conhecidas mapeiam pra cores semânticas. Outras categorias
+ * caem em cor por hash pra manter consistência (mesma categoria = mesma cor).
+ */
+const KEYWORD_COLORS: Array<[string, { bg: string; border: string }]> = [
+  ["permit",    { bg: "bg-sky-500/10",     border: "border-sky-400/40" }],
+  ["framing",   { bg: "bg-amber-700/15",   border: "border-amber-600/40" }],
+  ["demol",     { bg: "bg-stone-500/15",   border: "border-stone-400/40" }],
+  ["eletric",   { bg: "bg-yellow-500/10",  border: "border-yellow-400/40" }],
+  ["electric",  { bg: "bg-yellow-500/10",  border: "border-yellow-400/40" }],
+  ["hidra",     { bg: "bg-cyan-500/10",    border: "border-cyan-400/40" }],
+  ["plumb",     { bg: "bg-cyan-500/10",    border: "border-cyan-400/40" }],
+  ["hvac",      { bg: "bg-violet-500/10",  border: "border-violet-400/40" }],
+  ["isolam",    { bg: "bg-pink-500/10",    border: "border-pink-400/40" }],
+  ["insulat",   { bg: "bg-pink-500/10",    border: "border-pink-400/40" }],
+  ["drywall",   { bg: "bg-slate-500/15",   border: "border-slate-400/40" }],
+  ["piso",      { bg: "bg-emerald-500/10", border: "border-emerald-400/40" }],
+  ["floor",     { bg: "bg-emerald-500/10", border: "border-emerald-400/40" }],
+  ["telhad",    { bg: "bg-rose-500/10",    border: "border-rose-400/40" }],
+  ["roof",      { bg: "bg-rose-500/10",    border: "border-rose-400/40" }],
+  ["siding",    { bg: "bg-orange-500/10",  border: "border-orange-400/40" }],
+  ["cozinha",   { bg: "bg-red-500/10",     border: "border-red-400/40" }],
+  ["kitchen",   { bg: "bg-red-500/10",     border: "border-red-400/40" }],
+  ["banho",     { bg: "bg-teal-500/10",    border: "border-teal-400/40" }],
+  ["bathroom",  { bg: "bg-teal-500/10",    border: "border-teal-400/40" }],
+  ["material",  { bg: "bg-indigo-500/10",  border: "border-indigo-400/40" }],
+  ["mao",       { bg: "bg-fuchsia-500/10", border: "border-fuchsia-400/40" }],
+  ["labor",     { bg: "bg-fuchsia-500/10", border: "border-fuchsia-400/40" }],
+];
+
+const FALLBACK_PALETTE = [
+  { bg: "bg-jcn-gold-500/10", border: "border-jcn-gold-400/40" },
+  { bg: "bg-sky-500/10",      border: "border-sky-400/40" },
+  { bg: "bg-emerald-500/10",  border: "border-emerald-400/40" },
+  { bg: "bg-violet-500/10",   border: "border-violet-400/40" },
+  { bg: "bg-orange-500/10",   border: "border-orange-400/40" },
+  { bg: "bg-pink-500/10",     border: "border-pink-400/40" },
+  { bg: "bg-teal-500/10",     border: "border-teal-400/40" },
+  { bg: "bg-rose-500/10",     border: "border-rose-400/40" },
+];
+
+function colorForCategory(category: string): { bg: string; border: string } {
+  const norm = category.toLowerCase().trim();
+  // Keyword match primeiro
+  for (const [kw, color] of KEYWORD_COLORS) {
+    if (norm.includes(kw)) return color;
+  }
+  // Fallback: hash simples do nome pra pegar sempre a mesma cor da palette
+  let hash = 0;
+  for (let i = 0; i < norm.length; i++) {
+    hash = (hash * 31 + norm.charCodeAt(i)) >>> 0;
+  }
+  return FALLBACK_PALETTE[hash % FALLBACK_PALETTE.length]!;
+}
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -170,10 +226,15 @@ export function DrawItemsList({
               const planned = Number(it.amount);
               const spent = Number(it.spent_amount ?? 0);
               const remaining = planned - spent;
+              const tone = colorForCategory(it.category);
               return (
                 <div
                   key={it.id}
-                  className="rounded-md border border-white/[0.05] bg-white/[0.02] p-2 text-[11px]"
+                  className={cn(
+                    "rounded-md border p-2 text-[11px]",
+                    tone.bg,
+                    tone.border,
+                  )}
                 >
                   <div className="flex items-start gap-2">
                     <span className="flex-1 truncate text-jcn-ice">
