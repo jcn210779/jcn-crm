@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EditPnlDialog } from "@/components/flips/edit-pnl-dialog";
+import { DrawItemsList } from "@/components/flips/draw-items-list";
 import { FlipPlanning } from "@/components/flips/flip-planning";
 import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
@@ -159,6 +160,7 @@ export function FlipDashboard({ jobId }: Props) {
         flipId={details.id}
         units={units}
         draws={draws}
+        budgetLines={budgetLines}
         loanApproved={Number(details.loan_amount ?? 0)}
         bankDrawn={Number(cash?.bank_drawn ?? 0)}
         onChanged={reload}
@@ -623,6 +625,7 @@ function DrawsSection({
   flipId,
   units,
   draws,
+  budgetLines,
   loanApproved,
   bankDrawn,
   onChanged,
@@ -630,6 +633,7 @@ function DrawsSection({
   flipId: string;
   units: FlipUnit[];
   draws: FlipDraw[];
+  budgetLines: FlipBudgetLine[];
   loanApproved: number;
   bankDrawn: number;
   onChanged: () => void;
@@ -720,19 +724,29 @@ function DrawsSection({
       )}
       <div className="space-y-2">
         {draws.map((d) => (
-          <div key={d.id} className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <CreditCard className="h-3.5 w-3.5 text-jcn-ice/45 shrink-0" />
-              <span className="text-xs text-jcn-ice/65 shrink-0">{d.draw_date}</span>
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                {DRAW_SOURCE_LABEL[d.source]}
-              </Badge>
-              {d.milestone && <span className="text-xs text-jcn-ice/75 truncate">{d.milestone}</span>}
+          <div key={d.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <CreditCard className="h-3.5 w-3.5 text-jcn-ice/45 shrink-0" />
+                <span className="text-xs text-jcn-ice/65 shrink-0">{d.draw_date}</span>
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  {DRAW_SOURCE_LABEL[d.source]}
+                </Badge>
+                {d.milestone && <span className="text-xs text-jcn-ice/75 truncate">{d.milestone}</span>}
+              </div>
+              <span className="font-bold text-jcn-gold-300">{formatCurrency(Number(d.amount))}</span>
+              <Button variant="ghost" size="sm" onClick={() => del(d.id)} className="h-7 w-7 p-0 text-rose-300 hover:bg-rose-500/15">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <span className="font-bold text-jcn-gold-300">{formatCurrency(Number(d.amount))}</span>
-            <Button variant="ghost" size="sm" onClick={() => del(d.id)} className="h-7 w-7 p-0 text-rose-300 hover:bg-rose-500/15">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {/* Breakdown do draw request pro banco (mig 0058) — só faz sentido pra bank_draw */}
+            {d.source === "bank_draw" && (
+              <DrawItemsList
+                drawId={d.id}
+                drawAmount={Number(d.amount)}
+                budgetLines={budgetLines}
+              />
+            )}
           </div>
         ))}
         {adding && (

@@ -605,6 +605,18 @@ export type FlipBudgetLine = {
   notes: string | null;
 };
 
+/** Line item de draw request pro banco (mig 0058). */
+export type FlipDrawItem = {
+  id: string;
+  created_at: string;
+  draw_id: string;
+  budget_line_id: string | null;
+  category: string;
+  amount: number;
+  notes: string | null;
+  display_order: number;
+};
+
 /** Linha agregada de v_flip_pnl (view). */
 export type FlipPnL = {
   flip_id: string;
@@ -2016,6 +2028,16 @@ export type Database = {
           category: string;
         };
         Update: Partial<Omit<FlipBudgetLine, "id" | "created_at" | "updated_at" | "flip_id">>;
+        Relationships: [];
+      };
+      flip_draw_items: {
+        Row: FlipDrawItem;
+        Insert: Partial<Omit<FlipDrawItem, "id" | "created_at">> & {
+          draw_id: string;
+          category: string;
+          amount: number;
+        };
+        Update: Partial<Omit<FlipDrawItem, "id" | "created_at" | "draw_id">>;
         Relationships: [];
       };
       flip_phases: {

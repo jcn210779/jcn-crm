@@ -1,0 +1,284 @@
+"use client";
+
+/**
+ * Lista + adiciona/apaga line items dentro de um draw (mig 0058).
+ *
+ * Usado inline dentro da DrawsSection. Ao expandir, mostra breakdown
+ * do requerimento com categorias vindas do orçamento (flip_budget_lines).
+ */
+
+import { ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { formatCurrency } from "@/lib/format";
+import { createSupabaseBrowserClient } from "@/lib/supabase-client";
+import type { FlipBudgetLine, FlipDrawItem } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+type Props = {
+  drawId: string;
+  drawAmount: number;
+  budgetLines: FlipBudgetLine[];
+  defaultOpen?: boolean;
+};
+
+export function DrawItemsList({
+  drawId,
+  drawAmount,
+  budgetLines,
+  defaultOpen = false,
+}: Props) {
+  const [open, setOpen] = useState(defaultOpen);
+  const [items, setItems] = useState<FlipDrawItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [budgetLineId, setBudgetLineId] = useState<string>("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function reload() {
+    setLoading(true);
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase
+      .from("flip_draw_items")
+      .select("*")
+      .eq("draw_id", drawId)
+      .order("display_order");
+    setItems((data ?? []) as FlipDrawItem[]);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (open) void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, drawId]);
+
+  const total = items.reduce((s, i) => s + Number(i.amount), 0);
+  const diff = drawAmount - total;
+
+  async function addItem() {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) {
+      toast.error("Valor inválido");
+      return;
+    }
+    let category = "";
+    if (budgetLineId && budgetLineId !== "__custom__") {
+      const line = budgetLines.find((b) => b.id === budgetLineId);
+      if (!line) {
+        toast.error("Categoria não encontrada");
+        return;
+      }
+      category = line.category;
+    } else {
+      if (!customCategory.trim()) {
+        toast.error("Descreva a categoria");
+        return;
+      }
+      category = customCategory.trim();
+    }
+
+    setSaving(true);
+    const nextOrder =
+      items.length > 0
+        ? Math.max(...items.map((i) => i.display_order)) + 1
+        : 1;
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.from("flip_draw_items").insert({
+      draw_id: drawId,
+      budget_line_id: budgetLineId === "__custom__" ? null : budgetLineId || null,
+      category,
+      amount: amt,
+      notes: notes.trim() || null,
+      display_order: nextOrder,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Erro", { description: error.message });
+      return;
+    }
+    setBudgetLineId("");
+    setCustomCategory("");
+    setAmount("");
+    setNotes("");
+    setAdding(false);
+    await reload();
+  }
+
+  async function deleteItem(id: string) {
+    if (!confirm("Apagar linha?")) return;
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("flip_draw_items")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      toast.error("Erro", { description: error.message });
+      return;
+    }
+    await reload();
+  }
+
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-jcn-ice/50 hover:bg-white/[0.04] hover:text-jcn-gold-300"
+      >
+        <ChevronDown
+          className={cn("h-3 w-3 transition-transform", open && "rotate-0", !open && "-rotate-90")}
+        />
+        Breakdown ({items.length})
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-1.5 rounded-xl border border-white/[0.06] bg-white/[0.015] p-3">
+          {loading ? (
+            <div className="flex items-center justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-jcn-gold-300" />
+            </div>
+          ) : items.length === 0 && !adding ? (
+            <p className="py-1 text-center text-[10px] italic text-jcn-ice/40">
+              Sem linhas cadastradas
+            </p>
+          ) : (
+            items.map((it) => (
+              <div
+                key={it.id}
+                className="flex items-center gap-2 rounded-md border border-white/[0.05] bg-white/[0.02] px-2 py-1.5 text-[11px]"
+              >
+                <span className="flex-1 truncate text-jcn-ice">
+                  {it.category}
+                  {it.notes && (
+                    <span className="ml-1 text-jcn-ice/45">— {it.notes}</span>
+                  )}
+                </span>
+                <span className="shrink-0 font-black text-jcn-gold-300">
+                  {formatCurrency(Number(it.amount))}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => deleteItem(it.id)}
+                  className="shrink-0 rounded p-0.5 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))
+          )}
+
+          {items.length > 0 && (
+            <div className="flex items-center justify-between border-t border-white/[0.05] pt-2 text-[11px]">
+              <span className="text-jcn-ice/55">Total das linhas</span>
+              <span
+                className={cn(
+                  "font-black",
+                  Math.abs(diff) < 0.01
+                    ? "text-emerald-300"
+                    : diff > 0
+                      ? "text-amber-300"
+                      : "text-rose-300",
+                )}
+              >
+                {formatCurrency(total)}
+                {Math.abs(diff) >= 0.01 && (
+                  <span className="ml-1 text-[9px] font-normal">
+                    ({diff > 0 ? "falta " : "excesso "}
+                    {formatCurrency(Math.abs(diff))})
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+
+          {adding ? (
+            <div className="space-y-2 rounded-md border border-jcn-gold-400/20 bg-jcn-gold-500/5 p-2">
+              <div>
+                <Label className="text-[10px] uppercase">Categoria</Label>
+                <select
+                  value={budgetLineId}
+                  onChange={(e) => setBudgetLineId(e.target.value)}
+                  className="flex h-8 w-full rounded-md border border-white/[0.08] bg-white/[0.04] px-2 text-xs text-jcn-ice"
+                >
+                  <option value="">Selecione...</option>
+                  {budgetLines.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.category} ({formatCurrency(Number(b.budgeted))})
+                    </option>
+                  ))}
+                  <option value="__custom__">➕ Outra (livre)</option>
+                </select>
+              </div>
+              {budgetLineId === "__custom__" && (
+                <Input
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder="Nome da categoria"
+                  className="h-8 text-xs"
+                />
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Valor ($)"
+                  className="h-8 text-xs"
+                  autoFocus
+                />
+                <Input
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notas (opcional)"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={addItem}
+                  disabled={saving}
+                  className="h-8 flex-1"
+                >
+                  {saving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Plus className="h-3 w-3" />
+                  )}
+                  Adicionar
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setAdding(false)}
+                  className="h-8"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-white/[0.1] py-1.5 text-[10px] text-jcn-ice/50 hover:bg-white/[0.03] hover:text-jcn-gold-300"
+            >
+              <Plus className="h-3 w-3" />
+              Adicionar linha
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
