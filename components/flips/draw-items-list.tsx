@@ -229,8 +229,6 @@ export function DrawItemsList({
                 manualColor: bl?.color ?? null,
                 category: it.category,
               });
-              const isFirst = items.indexOf(it) === 0;
-              const isLast = items.indexOf(it) === items.length - 1;
               return (
                 <div
                   key={it.id}
@@ -241,26 +239,6 @@ export function DrawItemsList({
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="flex shrink-0 flex-col gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => moveItem(it.id, "up")}
-                        disabled={isFirst}
-                        className="rounded p-0.5 text-jcn-ice/60 hover:bg-white/[0.08] hover:text-jcn-gold-300 disabled:cursor-not-allowed disabled:opacity-20"
-                        title="Mover pra cima"
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveItem(it.id, "down")}
-                        disabled={isLast}
-                        className="rounded p-0.5 text-jcn-ice/60 hover:bg-white/[0.08] hover:text-jcn-gold-300 disabled:cursor-not-allowed disabled:opacity-20"
-                        title="Mover pra baixo"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                    </div>
                     <span className="min-w-0 flex-1 truncate font-semibold text-jcn-ice">
                       {it.category}
                       {it.notes && (

@@ -593,6 +593,8 @@ export type FlipDraw = {
   notes: string | null;
   /** Token da palette (mig 0061). NULL = fundo cinza default. */
   color: string | null;
+  /** Ordem manual (mig 0062). */
+  display_order: number;
 };
 
 export type FlipBudgetLine = {

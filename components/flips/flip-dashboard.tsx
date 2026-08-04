@@ -3,6 +3,8 @@
 import {
   Building2,
   Calendar,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   DollarSign,
   Home,
@@ -99,6 +101,7 @@ export function FlipDashboard({ jobId }: Props) {
       supabase
         .from("flip_draws")
         .select("*")
+        .order("display_order", { ascending: true })
         .order("draw_date", { ascending: false }),
       supabase
         .from("flip_budget_lines")
@@ -696,6 +699,34 @@ function DrawsSection({
     onChanged();
   }
 
+  async function moveDraw(id: string, direction: "up" | "down") {
+    const idx = draws.findIndex((d) => d.id === id);
+    if (idx === -1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= draws.length) return;
+
+    const a = draws[idx]!;
+    const b = draws[swapIdx]!;
+    const supabase = createSupabaseBrowserClient();
+    const [r1, r2] = await Promise.all([
+      supabase
+        .from("flip_draws")
+        .update({ display_order: b.display_order })
+        .eq("id", a.id),
+      supabase
+        .from("flip_draws")
+        .update({ display_order: a.display_order })
+        .eq("id", b.id),
+    ]);
+    if (r1.error || r2.error) {
+      toast.error("Erro ao mover", {
+        description: r1.error?.message ?? r2.error?.message,
+      });
+      return;
+    }
+    onChanged();
+  }
+
   const remaining = loanApproved - bankDrawn;
 
   return (
@@ -732,12 +763,14 @@ function DrawsSection({
         <p className="text-sm text-jcn-ice/55">Nenhum draw lançado.</p>
       )}
       <div className="space-y-2">
-        {draws.map((d) => {
+        {draws.map((d, idx) => {
           const drawTone = resolveCategoryColor({
             manualColor: d.color ?? null,
             category: d.milestone ?? DRAW_SOURCE_LABEL[d.source],
           });
           const hasColor = !!d.color;
+          const isFirst = idx === 0;
+          const isLast = idx === draws.length - 1;
           return (
             <div
               key={d.id}
@@ -747,6 +780,26 @@ function DrawsSection({
               )}
             >
               <div className="flex items-center justify-between gap-2 text-sm">
+                <div className="flex shrink-0 flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => moveDraw(d.id, "up")}
+                    disabled={isFirst}
+                    className="rounded p-0.5 text-jcn-ice/60 hover:bg-white/[0.08] hover:text-jcn-gold-300 disabled:cursor-not-allowed disabled:opacity-20"
+                    title="Mover pra cima"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveDraw(d.id, "down")}
+                    disabled={isLast}
+                    className="rounded p-0.5 text-jcn-ice/60 hover:bg-white/[0.08] hover:text-jcn-gold-300 disabled:cursor-not-allowed disabled:opacity-20"
+                    title="Mover pra baixo"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <CreditCard className="h-3.5 w-3.5 text-jcn-ice/45 shrink-0" />
                   <span className="text-xs text-jcn-ice/65 shrink-0">{d.draw_date}</span>
