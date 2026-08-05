@@ -1296,6 +1296,13 @@ export type JobExtra = {
   contract_mime: string | null;
 
   notes: string | null;
+
+  /**
+   * Link opcional pro flip_draws (mig 0062). Quando preenchido, esse extra
+   * foi auto-gerado a partir de um requerimento do banco (bank_draw) e é
+   * mantido em sync pelo trigger. Não editar direto — editar no card do flip.
+   */
+  source_bank_draw_id: string | null;
 };
 
 /** Campos obrigatorios pra INSERT em job_extras. */

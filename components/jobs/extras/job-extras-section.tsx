@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import {
   CheckCircle2,
   FileText,
+  Landmark,
   Paperclip,
   Plus,
   Sparkles,
@@ -308,6 +309,18 @@ function ExtraRow({
             </span>
           </Badge>
           <span className="text-sm font-bold text-jcn-ice">{extra.title}</span>
+          {extra.source_bank_draw_id && (
+            <Badge
+              variant="outline"
+              className="border-emerald-400/40 bg-emerald-500/10 text-[10px] font-semibold text-emerald-200"
+              title="Auto-gerado do requerimento do banco. Editar valor no card do flip."
+            >
+              <span className="inline-flex items-center gap-1">
+                <Landmark className="h-3 w-3" />
+                Requerimento
+              </span>
+            </Badge>
+          )}
           {hasApprovalUrl && (
             <Paperclip
               className="h-3.5 w-3.5 text-jcn-gold-300/70"
@@ -343,15 +356,17 @@ function ExtraRow({
             {formatCurrency(Number(extra.additional_value))}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onDelete}
-          className="h-9 w-9 p-0 text-rose-300/70 hover:text-rose-300"
-          title="Excluir"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {!extra.source_bank_draw_id && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            className="h-9 w-9 p-0 text-rose-300/70 hover:text-rose-300"
+            title="Excluir"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
