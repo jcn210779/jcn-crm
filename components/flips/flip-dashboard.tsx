@@ -47,25 +47,10 @@ import type {
   FlipDrawSource,
   FlipPnL,
   FlipUnit,
-  FlipUnitStatus,
 } from "@/lib/types";
 
 type Props = {
   jobId: string;
-};
-
-const UNIT_STATUS_LABEL: Record<FlipUnitStatus, string> = {
-  planned: "Planejado",
-  listed: "Listado",
-  under_contract: "Sob contrato",
-  sold: "Vendido",
-};
-
-const UNIT_STATUS_TONE: Record<FlipUnitStatus, string> = {
-  planned: "border-white/[0.1] bg-white/[0.04] text-jcn-ice/65",
-  listed: "border-sky-400/30 bg-sky-500/10 text-sky-300",
-  under_contract: "border-amber-400/30 bg-amber-500/10 text-amber-300",
-  sold: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
 };
 
 const DRAW_SOURCE_LABEL: Record<FlipDrawSource, string> = {
@@ -163,11 +148,6 @@ export function FlipDashboard({ jobId }: Props) {
       />
       <DetailsCard details={details} onChanged={reload} />
       <FlipPlanning flipId={details.id} />
-      <UnitsSection
-        flipId={details.id}
-        units={units}
-        onChanged={reload}
-      />
       <DrawsSection
         flipId={details.id}
         units={units}
@@ -481,163 +461,6 @@ function DetailsCard({
 // ────────────────────────────────────────────────────────────────────────
 // Units, Draws, Budget — listas com add/delete
 // ────────────────────────────────────────────────────────────────────────
-
-function UnitsSection({
-  flipId,
-  units,
-  onChanged,
-}: {
-  flipId: string;
-  units: FlipUnit[];
-  onChanged: () => void;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [label, setLabel] = useState("");
-  const [arv, setArv] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function add() {
-    if (!label.trim()) {
-      toast.error("Nome da unidade obrigatório");
-      return;
-    }
-    setSaving(true);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.from("flip_units").insert({
-      flip_id: flipId,
-      label: label.trim(),
-      arv: n(arv) || null,
-      status: "planned",
-      display_order: units.length,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(`Erro: ${error.message}`);
-      return;
-    }
-    setLabel("");
-    setArv("");
-    setAdding(false);
-    onChanged();
-  }
-
-  async function updateStatus(unit: FlipUnit, status: FlipUnitStatus) {
-    const supabase = createSupabaseBrowserClient();
-    const today = new Date().toISOString().slice(0, 10);
-    const patch: Partial<FlipUnit> = { status };
-    if (status === "listed" && !unit.listed_at) patch.listed_at = today;
-    if (status === "under_contract" && !unit.under_contract_at) patch.under_contract_at = today;
-    if (status === "sold" && !unit.sold_at) patch.sold_at = today;
-    const { error } = await supabase
-      .from("flip_units")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update(patch as any)
-      .eq("id", unit.id);
-    if (error) {
-      toast.error(`Erro: ${error.message}`);
-      return;
-    }
-    onChanged();
-  }
-
-  async function updateSale(unitId: string, price: string) {
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase
-      .from("flip_units")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ sale_price: n(price) || null } as any)
-      .eq("id", unitId);
-    if (error) toast.error(`Erro: ${error.message}`);
-    onChanged();
-  }
-
-  async function del(id: string) {
-    if (!confirm("Apagar unidade?")) return;
-    const supabase = createSupabaseBrowserClient();
-    await supabase.from("flip_units").delete().eq("id", id);
-    onChanged();
-  }
-
-  return (
-    <Card
-      title="Unidades vendáveis"
-      id="flip-units"
-      collapsible
-      storageKey="flip:units-open"
-      defaultOpen={false}
-      right={
-        !adding && (
-          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Adicionar
-          </Button>
-        )
-      }
-    >
-      {units.length === 0 && !adding && (
-        <p className="text-sm text-jcn-ice/55">Nenhuma unidade ainda. Adicione (ex: Unit 66, Cottage, Piso novo).</p>
-      )}
-      <div className="space-y-3">
-        {units.map((u) => (
-          <div key={u.id} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Home className="h-4 w-4 text-jcn-gold-300" />
-                <span className="font-bold text-jcn-ice">{u.label}</span>
-                <Badge variant="outline" className={`${UNIT_STATUS_TONE[u.status]} text-[10px] font-bold`}>{UNIT_STATUS_LABEL[u.status]}</Badge>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => del(u.id)} className="h-7 w-7 p-0 text-rose-300 hover:bg-rose-500/15">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <span className="text-jcn-ice/45">ARV: </span>
-                <span className="font-bold text-jcn-ice">{formatCurrency(Number(u.arv ?? 0))}</span>
-              </div>
-              <div>
-                <span className="text-jcn-ice/45">Venda: </span>
-                <Input
-                  className="h-6 inline-block w-28 text-xs"
-                  defaultValue={u.sale_price ?? ""}
-                  onBlur={(e) => updateSale(u.id, e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div className="text-right">
-                <select
-                  value={u.status}
-                  onChange={(e) => updateStatus(u, e.target.value as FlipUnitStatus)}
-                  className="h-6 rounded border border-white/[0.1] bg-white/[0.04] px-1 text-xs"
-                >
-                  <option value="planned">Planejado</option>
-                  <option value="listed">Listado</option>
-                  <option value="under_contract">Sob contrato</option>
-                  <option value="sold">Vendido</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        ))}
-        {adding && (
-          <div className="rounded-2xl border border-jcn-gold-400/30 bg-jcn-gold-500/[0.05] p-3">
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Nome (ex: Unit 66)" value={label} onChange={(e) => setLabel(e.target.value)} />
-              <Input placeholder="ARV $" value={arv} onChange={(e) => setArv(e.target.value)} />
-            </div>
-            <div className="mt-2 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setAdding(false)} disabled={saving}>Cancelar</Button>
-              <Button size="sm" onClick={add} disabled={saving}>
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                Adicionar
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-}
 
 function DrawsSection({
   flipId,
