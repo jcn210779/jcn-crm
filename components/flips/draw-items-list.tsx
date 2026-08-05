@@ -52,6 +52,7 @@ export function DrawItemsList({
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<FlipDrawItem | null>(null);
   const [txnItem, setTxnItem] = useState<FlipDrawItem | null>(null);
+  const [receivedByItem, setReceivedByItem] = useState<Record<string, number>>({});
 
   async function reload() {
     setLoading(true);
@@ -61,7 +62,25 @@ export function DrawItemsList({
       .select("*")
       .eq("draw_id", drawId)
       .order("display_order");
-    setItems((data ?? []) as FlipDrawItem[]);
+    const rows = (data ?? []) as FlipDrawItem[];
+    setItems(rows);
+
+    // Puxa saques (withdrawal) por item pra mostrar Recebido/Sobra em caixa
+    if (rows.length > 0) {
+      const ids = rows.map((r) => r.id);
+      const { data: txns } = await supabase
+        .from("flip_draw_item_transactions")
+        .select("draw_item_id,kind,amount")
+        .in("draw_item_id", ids)
+        .eq("kind", "withdrawal");
+      const map: Record<string, number> = {};
+      for (const t of (txns ?? []) as { draw_item_id: string; amount: number }[]) {
+        map[t.draw_item_id] = (map[t.draw_item_id] ?? 0) + Number(t.amount);
+      }
+      setReceivedByItem(map);
+    } else {
+      setReceivedByItem({});
+    }
     setLoading(false);
   }
 
@@ -72,8 +91,12 @@ export function DrawItemsList({
 
   const totalPlanned = items.reduce((s, i) => s + Number(i.amount), 0);
   const totalSpent = items.reduce((s, i) => s + Number(i.spent_amount ?? 0), 0);
+  const totalReceived = items.reduce(
+    (s, i) => s + (receivedByItem[i.id] ?? 0),
+    0,
+  );
   const diffPlannedVsDraw = drawAmount - totalPlanned;
-  const drawRemaining = drawAmount - totalSpent;
+  const cashInHandTotal = totalReceived - totalSpent;
 
   async function updateSpent(id: string, value: string) {
     const num = Number(value);
@@ -225,7 +248,8 @@ export function DrawItemsList({
             items.map((it) => {
               const planned = Number(it.amount);
               const spent = Number(it.spent_amount ?? 0);
-              const remaining = planned - spent;
+              const received = receivedByItem[it.id] ?? 0;
+              const cashInHand = received - spent;
               const bl = budgetLines.find((b) => b.id === it.budget_line_id);
               const tone = resolveCategoryColor({
                 manualColor: bl?.color ?? null,
@@ -273,10 +297,10 @@ export function DrawItemsList({
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <div className="mt-1.5 grid grid-cols-3 gap-2">
+                  <div className="mt-1.5 grid grid-cols-4 gap-2">
                     <div>
                       <p className="text-[9px] uppercase text-jcn-ice/40">
-                        Planejado
+                        Aprovado
                       </p>
                       <p className="font-black text-jcn-gold-300">
                         {formatCurrency(planned)}
@@ -284,27 +308,35 @@ export function DrawItemsList({
                     </div>
                     <div>
                       <p className="text-[9px] uppercase text-jcn-ice/40">
+                        Recebido
+                      </p>
+                      <p className="font-black text-emerald-300">
+                        {formatCurrency(received)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase text-jcn-ice/40">
                         Gasto
                       </p>
-                      <p className="font-black text-jcn-ice">
+                      <p className="font-black text-rose-300">
                         {formatCurrency(spent)}
                       </p>
                     </div>
                     <div>
                       <p className="text-[9px] uppercase text-jcn-ice/40">
-                        {remaining >= 0 ? "Sobrou" : "Excedeu"}
+                        Sobra em caixa
                       </p>
                       <p
                         className={cn(
                           "font-black",
-                          Math.abs(remaining) < 0.01
+                          Math.abs(cashInHand) < 0.01
                             ? "text-jcn-ice/55"
-                            : remaining > 0
+                            : cashInHand > 0
                               ? "text-emerald-300"
                               : "text-rose-300",
                         )}
                       >
-                        {formatCurrency(Math.abs(remaining))}
+                        {formatCurrency(cashInHand)}
                       </p>
                     </div>
                   </div>
@@ -337,24 +369,30 @@ export function DrawItemsList({
                 </span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-jcn-ice/55">Recebido do banco</span>
+                <span className="font-black text-emerald-300">
+                  {formatCurrency(totalReceived)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-jcn-ice/55">Gasto (real)</span>
-                <span className="font-black text-jcn-ice">
+                <span className="font-black text-rose-300">
                   {formatCurrency(totalSpent)}
                 </span>
               </div>
               <div className="flex items-center justify-between border-t border-white/[0.05] pt-1">
-                <span className="font-bold text-jcn-ice/70">Sobra do draw</span>
+                <span className="font-bold text-jcn-ice/70">Sobra em caixa</span>
                 <span
                   className={cn(
                     "font-black",
-                    drawRemaining > 0
+                    cashInHandTotal > 0
                       ? "text-emerald-300"
-                      : drawRemaining < 0
+                      : cashInHandTotal < 0
                         ? "text-rose-300"
                         : "text-jcn-ice/55",
                   )}
                 >
-                  {formatCurrency(drawRemaining)}
+                  {formatCurrency(cashInHandTotal)}
                 </span>
               </div>
             </div>
