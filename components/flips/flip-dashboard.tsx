@@ -28,7 +28,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { EditPnlDialog } from "@/components/flips/edit-pnl-dialog";
 import { DrawItemsList } from "@/components/flips/draw-items-list";
 import { FlipPlanning } from "@/components/flips/flip-planning";
-import { RequirementProfitSummary } from "@/components/flips/requirement-profit-summary";
 import {
   COLOR_CLASSES,
   COLOR_LABEL,
@@ -169,7 +168,6 @@ export function FlipDashboard({ jobId }: Props) {
         units={units}
         onChanged={reload}
       />
-      <RequirementProfitSummary flipId={details.id} />
       <DrawsSection
         flipId={details.id}
         units={units}
