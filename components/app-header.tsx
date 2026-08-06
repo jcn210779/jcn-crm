@@ -160,6 +160,13 @@ export function AppHeader({
             Caixa
           </NavLink>
           <NavLink
+            href="/financas-flips"
+            active={pathname?.startsWith("/financas-flips") ?? false}
+            icon={Building2}
+          >
+            Flips $
+          </NavLink>
+          <NavLink
             href="/finance"
             active={pathname?.startsWith("/finance") ?? false}
             icon={DollarSign}
