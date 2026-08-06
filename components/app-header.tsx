@@ -18,6 +18,7 @@ import {
   Plus,
   Tag,
   Users,
+  Wallet,
   Wrench,
 } from "lucide-react";
 import Image from "next/image";
@@ -150,6 +151,13 @@ export function AppHeader({
             icon={Calculator}
           >
             Calc
+          </NavLink>
+          <NavLink
+            href="/caixa"
+            active={pathname?.startsWith("/caixa") ?? false}
+            icon={Wallet}
+          >
+            Caixa
           </NavLink>
           <NavLink
             href="/finance"
