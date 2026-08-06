@@ -7,12 +7,6 @@ import type { FinanceMonthly, FlipCashSummary, FlipDetails } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type TxnAggRow = {
-  flip_id: string;
-  kind: string;
-  amount: number;
-};
-
 const OUTFLOW_KINDS = new Set([
   "mortgage",
   "expense_house",
@@ -61,8 +55,8 @@ export default async function CaixaPage() {
       drawIds.push(d.id);
     }
 
-    let itemFlipMap = new Map<string, string>();
-    let itemIds: string[] = [];
+    const itemFlipMap = new Map<string, string>();
+    const itemIds: string[] = [];
     if (drawIds.length > 0) {
       const { data: itemsRaw } = await supabase
         .from("flip_draw_items")
