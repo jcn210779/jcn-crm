@@ -190,12 +190,7 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
       return;
     }
 
-    const newSpent = totalOut + (KIND_META[kind].outflow ? amt : 0);
-    await supabase
-      .from("flip_draw_items")
-      .update({ spent_amount: newSpent })
-      .eq("id", item.id);
-
+    // spent_amount do item e sincronizado pelo trigger DB (mig 0063).
     setSaving(false);
     setAmount("");
     setDescription("");
@@ -215,15 +210,7 @@ export function DrawItemTransactions({ item, onClose, onSaved }: Props) {
       toast.error("Erro", { description: error.message });
       return;
     }
-    const remaining = txns.filter((x) => x.id !== t.id);
-    const newSpent = remaining
-      .filter((x) => KIND_META[x.kind].outflow)
-      .reduce((s, x) => s + Number(x.amount), 0);
-    await supabase
-      .from("flip_draw_items")
-      .update({ spent_amount: newSpent })
-      .eq("id", item.id);
-
+    // spent_amount recomputado pelo trigger DB.
     await reload();
     onSaved();
   }
