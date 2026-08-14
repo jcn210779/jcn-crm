@@ -6,6 +6,7 @@ import {
   type LowStock,
   type PaymentDue,
   type PendingInspection,
+  type PendingSubInvoiceCard,
   type PendingTask,
   type PermitAlert,
   type SubBalance,
@@ -299,6 +300,37 @@ export default async function CentralPage() {
     .filter((s) => s.remaining > 0)
     .sort((a, b) => b.remaining - a.remaining);
 
+  // 5b. Invoices de sub recebidos aguardando pagamento (view v_pending_sub_invoices, mig 0064)
+  const invRes = await supabase
+    .from("v_pending_sub_invoices")
+    .select("*")
+    .eq("is_flip", isFlipMode);
+
+  const pendingSubInvoices: PendingSubInvoiceCard[] = (invRes.data ?? []).map(
+    (r: unknown) => {
+      const row = r as {
+        payment_id: string;
+        job_id: string;
+        sub_name: string;
+        lead_name: string | null;
+        service_description: string | null;
+        amount: number;
+        invoice_uploaded_at: string | null;
+        is_flip: boolean;
+      };
+      return {
+        payment_id: row.payment_id,
+        job_id: row.job_id,
+        sub_name: row.sub_name,
+        lead_name: row.lead_name,
+        service: row.service_description,
+        amount: Number(row.amount),
+        invoice_uploaded_at: row.invoice_uploaded_at,
+        is_flip: row.is_flip,
+      };
+    },
+  );
+
   // 6. Estimates enviados sem resposta há mais de 7 dias
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     .toISOString();
@@ -415,6 +447,7 @@ export default async function CentralPage() {
           pendingInspections={pendingInspections}
           paymentsDue={paymentsDue}
           subBalances={subBalances}
+          pendingSubInvoices={pendingSubInvoices}
           estimatesStale={estimatesStale}
           pendingTasks={pendingTasks}
           lowStock={lowStock}

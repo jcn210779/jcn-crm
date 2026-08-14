@@ -1415,17 +1415,41 @@ export type JobSubPayment = {
   created_at: string;
   job_subcontractor_id: string;
   amount: number;
-  paid_at: string;
+  /** NULL = invoice recebido, aguardando pagamento (mig 0064). */
+  paid_at: string | null;
   method: PaymentMethod | null;
   check_number: string | null;
   notes: string | null;
   business_expense_id: string | null;
+  /** Anexo do invoice recebido do sub (mig 0064). Path no bucket job-extras. */
+  invoice_path: string | null;
+  invoice_file_name: string | null;
+  invoice_mime: string | null;
+  invoice_uploaded_at: string | null;
 };
 
 export type JobSubPaymentInsert = Omit<JobSubPayment, "id" | "created_at">;
 export type JobSubPaymentUpdate = Partial<
   Omit<JobSubPayment, "id" | "created_at" | "job_subcontractor_id">
 >;
+
+/** Linha de v_pending_sub_invoices — invoices recebidos aguardando pagamento. */
+export type PendingSubInvoice = {
+  payment_id: string;
+  amount: number;
+  invoice_path: string;
+  invoice_file_name: string | null;
+  invoice_uploaded_at: string | null;
+  notes: string | null;
+  created_at: string;
+  job_subcontractor_id: string;
+  job_id: string;
+  service_description: string | null;
+  sub_name: string;
+  is_flip: boolean;
+  lead_name: string | null;
+  lead_city: string | null;
+};
 
 /** Linha agregada da view v_job_subs_summary. */
 export type JobSubsSummary = {
@@ -2246,6 +2270,10 @@ export type Database = {
       };
       v_permits_summary: {
         Row: PermitSummaryRow;
+        Relationships: [];
+      };
+      v_pending_sub_invoices: {
+        Row: PendingSubInvoice;
         Relationships: [];
       };
       v_store_items_stats: {

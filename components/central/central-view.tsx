@@ -23,6 +23,7 @@ import {
   CheckSquare,
   ClipboardCheck,
   DollarSign,
+  FileText,
   HardHat,
   Home,
   Mail,
@@ -95,6 +96,17 @@ export type SubBalance = {
   remaining: number;
 };
 
+export type PendingSubInvoiceCard = {
+  payment_id: string;
+  job_id: string;
+  sub_name: string;
+  lead_name: string | null;
+  service: string | null;
+  amount: number;
+  invoice_uploaded_at: string | null;
+  is_flip: boolean;
+};
+
 export type EstimateStale = {
   id: string;
   name: string;
@@ -126,6 +138,7 @@ type Props = {
   pendingInspections: PendingInspection[];
   paymentsDue: PaymentDue[];
   subBalances: SubBalance[];
+  pendingSubInvoices: PendingSubInvoiceCard[];
   estimatesStale: EstimateStale[];
   pendingTasks: PendingTask[];
   lowStock: LowStock[];
@@ -148,10 +161,16 @@ export function CentralView(props: Props) {
     pendingInspections,
     paymentsDue,
     subBalances,
+    pendingSubInvoices,
     estimatesStale,
     pendingTasks,
     lowStock,
   } = props;
+
+  const totalPendingInvoices = pendingSubInvoices.reduce(
+    (s, i) => s + Number(i.amount),
+    0,
+  );
 
   return (
     <div className="space-y-5">
@@ -395,6 +414,63 @@ export function CentralView(props: Props) {
                   </Link>
                 </li>
               ))}
+            </ul>
+          )}
+        </Card>
+
+        {/* 5a. Invoices de sub aguardando pagamento (recebidos, nao pagos) */}
+        <Card
+          title={`Invoices de sub aguardando pagto${
+            totalPendingInvoices > 0 ? ` · ${formatCurrency(totalPendingInvoices)}` : ""
+          }`}
+          icon={FileText}
+          count={pendingSubInvoices.length}
+        >
+          {pendingSubInvoices.length === 0 ? (
+            <Empty>Nenhum invoice pendente</Empty>
+          ) : (
+            <ul className="space-y-2">
+              {pendingSubInvoices.slice(0, 8).map((i) => (
+                <li key={i.payment_id}>
+                  <Link
+                    href={`/job/${i.job_id}`}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-amber-400/25 bg-amber-500/[0.06] p-3 transition hover:bg-amber-500/[0.12]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-jcn-ice">
+                        {i.sub_name}
+                        {i.is_flip && (
+                          <span className="ml-1.5 rounded bg-jcn-gold-500/15 px-1 py-[1px] text-[8px] font-bold uppercase tracking-wider text-jcn-gold-300">
+                            flip
+                          </span>
+                        )}
+                      </p>
+                      <p className="truncate text-[11px] text-jcn-ice/55">
+                        {i.lead_name ?? "?"}
+                        {i.service ? ` · ${i.service}` : ""}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-black text-amber-300">
+                        {formatCurrency(i.amount)}
+                      </p>
+                      {i.invoice_uploaded_at && (
+                        <p className="text-[9px] text-jcn-ice/45">
+                          {formatDistanceToNow(new Date(i.invoice_uploaded_at), {
+                            addSuffix: true,
+                            locale: ptBR,
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+              {pendingSubInvoices.length > 8 && (
+                <li className="text-center text-[10px] italic text-jcn-ice/40">
+                  +{pendingSubInvoices.length - 8} outros
+                </li>
+              )}
             </ul>
           )}
         </Card>
