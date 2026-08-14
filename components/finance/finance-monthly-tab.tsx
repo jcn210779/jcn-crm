@@ -634,11 +634,14 @@ async function loadMonthData(monthLabel: string): Promise<{
   const endDate = new Date(year, month, 0); // último dia do mês
   const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
 
-  // RECEBIDOS — job_payments paid no mês
+  // RECEBIDOS — job_payments paid no mês (exclui flip: PnL separado)
   const { data: paymentsData } = await supabase
     .from("job_payments")
-    .select("id, job_id, kind, label, amount, method, received_at, jobs(lead_id, leads(name))")
+    .select(
+      "id, job_id, kind, label, amount, method, received_at, jobs!inner(is_flip, lead_id, leads(name))",
+    )
     .eq("status", "paid")
+    .eq("jobs.is_flip", false)
     .gte("received_at", start)
     .lte("received_at", `${end}T23:59:59`)
     .order("received_at", { ascending: false });
@@ -721,12 +724,17 @@ async function loadMonthData(monthLabel: string): Promise<{
   );
 
   // PAGOS — agrega 5 fontes
-  // 1) job_expenses (não credit_card)
+  // Filtra jobs de flip (is_flip=true) — flip tem PnL separado.
+  // Isso bate com v_finance_monthly que ja filtra flip nos totais (mig 0052).
+  // 1) job_expenses (não credit_card, não flip)
   const { data: expData } = await supabase
     .from("job_expenses")
-    .select("id, description, category, vendor, amount, expense_date, payment_method")
+    .select(
+      "id, description, category, vendor, amount, expense_date, payment_method, jobs!inner(is_flip)",
+    )
     .gte("expense_date", start)
     .lte("expense_date", end)
+    .eq("jobs.is_flip", false)
     .order("expense_date", { ascending: false });
 
   const expensesPaid: PaidEntry[] = ((expData ?? []) as JobExpense[])
@@ -745,13 +753,14 @@ async function loadMonthData(monthLabel: string): Promise<{
   //    business_expense payroll. Aqui só lista a folha paga, não as horas
   //    individuais).
 
-  // 3) job_subcontractors completos — filtra em JS (data = completed_at OU hired_at)
+  // 3) job_subcontractors completos, não flip — filtra em JS (data = completed_at OU hired_at)
   const { data: subsData } = await supabase
     .from("job_subcontractors")
     .select(
-      "id, agreed_value, service_description, completed_at, hired_at, status, subcontractors(name)",
+      "id, agreed_value, service_description, completed_at, hired_at, status, subcontractors(name), jobs!inner(is_flip)",
     )
-    .eq("status", "completed");
+    .eq("status", "completed")
+    .eq("jobs.is_flip", false);
 
   const subsPaid: PaidEntry[] = ((subsData ?? []) as Array<
     JobSubcontractor & { subcontractors: { name?: string } | null }
