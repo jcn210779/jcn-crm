@@ -8,10 +8,12 @@ import {
   Clock,
   ExternalLink,
   Link2,
+  Loader2,
   Mail,
   MapPin,
   Pencil,
   Phone,
+  Save,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +46,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatPhone } from "@/lib/format";
@@ -150,6 +160,9 @@ export function JobDetail({
   const [actualEnd, setActualEnd] = useState<string>(job.actual_end ?? "");
   const [editValueOpen, setEditValueOpen] = useState(false);
   const [deleteJobOpen, setDeleteJobOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameSaving, setRenameSaving] = useState(false);
 
   async function updatePhase(newPhase: JobPhase) {
     const supabase = createSupabaseBrowserClient();
@@ -177,6 +190,33 @@ export function JobDetail({
       return;
     }
     toast.success("Nota salva");
+    router.refresh();
+  }
+
+  async function handleRename() {
+    if (!lead) return;
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      toast.error("Nome não pode ficar vazio");
+      return;
+    }
+    if (trimmed === lead.name) {
+      setRenameOpen(false);
+      return;
+    }
+    setRenameSaving(true);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("leads")
+      .update({ name: trimmed })
+      .eq("id", lead.id);
+    setRenameSaving(false);
+    if (error) {
+      toast.error("Erro ao renomear", { description: error.message });
+      return;
+    }
+    toast.success("Renomeado");
+    setRenameOpen(false);
     router.refresh();
   }
 
@@ -215,9 +255,24 @@ export function JobDetail({
       {/* Header */}
       <header className="flex flex-col gap-4 rounded-3xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-black tracking-[-0.02em] text-white md:text-4xl">
-            {clientName}
-          </h1>
+          <div className="flex items-start gap-2">
+            <h1 className="text-3xl font-black tracking-[-0.02em] text-white md:text-4xl">
+              {clientName}
+            </h1>
+            {lead && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRenameValue(lead.name ?? "");
+                  setRenameOpen(true);
+                }}
+                className="mt-2 shrink-0 rounded-md p-1.5 text-white/40 transition hover:bg-white/[0.06] hover:text-jcn-gold-300"
+                title="Renomear"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-white/55">
             {job.is_flip && (
               <Badge
@@ -583,6 +638,46 @@ export function JobDetail({
         open={editValueOpen}
         onOpenChange={setEditValueOpen}
       />
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renomear</DialogTitle>
+            <DialogDescription>
+              Muda o nome que aparece no topo do job (e em toda listagem).
+              {job.is_flip && " Dica: pra flip, mantém o padrão \"Flip — <endereço>\"."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              disabled={renameSaving}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !renameSaving) handleRename();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRenameOpen(false)}
+              disabled={renameSaving}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleRename} disabled={renameSaving}>
+              {renameSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {lead && (
         <DeleteJobDialog
