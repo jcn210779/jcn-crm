@@ -319,6 +319,10 @@ function DetailsCard({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
+    property_address: details.property_address ?? "",
+    property_city: details.property_city ?? "",
+    property_state: details.property_state ?? "MA",
+    property_zip: details.property_zip ?? "",
     purchase_price: String(details.purchase_price ?? ""),
     purchase_closed_at: details.purchase_closed_at ?? "",
     closing_costs_buy: String(details.closing_costs_buy ?? ""),
@@ -339,6 +343,10 @@ function DetailsCard({
     const { error } = await supabase
       .from("flip_details")
       .update({
+        property_address: form.property_address.trim() || null,
+        property_city: form.property_city.trim() || null,
+        property_state: form.property_state.trim() || null,
+        property_zip: form.property_zip.trim() || null,
         purchase_price: n(form.purchase_price) || null,
         purchase_closed_at: form.purchase_closed_at || null,
         closing_costs_buy: n(form.closing_costs_buy),
@@ -377,6 +385,23 @@ function DetailsCard({
           </Button>
         }
       >
+        {(details.property_address || details.property_city) && (
+          <div className="mb-3 rounded-xl border border-jcn-gold-400/15 bg-jcn-gold-500/[0.03] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-jcn-gold-300/70">
+              Imóvel
+            </p>
+            <p className="text-sm font-black text-jcn-ice">
+              {details.property_address ?? "—"}
+              {details.property_city && (
+                <span className="ml-2 font-normal text-jcn-ice/60">
+                  {details.property_city}
+                  {details.property_state ? `, ${details.property_state}` : ""}
+                  {details.property_zip ? ` ${details.property_zip}` : ""}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Field label="Compra" value={formatCurrency(Number(details.purchase_price ?? 0))} />
           <Field label="Closing" value={formatCurrency(Number(details.closing_costs_buy ?? 0))} />
@@ -407,6 +432,46 @@ function DetailsCard({
 
   return (
     <Card title="Editando: Aquisição & Loan">
+      <div className="mb-3 rounded-2xl border border-jcn-gold-400/20 bg-jcn-gold-500/[0.04] p-3">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-jcn-gold-300">
+          Identificação do imóvel
+        </p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <FormField label="Endereço">
+              <Input
+                value={form.property_address}
+                onChange={(e) => setForm({ ...form, property_address: e.target.value })}
+                placeholder="ex: 8 Sargent St"
+              />
+            </FormField>
+          </div>
+          <FormField label="Cidade">
+            <Input
+              value={form.property_city}
+              onChange={(e) => setForm({ ...form, property_city: e.target.value })}
+              placeholder="Somerville"
+            />
+          </FormField>
+          <div className="grid grid-cols-2 gap-2">
+            <FormField label="Estado">
+              <Input
+                value={form.property_state}
+                onChange={(e) => setForm({ ...form, property_state: e.target.value.toUpperCase() })}
+                maxLength={2}
+                placeholder="MA"
+              />
+            </FormField>
+            <FormField label="ZIP">
+              <Input
+                value={form.property_zip}
+                onChange={(e) => setForm({ ...form, property_zip: e.target.value })}
+                placeholder="02143"
+              />
+            </FormField>
+          </div>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Compra ($)">
           <Input value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: e.target.value })} placeholder="1200000" />
