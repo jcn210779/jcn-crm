@@ -2,7 +2,15 @@
 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -117,6 +125,77 @@ export function EditJobSubDialog({
     toast.success("Parcela apagada");
     await reloadPayments();
     if (onDone) onDone();
+  }
+
+  async function handleMarkAsPaid(payment: JobSubPayment) {
+    const today = new Date().toISOString().slice(0, 10);
+    const paidAt = window.prompt(
+      `Marcar invoice de ${new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(Number(payment.amount))} como PAGO.\n\nData do pagamento:`,
+      today,
+    );
+    if (!paidAt) return;
+
+    const supabase = createSupabaseBrowserClient();
+
+    // Cria business_expense retroativo (mesmo padrão do add-sub-payment-dialog)
+    const subLabel = jobSub.sub?.name ?? "Sub";
+    const expenseDescription = `Pagamento sub: ${serviceDescription.trim()} — ${subLabel}`;
+    const { data: beData, error: beError } = await supabase
+      .from("business_expenses")
+      .insert({
+        expense_date: paidAt,
+        category: "other",
+        vendor: subLabel,
+        description: expenseDescription,
+        amount: Number(payment.amount),
+        payment_method: "check",
+        is_flip: jobIsFlip,
+      })
+      .select("id")
+      .single();
+
+    if (beError) {
+      toast.error("Erro ao lançar no /finance", { description: beError.message });
+      return;
+    }
+
+    const { error: updErr } = await supabase
+      .from("job_sub_payments")
+      .update({
+        paid_at: paidAt,
+        method: "check",
+        business_expense_id: beData?.id ?? null,
+      })
+      .eq("id", payment.id);
+
+    if (updErr) {
+      // Rollback BE
+      if (beData?.id) {
+        await supabase.from("business_expenses").delete().eq("id", beData.id);
+      }
+      toast.error("Erro ao marcar como pago", { description: updErr.message });
+      return;
+    }
+
+    toast.success("Invoice marcado como pago · lançado em /finance");
+    await reloadPayments();
+    if (onDone) onDone();
+  }
+
+  async function openInvoice(payment: JobSubPayment) {
+    if (!payment.invoice_path) return;
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase.storage
+      .from("job-extras")
+      .createSignedUrl(payment.invoice_path, 3600);
+    if (error || !data?.signedUrl) {
+      toast.error("Erro ao abrir invoice", { description: error?.message });
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
   }
 
   async function persistSave(nextStatus: JobSubcontractorStatus) {
@@ -491,41 +570,98 @@ export function EditJobSubDialog({
                       Nenhuma parcela registrada ainda
                     </p>
                   ) : (
-                    payments.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 text-xs"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-jcn-ice">
-                              {formatCurrency(Number(p.amount))}
-                            </span>
-                            <span className="text-jcn-ice/55">·</span>
-                            <span className="text-jcn-ice/70">
-                              {format(
-                                new Date(`${p.paid_at}T12:00:00`),
-                                "dd MMM yyyy",
-                                { locale: ptBR },
+                    // Ordena pending primeiro (paid_at NULL), depois pagos por data desc
+                    [...payments]
+                      .sort((a, b) => {
+                        if (!a.paid_at && b.paid_at) return -1;
+                        if (a.paid_at && !b.paid_at) return 1;
+                        return (b.paid_at ?? "").localeCompare(a.paid_at ?? "");
+                      })
+                      .map((p) => {
+                        const isPending = !p.paid_at;
+                        const displayDate = p.paid_at ?? p.invoice_uploaded_at ?? p.created_at;
+                        return (
+                          <div
+                            key={p.id}
+                            className={cn(
+                              "flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs",
+                              isPending
+                                ? "border-amber-400/30 bg-amber-500/10"
+                                : "border-emerald-400/25 bg-emerald-500/[0.06]",
+                            )}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[9px] font-black uppercase tracking-wider",
+                                    isPending
+                                      ? "border-amber-400/50 bg-amber-500/15 text-amber-200"
+                                      : "border-emerald-400/50 bg-emerald-500/15 text-emerald-200",
+                                  )}
+                                >
+                                  {isPending ? "📄 Não pago" : "✓ Pago"}
+                                </Badge>
+                                <span className="font-black text-jcn-ice">
+                                  {formatCurrency(Number(p.amount))}
+                                </span>
+                                <span className="text-jcn-ice/55">·</span>
+                                <span className="text-jcn-ice/70">
+                                  {displayDate
+                                    ? format(
+                                        new Date(
+                                          displayDate.length === 10
+                                            ? `${displayDate}T12:00:00`
+                                            : displayDate,
+                                        ),
+                                        "dd MMM yyyy",
+                                        { locale: ptBR },
+                                      )
+                                    : "—"}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-jcn-ice/45">
+                                {isPending
+                                  ? "Invoice recebido, aguardando pagamento"
+                                  : `${p.method ? PAYMENT_METHOD_LABEL[p.method] : "—"}${p.check_number ? ` #${p.check_number}` : ""}`}
+                                {p.notes && ` · ${p.notes}`}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              {p.invoice_path && (
+                                <button
+                                  type="button"
+                                  onClick={() => openInvoice(p)}
+                                  className="rounded-md p-1 text-jcn-gold-300/70 transition hover:bg-white/[0.06] hover:text-jcn-gold-300"
+                                  title="Abrir invoice"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                </button>
                               )}
-                            </span>
+                              {isPending && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkAsPaid(p)}
+                                  className="rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-200 transition hover:bg-emerald-500/25"
+                                  title="Marcar como pago (cria despesa no /finance)"
+                                >
+                                  <CheckCircle2 className="mr-0.5 inline h-3 w-3" />
+                                  Marcar pago
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePayment(p)}
+                                className="rounded-md p-1 text-jcn-ice/35 transition hover:bg-rose-500/15 hover:text-rose-300"
+                                title="Apagar linha"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="text-[10px] text-jcn-ice/45">
-                            {p.method ? PAYMENT_METHOD_LABEL[p.method] : "—"}
-                            {p.check_number && ` #${p.check_number}`}
-                            {p.notes && ` · ${p.notes}`}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeletePayment(p)}
-                          className="shrink-0 rounded-md p-1 text-jcn-ice/35 transition hover:bg-rose-500/15 hover:text-rose-300"
-                          title="Apagar parcela (e despesa no /finance)"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))
+                        );
+                      })
                   )}
                 </div>
 
@@ -536,7 +672,7 @@ export function EditJobSubDialog({
                   className="mt-3 w-full border-jcn-gold-400/30 bg-jcn-gold-500/10 text-jcn-gold-200 hover:bg-jcn-gold-500/20"
                 >
                   <Plus className="h-4 w-4" />
-                  Registrar pagamento
+                  Registrar invoice
                 </Button>
 
                 {overpaid && (
