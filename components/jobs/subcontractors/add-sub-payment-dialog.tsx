@@ -233,35 +233,50 @@ export function AddSubPaymentDialog({
         </DialogHeader>
 
         <div className="grid gap-3 py-2">
-          {/* Toggle já paguei? */}
-          <button
-            type="button"
-            onClick={() => setAlreadyPaidNow(!alreadyPaidNow)}
-            disabled={saving}
-            className={cn(
-              "flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition",
-              alreadyPaidNow
-                ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                : "border-white/[0.1] bg-white/[0.03] text-jcn-ice/70",
-            )}
-          >
-            <span className="font-semibold">
-              {alreadyPaidNow ? "✓ Já pago agora" : "📄 Só recebi o invoice, ainda não paguei"}
-            </span>
-            <span
-              className={cn(
-                "h-5 w-9 rounded-full transition",
-                alreadyPaidNow ? "bg-emerald-500" : "bg-white/[0.08]",
-              )}
-            >
-              <span
+          {/* Status do invoice: 2 botoes lado a lado (mais claro que toggle) */}
+          <div>
+            <Label className="mb-1.5 block">Status do invoice</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAlreadyPaidNow(false)}
+                disabled={saving}
                 className={cn(
-                  "block h-5 w-5 rounded-full bg-white shadow transition-transform",
-                  alreadyPaidNow && "translate-x-4",
+                  "flex flex-col items-center gap-1 rounded-xl border px-3 py-3 text-sm transition",
+                  !alreadyPaidNow
+                    ? "border-amber-400/50 bg-amber-500/15 text-amber-100 ring-2 ring-amber-400/30"
+                    : "border-white/[0.1] bg-white/[0.03] text-jcn-ice/60 hover:bg-white/[0.05]",
                 )}
-              />
-            </span>
-          </button>
+              >
+                <span className="text-lg">📄</span>
+                <span className="font-black uppercase tracking-wider text-[11px]">
+                  Não pago
+                </span>
+                <span className="text-[9px] opacity-70">
+                  invoice recebido
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAlreadyPaidNow(true)}
+                disabled={saving}
+                className={cn(
+                  "flex flex-col items-center gap-1 rounded-xl border px-3 py-3 text-sm transition",
+                  alreadyPaidNow
+                    ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100 ring-2 ring-emerald-400/30"
+                    : "border-white/[0.1] bg-white/[0.03] text-jcn-ice/60 hover:bg-white/[0.05]",
+                )}
+              >
+                <span className="text-lg">✓</span>
+                <span className="font-black uppercase tracking-wider text-[11px]">
+                  Pago
+                </span>
+                <span className="text-[9px] opacity-70">
+                  já quitei
+                </span>
+              </button>
+            </div>
+          </div>
 
           <div>
             <Label htmlFor="sub-pmt-amount">Valor do invoice ($)</Label>
