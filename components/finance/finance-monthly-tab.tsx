@@ -61,6 +61,7 @@ type PaidEntry = {
   detail: string | null;
   amount: number;
   source: "job_expense" | "job_hours" | "job_sub" | "ads" | "business";
+  href: string | null;
 };
 
 type ReceivedEntry = {
@@ -559,8 +560,8 @@ function MonthDetails({
 
 function PaidRow({ entry }: { entry: PaidEntry }) {
   const meta = sourceMeta(entry.source);
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 md:flex-row md:items-center md:justify-between">
+  const inner = (
+    <>
       <div className="flex items-center gap-3">
         <div
           className={cn(
@@ -587,8 +588,23 @@ function PaidRow({ entry }: { entry: PaidEntry }) {
       <div className="text-right text-base font-black text-rose-300">
         {formatUSD(Number(entry.amount))}
       </div>
-    </div>
+    </>
   );
+
+  const cls =
+    "flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 md:flex-row md:items-center md:justify-between";
+  if (entry.href) {
+    return (
+      <Link
+        href={entry.href}
+        className={cn(cls, "cursor-pointer transition hover:border-jcn-gold-400/40 hover:bg-white/[0.04]")}
+        title="Abrir origem pra editar"
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <div className={cls}>{inner}</div>;
 }
 
 function EmptyDetail({ label }: { label: string }) {
@@ -730,14 +746,14 @@ async function loadMonthData(monthLabel: string): Promise<{
   const { data: expData } = await supabase
     .from("job_expenses")
     .select(
-      "id, description, category, vendor, amount, expense_date, payment_method, jobs!inner(is_flip)",
+      "id, job_id, description, category, vendor, amount, expense_date, payment_method, jobs!inner(is_flip)",
     )
     .gte("expense_date", start)
     .lte("expense_date", end)
     .eq("jobs.is_flip", false)
     .order("expense_date", { ascending: false });
 
-  const expensesPaid: PaidEntry[] = ((expData ?? []) as JobExpense[])
+  const expensesPaid: PaidEntry[] = ((expData ?? []) as (JobExpense & { job_id: string })[])
     .filter((e) => e.payment_method !== "credit_card")
     .map((e) => ({
       id: e.id,
@@ -746,6 +762,7 @@ async function loadMonthData(monthLabel: string): Promise<{
       detail: `${EXPENSE_CATEGORY_LABEL[e.category as ExpenseCategory]}${e.vendor ? ` • ${e.vendor}` : ""}`,
       amount: Number(e.amount),
       source: "job_expense" as const,
+      href: `/job/${e.job_id}`,
     }));
 
   // 2) job_hours NÃO entra mais em paid (decisão José 2026-05-18: horas só
@@ -757,13 +774,13 @@ async function loadMonthData(monthLabel: string): Promise<{
   const { data: subsData } = await supabase
     .from("job_subcontractors")
     .select(
-      "id, agreed_value, service_description, completed_at, hired_at, status, subcontractors(name), jobs!inner(is_flip)",
+      "id, job_id, agreed_value, service_description, completed_at, hired_at, status, subcontractors(name), jobs!inner(is_flip)",
     )
     .eq("status", "completed")
     .eq("jobs.is_flip", false);
 
   const subsPaid: PaidEntry[] = ((subsData ?? []) as Array<
-    JobSubcontractor & { subcontractors: { name?: string } | null }
+    JobSubcontractor & { job_id: string; subcontractors: { name?: string } | null }
   >)
     .map((s) => ({
       id: s.id,
@@ -772,6 +789,7 @@ async function loadMonthData(monthLabel: string): Promise<{
       detail: s.service_description,
       amount: Number(s.agreed_value),
       source: "job_sub" as const,
+      href: `/job/${s.job_id}`,
     }))
     .filter((s) => {
       const d = s.date?.slice(0, 10) ?? "";
@@ -800,6 +818,7 @@ async function loadMonthData(monthLabel: string): Promise<{
       detail: a.payment_method ? PAYMENT_METHOD_LABEL[a.payment_method] : null,
       amount: Number(a.amount),
       source: "ads" as const,
+      href: `/dashboard`,
     }));
 
   // 5) business_expenses (filtro is_flip=false — flip tem PnL separado no job)
@@ -819,6 +838,7 @@ async function loadMonthData(monthLabel: string): Promise<{
       detail: `${BUSINESS_EXPENSE_CATEGORY_LABEL[b.category]}${b.vendor ? ` • ${b.vendor}` : ""}${b.check_number ? ` • cheque #${b.check_number}` : ""}`,
       amount: Number(b.amount),
       source: "business" as const,
+      href: `/finance?tab=business&edit=${b.id}`,
     }),
   );
 

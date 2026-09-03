@@ -16,8 +16,8 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { AddBusinessExpenseDialog } from "@/components/finance/add-business-expense-dialog";
 import { EditBusinessExpenseDialog } from "@/components/finance/edit-business-expense-dialog";
@@ -59,7 +59,9 @@ export function FinanceView({
   receivedByJob,
 }: Props) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("monthly");
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams?.get("tab") as Tab | null) ?? "monthly";
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
     <div className="mx-auto mt-6 max-w-6xl space-y-5 px-4 md:px-6">
@@ -193,14 +195,26 @@ function BusinessExpensesTab({
   expenses: BusinessExpense[];
   onRefresh: () => void;
 }) {
+  const searchParams = useSearchParams();
+  const editIdFromUrl = searchParams?.get("edit") ?? null;
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<BusinessExpense | null>(null);
+
+  useEffect(() => {
+    if (editIdFromUrl && !editTarget) {
+      const match = expenses.find((e) => e.id === editIdFromUrl);
+      if (match) setEditTarget(match);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editIdFromUrl, expenses]);
 
   const [categoryFilter, setCategoryFilter] = useState<
     BusinessExpenseCategory | "all"
   >("all");
+  // Default 'all' se veio via ?edit= (senao o item pode estar fora do mes atual
+  // e usuario nao acha), 'month' caso contrario.
   const [period, setPeriod] = useState<"month" | "3m" | "6m" | "12m" | "all">(
-    "month",
+    editIdFromUrl ? "all" : "month",
   );
   const [recurringFilter, setRecurringFilter] = useState<"all" | "yes" | "no">(
     "all",
