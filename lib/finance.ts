@@ -30,10 +30,24 @@ export function formatUSDCompact(value: number | null | undefined): string {
   }).format(v);
 }
 
-/** Formata data ISO -> "16 mai 2026". */
+/** Formata data ISO -> "16 mai 2026".
+ * IMPORTANTE: strings date-only "YYYY-MM-DD" (tipo Postgres date) sao
+ * interpretadas como UTC midnight por new Date(), e em timezone negativa
+ * (EDT UTC-4) o toLocaleDateString mostra o dia ANTERIOR. Fix: quando a
+ * string parece date-only, construi Date em LOCAL. */
 export function formatDateBR(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
+  let d: Date;
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (dateOnlyMatch) {
+    d = new Date(
+      Number(dateOnlyMatch[1]),
+      Number(dateOnlyMatch[2]) - 1,
+      Number(dateOnlyMatch[3]),
+    );
+  } else {
+    d = new Date(iso);
+  }
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR", {
     day: "2-digit",

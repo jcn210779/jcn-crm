@@ -221,26 +221,31 @@ function BusinessExpensesTab({
   );
 
   const filtered = useMemo(() => {
+    // Compara STRINGS YYYY-MM-DD (evita bug timezone: new Date("2026-09-01")
+    // vira UTC midnight, cutoff em local midnight cortava lancamentos do
+    // proprio dia 01 quando timezone e negativa).
     const now = new Date();
-    let cutoff: Date | null = null;
-    if (period === "month") {
-      cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else if (period === "3m") {
-      cutoff = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    } else if (period === "6m") {
-      cutoff = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    } else if (period === "12m") {
-      cutoff = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    let cutoff: string | null = null;
+    const fmt = (yr: number, mo: number) =>
+      `${yr}-${String(mo + 1).padStart(2, "0")}-01`;
+    if (period === "month") cutoff = fmt(y, m);
+    else if (period === "3m") cutoff = fmt(y, m - 2);
+    else if (period === "6m") cutoff = fmt(y, m - 5);
+    else if (period === "12m") cutoff = fmt(y, m - 11);
+    // fmt lida com meses negativos via Date normalization:
+    if (cutoff) {
+      const [yy, mm] = cutoff.split("-").map(Number) as [number, number];
+      const norm = new Date(yy, mm - 1, 1);
+      cutoff = `${norm.getFullYear()}-${String(norm.getMonth() + 1).padStart(2, "0")}-01`;
     }
     return expenses.filter((e) => {
       if (categoryFilter !== "all" && e.category !== categoryFilter)
         return false;
       if (recurringFilter === "yes" && !e.recurring) return false;
       if (recurringFilter === "no" && e.recurring) return false;
-      if (cutoff) {
-        const d = new Date(e.expense_date);
-        if (d < cutoff) return false;
-      }
+      if (cutoff && (e.expense_date ?? "") < cutoff) return false;
       return true;
     });
   }, [expenses, categoryFilter, period, recurringFilter]);
