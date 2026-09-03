@@ -761,6 +761,8 @@ export type FlipTask = {
   due_date: string | null;
   done_at: string | null;
   assigned_to: string | null;
+  /** Marca tarefa como urgente (mig 0066). */
+  is_urgent: boolean;
 };
 
 // ============================================================================

@@ -12,6 +12,7 @@
  */
 
 import {
+  AlertTriangle,
   Building,
   CalendarPlus,
   CheckCircle2,
@@ -160,6 +161,8 @@ export function FlipPlanning({ flipId }: Props) {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskPhaseId, setNewTaskPhaseId] = useState<string>("");
   const [newTaskDueDateTime, setNewTaskDueDateTime] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
+  const [newTaskUrgent, setNewTaskUrgent] = useState(false);
 
   async function reload() {
     setLoading(true);
@@ -390,6 +393,8 @@ export function FlipPlanning({ flipId }: Props) {
       flip_id: flipId,
       phase_id: newTaskPhaseId || null,
       title: newTaskTitle.trim(),
+      description: newTaskDescription.trim() || null,
+      is_urgent: newTaskUrgent,
       display_order: nextOrder,
       due_date: due,
     });
@@ -418,11 +423,20 @@ export function FlipPlanning({ flipId }: Props) {
     setNewTaskTitle("");
     setNewTaskPhaseId("");
     setNewTaskDueDateTime("");
+    setNewTaskDescription("");
+    setNewTaskUrgent(false);
     await reload();
   }
 
   async function toggleTaskDone(task: FlipTask) {
-    const next: FlipTaskStatus = task.status === "done" ? "todo" : "done";
+    // Cicla: todo → in_progress → done → todo
+    const cycle: Record<FlipTaskStatus, FlipTaskStatus> = {
+      todo: "in_progress",
+      in_progress: "done",
+      done: "todo",
+      cancelled: "todo",
+    };
+    const next: FlipTaskStatus = cycle[task.status];
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
       .from("flip_tasks")
@@ -696,24 +710,52 @@ export function FlipPlanning({ flipId }: Props) {
                 <div
                   key={task.id}
                   className={cn(
-                    "flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs",
-                    task.status === "done"
-                      ? "border-emerald-400/20 bg-emerald-500/5 text-jcn-ice/45 line-through"
-                      : "border-white/[0.08] bg-white/[0.03]",
+                    "flex items-start justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition",
+                    task.status === "done" &&
+                      "border-emerald-400/20 bg-emerald-500/5 text-jcn-ice/45 line-through",
+                    task.status === "in_progress" &&
+                      "border-sky-400/30 bg-sky-500/10",
+                    task.status === "todo" &&
+                      task.is_urgent &&
+                      "border-rose-400/40 bg-rose-500/10",
+                    task.status === "todo" &&
+                      !task.is_urgent &&
+                      "border-white/[0.08] bg-white/[0.03]",
                   )}
                 >
                   <button
                     type="button"
                     onClick={() => toggleTaskDone(task)}
                     className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                    title="Click cicla status: A fazer → Em andamento → Feito"
                   >
                     {task.status === "done" ? (
                       <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" />
+                    ) : task.status === "in_progress" ? (
+                      <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-pulse text-sky-300" />
                     ) : (
                       <Circle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-jcn-ice/45" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate">{task.title}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {task.is_urgent && task.status !== "done" && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-rose-500/25 px-1 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-200">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            Urgente
+                          </span>
+                        )}
+                        {task.status === "in_progress" && (
+                          <span className="rounded bg-sky-500/20 px-1 py-0.5 text-[9px] font-black uppercase tracking-wider text-sky-200">
+                            Em andamento
+                          </span>
+                        )}
+                        <p className="truncate">{task.title}</p>
+                      </div>
+                      {task.description && (
+                        <p className="mt-0.5 whitespace-pre-line text-[10px] text-jcn-ice/55">
+                          {task.description}
+                        </p>
+                      )}
                       {(phase || task.due_date) && (
                         <div className="mt-0.5 flex flex-wrap gap-1.5 text-[9px] uppercase opacity-70">
                           {phase && (
@@ -767,11 +809,18 @@ export function FlipPlanning({ flipId }: Props) {
               placeholder="Nova tarefa..."
               className="h-9 text-xs"
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   void addTask();
                 }
               }}
+            />
+            <textarea
+              value={newTaskDescription}
+              onChange={(e) => setNewTaskDescription(e.target.value)}
+              placeholder="Notas / comentário (opcional)"
+              rows={2}
+              className="w-full rounded-md border border-white/[0.08] bg-white/[0.04] px-2 py-1.5 text-xs text-jcn-ice placeholder:text-jcn-ice/35"
             />
             <div className="grid grid-cols-2 gap-2">
               <select
@@ -793,6 +842,19 @@ export function FlipPlanning({ flipId }: Props) {
                 className="h-9 text-xs"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setNewTaskUrgent(!newTaskUrgent)}
+              className={cn(
+                "flex w-full items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider transition",
+                newTaskUrgent
+                  ? "border-rose-400/50 bg-rose-500/20 text-rose-100"
+                  : "border-white/[0.08] bg-white/[0.03] text-jcn-ice/55 hover:bg-white/[0.05]",
+              )}
+            >
+              <AlertTriangle className="h-3 w-3" />
+              {newTaskUrgent ? "Marcada como urgente" : "Marcar urgente"}
+            </button>
             <Button
               type="button"
               onClick={addTask}
