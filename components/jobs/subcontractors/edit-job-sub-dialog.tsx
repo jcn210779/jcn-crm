@@ -138,6 +138,14 @@ export function EditJobSubDialog({
     );
     if (!paidAt) return;
 
+    // Nº do cheque (opcional — pode deixar vazio se pagou em cash/transferência)
+    const checkRaw = window.prompt(
+      "Nº do cheque (opcional — deixa vazio se não foi cheque):",
+      "",
+    );
+    // Cancelar (Esc) volta null; deixar em branco volta "" — os dois viram null no banco.
+    const checkNumber = checkRaw?.trim() || null;
+
     const supabase = createSupabaseBrowserClient();
 
     // Cria business_expense retroativo (mesmo padrão do add-sub-payment-dialog)
@@ -152,6 +160,7 @@ export function EditJobSubDialog({
         description: expenseDescription,
         amount: Number(payment.amount),
         payment_method: "check",
+        check_number: checkNumber,
         is_flip: jobIsFlip,
       })
       .select("id")
@@ -167,6 +176,7 @@ export function EditJobSubDialog({
       .update({
         paid_at: paidAt,
         method: "check",
+        check_number: checkNumber,
         business_expense_id: beData?.id ?? null,
       })
       .eq("id", payment.id);
