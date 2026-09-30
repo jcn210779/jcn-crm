@@ -822,16 +822,18 @@ async function loadMonthData(monthLabel: string): Promise<{
     }));
 
   // 5) business_expenses (filtro is_flip=false — flip tem PnL separado no job)
+  // CC no cartão nao entra em caixa — so o pagamento da fatura conta (mig 0067)
   const { data: bizData } = await supabase
     .from("business_expenses")
-    .select("id, description, amount, expense_date, category, vendor, check_number")
+    .select("id, description, amount, expense_date, category, vendor, check_number, payment_method")
     .eq("is_flip", false)
     .gte("expense_date", start)
     .lte("expense_date", end)
     .order("expense_date", { ascending: false });
 
-  const bizPaid: PaidEntry[] = ((bizData ?? []) as BusinessExpense[]).map(
-    (b) => ({
+  const bizPaid: PaidEntry[] = ((bizData ?? []) as BusinessExpense[])
+    .filter((b) => b.payment_method !== "credit_card")
+    .map((b) => ({
       id: b.id,
       date: b.expense_date,
       label: b.description,
