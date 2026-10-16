@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EditPnlDialog } from "@/components/flips/edit-pnl-dialog";
 import { DrawContasEnvelope } from "@/components/flips/draw-contas-envelope";
+import { FlipContasSummary } from "@/components/flips/flip-contas-summary";
 import { FlipPlanning } from "@/components/flips/flip-planning";
 import {
   COLOR_CLASSES,
@@ -663,6 +664,8 @@ function DrawsSection({
           </div>
         </div>
       )}
+      {/* Totais consolidados por conta (mig 0071) */}
+      <FlipContasSummary flipId={flipId} />
       {draws.length === 0 && !adding && (
         <p className="text-sm text-jcn-ice/55">Nenhum draw lançado.</p>
       )}

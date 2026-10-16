@@ -623,6 +623,16 @@ export type FlipContaTipo =
   | "salario"
   | "lucro";
 
+/** Linha da view v_flip_contas_summary (mig 0071) — totais por conta do flip. */
+export type FlipContaSummary = {
+  flip_id: string;
+  conta_tipo: FlipContaTipo;
+  alocado_total: number;
+  gasto_total: number;
+  em_caixa_total: number;
+  num_draws: number;
+};
+
 export type FlipDrawItemTxnKind =
   // Novos (mig 0068, modelo envelope)
   | "allocation"
@@ -2283,6 +2293,10 @@ export type Database = {
       };
       v_flip_cash_summary: {
         Row: FlipCashSummary;
+        Relationships: [];
+      };
+      v_flip_contas_summary: {
+        Row: FlipContaSummary;
         Relationships: [];
       };
       v_flip_budget_vs_actual: {
