@@ -595,6 +595,9 @@ export type FlipDraw = {
   color: string | null;
   /** Ordem manual (mig 0062). */
   display_order: number;
+  /** Mig 0069: parcelamento do requerimento (ex: 1 de 2, 2 de 3). Ambos nullable. */
+  parcela_num: number | null;
+  parcela_total: number | null;
 };
 
 export type FlipBudgetLine = {

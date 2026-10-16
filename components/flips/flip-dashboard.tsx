@@ -711,6 +711,18 @@ function DrawsSection({
                     {DRAW_SOURCE_LABEL[d.source]}
                   </Badge>
                   {d.milestone && <span className="text-xs text-jcn-ice/75 truncate">{d.milestone}</span>}
+                  {d.parcela_num && d.parcela_total && d.parcela_total > 1 && (
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-sky-400/40 bg-sky-500/15 text-[10px] font-black uppercase tracking-wider text-sky-200"
+                      title={`Parcela ${d.parcela_num} de ${d.parcela_total} do requerimento`}
+                    >
+                      {d.parcela_num}/{d.parcela_total}
+                      <span className="ml-1 font-normal opacity-70">
+                        ({Math.round((d.parcela_num / d.parcela_total) * 100)}%)
+                      </span>
+                    </Badge>
+                  )}
                 </div>
                 <span className="font-bold text-jcn-gold-300">{formatCurrency(Number(d.amount))}</span>
                 <Button
@@ -802,6 +814,12 @@ function EditDrawDialog({
   const [milestone, setMilestone] = useState(draw.milestone ?? "");
   const [unitId, setUnitId] = useState(draw.unit_id ?? "");
   const [color, setColor] = useState<string | null>(draw.color ?? null);
+  const [parcelaNum, setParcelaNum] = useState(
+    draw.parcela_num != null ? String(draw.parcela_num) : "",
+  );
+  const [parcelaTotal, setParcelaTotal] = useState(
+    draw.parcela_total != null ? String(draw.parcela_total) : "",
+  );
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -812,6 +830,19 @@ function EditDrawDialog({
     }
     if (!drawDate) {
       toast.error("Data obrigatória");
+      return;
+    }
+    const pNum = parcelaNum.trim() ? parseInt(parcelaNum, 10) : null;
+    const pTot = parcelaTotal.trim() ? parseInt(parcelaTotal, 10) : null;
+    if (pNum !== null && pTot !== null) {
+      if (pNum < 1 || pTot < 1 || pNum > pTot) {
+        toast.error("Parcela inválida", {
+          description: "Nº da parcela precisa ser ≥ 1 e ≤ total",
+        });
+        return;
+      }
+    } else if ((pNum !== null) !== (pTot !== null)) {
+      toast.error("Preencha os dois campos de parcela ou deixe os dois vazios");
       return;
     }
     setSaving(true);
@@ -825,6 +856,8 @@ function EditDrawDialog({
         milestone: milestone.trim() || null,
         unit_id: unitId || null,
         color,
+        parcela_num: pNum,
+        parcela_total: pTot,
       })
       .eq("id", draw.id);
     setSaving(false);
@@ -911,6 +944,38 @@ function EditDrawDialog({
               placeholder="Ex: Rough-in framing"
             />
           </div>
+
+          {source === "bank_draw" && (
+            <div>
+              <Label className="text-[10px] uppercase text-jcn-ice/55">
+                Parcela (opcional)
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={parcelaNum}
+                  onChange={(e) => setParcelaNum(e.target.value)}
+                  placeholder="N"
+                  className="w-20 text-center"
+                />
+                <span className="text-xs text-jcn-ice/55">de</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={parcelaTotal}
+                  onChange={(e) => setParcelaTotal(e.target.value)}
+                  placeholder="T"
+                  className="w-20 text-center"
+                />
+                <span className="text-[10px] text-jcn-ice/40">
+                  (ex: 1 de 2 pra 50/50, 2 de 3 pra 40/40/20)
+                </span>
+              </div>
+            </div>
+          )}
 
           {source === "unit_sale" && units.length > 0 && (
             <div>
