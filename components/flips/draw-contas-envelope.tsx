@@ -15,7 +15,19 @@
  * Saldo em caixa da conta = amount (alocado) − spent_amount (gasto).
  */
 
-import { ChevronDown, Loader2, Minus, Plus, Split } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ChevronDown,
+  Eye,
+  Loader2,
+  Minus,
+  Plus,
+  Split,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -32,7 +44,11 @@ import {
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase-client";
-import type { FlipContaTipo, FlipDrawItem } from "@/lib/types";
+import type {
+  FlipContaTipo,
+  FlipDrawItem,
+  FlipDrawItemTransaction,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -111,6 +127,7 @@ export function DrawContasEnvelope({
   const [loading, setLoading] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
   const [expenseConta, setExpenseConta] = useState<FlipContaTipo | null>(null);
+  const [detailConta, setDetailConta] = useState<FlipContaTipo | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -270,6 +287,17 @@ export function DrawContasEnvelope({
                       type="button"
                       size="sm"
                       variant="outline"
+                      onClick={() => setDetailConta(it.conta_tipo as FlipContaTipo)}
+                      className="h-8 border-white/[0.12] bg-white/[0.04] text-jcn-ice/70 hover:bg-white/[0.08] hover:text-jcn-gold-300"
+                      title="Ver histórico (quanto, pra quem, quando)"
+                    >
+                      <Eye className="h-3 w-3" />
+                      Ver
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
                       onClick={() => setExpenseConta(it.conta_tipo as FlipContaTipo)}
                       className="h-8 border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
                     >
@@ -282,6 +310,15 @@ export function DrawContasEnvelope({
             </div>
           )}
         </div>
+      )}
+
+      {detailConta && (
+        <ContaDetailDialog
+          item={sortedItems.find((i) => i.conta_tipo === detailConta)!}
+          open={!!detailConta}
+          onClose={() => setDetailConta(null)}
+          onChanged={() => void reload()}
+        />
       )}
 
       {splitOpen && (
@@ -599,6 +636,227 @@ function ExpenseDialog({
             Registrar gasto
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Dialog: ver histórico completo de uma conta (allocations + expenses)
+// ============================================================================
+function ContaDetailDialog({
+  item,
+  open,
+  onClose,
+  onChanged,
+}: {
+  item: FlipDrawItem;
+  open: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const meta = CONTA_META[item.conta_tipo as FlipContaTipo];
+  const [txns, setTxns] = useState<FlipDrawItemTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addingExpense, setAddingExpense] = useState(false);
+
+  async function reload() {
+    setLoading(true);
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase
+      .from("flip_draw_item_transactions")
+      .select("*")
+      .eq("draw_item_id", item.id)
+      .order("txn_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    setTxns((data ?? []) as FlipDrawItemTransaction[]);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (open) void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, item.id]);
+
+  const alocado = Number(item.amount);
+  const gasto = Number(item.spent_amount ?? 0);
+  const saldo = alocado - gasto;
+
+  const allocations = txns.filter((t) => t.kind === "allocation");
+  const expenses = txns.filter((t) => t.kind === "expense");
+
+  async function deleteTxn(t: FlipDrawItemTransaction) {
+    const label = t.kind === "allocation" ? "alocação" : "gasto";
+    if (!confirm(`Apagar essa ${label} de ${formatCurrency(Number(t.amount))}?`))
+      return;
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from("flip_draw_item_transactions")
+      .delete()
+      .eq("id", t.id);
+    if (error) {
+      toast.error("Erro ao apagar", { description: error.message });
+      return;
+    }
+    toast.success("Apagado");
+    await reload();
+    onChanged();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className={cn("flex items-center gap-2", meta.color)}>
+            <span className="text-xl">{meta.icon}</span>
+            Conta {meta.label}
+          </DialogTitle>
+          <DialogDescription>
+            Alocado <strong>{formatCurrency(alocado)}</strong> ·
+            Gasto <strong>{formatCurrency(gasto)}</strong> ·
+            Saldo em caixa{" "}
+            <strong
+              className={cn(
+                saldo > 0
+                  ? "text-emerald-300"
+                  : saldo < 0
+                    ? "text-rose-300"
+                    : "text-jcn-ice/55",
+              )}
+            >
+              {formatCurrency(saldo)}
+            </strong>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Gastos */}
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-rose-300">
+                Gastos ({expenses.length}) · {formatCurrency(gasto)}
+              </h3>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setAddingExpense(true)}
+                className="h-7 bg-rose-500 text-white hover:bg-rose-600"
+              >
+                <Plus className="h-3 w-3" />
+                Lançar gasto
+              </Button>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-jcn-gold-300" />
+              </div>
+            ) : expenses.length === 0 ? (
+              <p className="py-2 text-center text-[11px] italic text-jcn-ice/40">
+                Nenhum gasto nessa conta ainda
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {expenses.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center gap-2 rounded-md border border-rose-400/20 bg-rose-500/[0.05] px-2.5 py-1.5 text-xs"
+                  >
+                    <ArrowUpCircle className="h-3.5 w-3.5 shrink-0 text-rose-300" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-jcn-ice">
+                        {t.description ?? "Sem descrição"}
+                      </p>
+                      <p className="text-[10px] text-jcn-ice/45">
+                        {format(
+                          new Date(t.txn_date + "T12:00:00"),
+                          "dd MMM yyyy",
+                          { locale: ptBR },
+                        )}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-black text-rose-300">
+                      −{formatCurrency(Number(t.amount))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteTxn(t)}
+                      className="shrink-0 rounded p-1 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
+                      title="Apagar"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Alocações recebidas */}
+          <section>
+            <h3 className="mb-2 text-xs font-black uppercase tracking-wider text-emerald-300">
+              Alocações recebidas ({allocations.length}) · {formatCurrency(alocado)}
+            </h3>
+            {allocations.length === 0 ? (
+              <p className="py-2 text-center text-[11px] italic text-jcn-ice/40">
+                Nenhuma alocação ainda — use &ldquo;Dividir recebido&rdquo; no card
+                do requerimento
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {allocations.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center gap-2 rounded-md border border-emerald-400/20 bg-emerald-500/[0.05] px-2.5 py-1.5 text-xs"
+                  >
+                    <ArrowDownCircle className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-jcn-ice">
+                        {t.description ?? "Alocação do draw"}
+                      </p>
+                      <p className="text-[10px] text-jcn-ice/45">
+                        {format(
+                          new Date(t.txn_date + "T12:00:00"),
+                          "dd MMM yyyy",
+                          { locale: ptBR },
+                        )}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-black text-emerald-300">
+                      +{formatCurrency(Number(t.amount))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteTxn(t)}
+                      className="shrink-0 rounded p-1 text-jcn-ice/35 hover:bg-rose-500/15 hover:text-rose-300"
+                      title="Apagar"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Fechar
+          </Button>
+        </DialogFooter>
+
+        {addingExpense && (
+          <ExpenseDialog
+            item={item}
+            open={addingExpense}
+            onClose={() => setAddingExpense(false)}
+            onSaved={() => {
+              setAddingExpense(false);
+              void reload();
+              onChanged();
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
