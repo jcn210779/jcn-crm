@@ -60,6 +60,11 @@ END$$;
 -- =============================================================================
 -- 3) BACKFILL: apaga tudo relacionado aos draws existentes e cria as 5 contas
 -- =============================================================================
+-- Mig 0058 criou CHECK (amount > 0). No modelo envelope conta comeca em 0
+-- alocado — dropa o check.
+ALTER TABLE flip_draw_items
+  DROP CONSTRAINT IF EXISTS flip_draw_items_amount_check;
+
 -- Apaga transactions antigas (todas)
 DELETE FROM flip_draw_item_transactions;
 
