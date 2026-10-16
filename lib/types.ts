@@ -612,7 +612,19 @@ export type FlipBudgetLine = {
 };
 
 /** Transação por linha do breakdown do draw (mig 0063). */
+/** Modelo envelope (mig 0068): 5 contas fixas por bank_draw. */
+export type FlipContaTipo =
+  | "construcao"
+  | "cottage"
+  | "mortgage"
+  | "salario"
+  | "lucro";
+
 export type FlipDrawItemTxnKind =
+  // Novos (mig 0068, modelo envelope)
+  | "allocation"
+  | "expense"
+  // Legacy (mig 0060-0061, nao usar em codigo novo)
   | "withdrawal"
   | "mortgage"
   | "expense_house"
@@ -631,19 +643,21 @@ export type FlipDrawItemTransaction = {
   notes: string | null;
 };
 
-/** Line item de draw request pro banco (mig 0058). */
+/** Conta (envelope) de um bank_draw (mig 0068).
+ * amount = alocado (SUM allocation txns), spent_amount = gasto (SUM expense txns),
+ * saldo em caixa dessa conta = amount - spent_amount. 5 por draw. */
 export type FlipDrawItem = {
   id: string;
   created_at: string;
   draw_id: string;
   budget_line_id: string | null;
   category: string;
-  /** Valor planejado no requerimento (mig 0058). */
   amount: number;
-  /** Valor realmente gasto (mig 0059). Default 0. */
   spent_amount: number;
   notes: string | null;
   display_order: number;
+  /** Mig 0068. Null em dados legacy; sempre populado em draws novos. */
+  conta_tipo: FlipContaTipo | null;
 };
 
 /** Linha agregada de v_flip_pnl (view). */

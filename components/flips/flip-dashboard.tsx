@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EditPnlDialog } from "@/components/flips/edit-pnl-dialog";
-import { DrawItemsList } from "@/components/flips/draw-items-list";
+import { DrawContasEnvelope } from "@/components/flips/draw-contas-envelope";
 import { FlipPlanning } from "@/components/flips/flip-planning";
 import {
   COLOR_CLASSES,
@@ -726,12 +726,11 @@ function DrawsSection({
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              {/* Breakdown do draw request pro banco (mig 0058) — só faz sentido pra bank_draw */}
+              {/* 5 contas envelope (mig 0068) — só faz sentido pra bank_draw */}
               {d.source === "bank_draw" && (
-                <DrawItemsList
+                <DrawContasEnvelope
                   drawId={d.id}
                   drawAmount={Number(d.amount)}
-                  budgetLines={budgetLines}
                 />
               )}
             </div>
