@@ -644,6 +644,8 @@ export type FlipDrawItemTransaction = {
   amount: number;
   description: string | null;
   notes: string | null;
+  /** Mig 0070: UUID que agrupa as 5 allocations de 1 clique no "Dividir recebido". */
+  allocation_batch_id: string | null;
 };
 
 /** Conta (envelope) de um bank_draw (mig 0068).

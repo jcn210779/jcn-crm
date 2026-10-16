@@ -124,6 +124,7 @@ export function DrawContasEnvelope({
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [items, setItems] = useState<FlipDrawItem[]>([]);
+  const [allocTxns, setAllocTxns] = useState<FlipDrawItemTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
   const [expenseConta, setExpenseConta] = useState<FlipContaTipo | null>(null);
@@ -137,7 +138,23 @@ export function DrawContasEnvelope({
       .select("*")
       .eq("draw_id", drawId)
       .order("display_order");
-    setItems((data ?? []) as FlipDrawItem[]);
+    const rows = (data ?? []) as FlipDrawItem[];
+    setItems(rows);
+
+    // Puxa allocation txns pra agrupar em "requerimentos recebidos"
+    if (rows.length > 0) {
+      const ids = rows.map((r) => r.id);
+      const { data: txns } = await supabase
+        .from("flip_draw_item_transactions")
+        .select("*")
+        .in("draw_item_id", ids)
+        .eq("kind", "allocation")
+        .order("txn_date", { ascending: true })
+        .order("created_at", { ascending: true });
+      setAllocTxns((txns ?? []) as FlipDrawItemTransaction[]);
+    } else {
+      setAllocTxns([]);
+    }
     setLoading(false);
   }
 
@@ -158,6 +175,35 @@ export function DrawContasEnvelope({
   );
   const totalCaixa = totalAlocado - totalGasto;
   const sobraPraAlocar = drawAmount - totalAlocado;
+
+  // Agrupa allocation txns por batch_id = "requerimentos recebidos"
+  // Txns sem batch_id (dados antigos) ficam cada uma como seu próprio grupo.
+  const batchGroups = (() => {
+    const map = new Map<
+      string,
+      { batchId: string | null; date: string; description: string | null; total: number; count: number }
+    >();
+    for (const t of allocTxns) {
+      const key = t.allocation_batch_id ?? `legacy-${t.id}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.total += Number(t.amount);
+        existing.count += 1;
+      } else {
+        map.set(key, {
+          batchId: t.allocation_batch_id,
+          date: t.txn_date,
+          description: t.description,
+          total: Number(t.amount),
+          count: 1,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  })();
+
+  const percentRecebido =
+    drawAmount > 0 ? Math.min(100, (totalAlocado / drawAmount) * 100) : 0;
 
   return (
     <div className="mt-1">
@@ -228,6 +274,56 @@ export function DrawContasEnvelope({
               Dividir recebido
             </Button>
           </div>
+
+          {/* Progresso + lista de requerimentos recebidos (mig 0070) */}
+          {batchGroups.length > 0 && (
+            <div className="space-y-1.5 rounded-lg border border-jcn-gold-400/15 bg-jcn-gold-500/[0.04] p-2.5">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider">
+                <span className="font-black text-jcn-gold-300">
+                  {batchGroups.length} requerimento{batchGroups.length > 1 ? "s" : ""} recebido{batchGroups.length > 1 ? "s" : ""}
+                </span>
+                <span className="font-black text-jcn-ice/80">
+                  {formatCurrency(totalAlocado)} de {formatCurrency(drawAmount)} ({percentRecebido.toFixed(0)}%)
+                </span>
+              </div>
+              {/* Barra de progresso */}
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    percentRecebido >= 100
+                      ? "bg-emerald-400"
+                      : "bg-jcn-gold-400",
+                  )}
+                  style={{ width: `${percentRecebido}%` }}
+                />
+              </div>
+              <ul className="space-y-0.5 pt-1">
+                {batchGroups.map((b, i) => (
+                  <li
+                    key={b.batchId ?? `legacy-${i}`}
+                    className="flex items-center justify-between gap-2 text-[11px] text-jcn-ice/70"
+                  >
+                    <span className="truncate">
+                      <span className="font-bold text-jcn-ice">
+                        Requerimento {i + 1}
+                      </span>
+                      {" · "}
+                      {b.date}
+                      {b.description && (
+                        <span className="ml-1 text-jcn-ice/45">
+                          · {b.description}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 font-black text-jcn-gold-300">
+                      {formatCurrency(b.total)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* 5 contas */}
           {loading ? (
@@ -396,12 +492,15 @@ function SplitDialog({
       item: items.find((i) => i.conta_tipo === tipo),
     })).filter((p) => p.amount > 0 && p.item);
 
+    // UUID agrupa as 5 allocations desse split = 1 "requerimento parcial" (mig 0070)
+    const batchId = crypto.randomUUID();
     const rows = payload.map((p) => ({
       draw_item_id: p.item!.id,
       kind: "allocation" as const,
       amount: p.amount,
       txn_date: date,
       description: description.trim() || null,
+      allocation_batch_id: batchId,
     }));
 
     const { error } = await supabase
