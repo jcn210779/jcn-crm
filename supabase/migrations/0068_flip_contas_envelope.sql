@@ -69,15 +69,15 @@ DELETE FROM flip_draw_items;
 -- Cria as 5 contas pra cada bank_draw existente
 -- Ordem fixa pra ter display_order estável
 INSERT INTO flip_draw_items (draw_id, category, amount, spent_amount, conta_tipo, display_order)
-SELECT d.id, 'Construção', 0, 0, 'construcao', 0 FROM flip_draws d WHERE d.source = 'bank_draw'
+SELECT d.id, 'Construção', 0, 0, 'construcao'::flip_conta_tipo, 0 FROM flip_draws d WHERE d.source = 'bank_draw'
 UNION ALL
-SELECT d.id, 'Cottage', 0, 0, 'cottage', 1 FROM flip_draws d WHERE d.source = 'bank_draw'
+SELECT d.id, 'Cottage', 0, 0, 'cottage'::flip_conta_tipo, 1 FROM flip_draws d WHERE d.source = 'bank_draw'
 UNION ALL
-SELECT d.id, 'Mortgage', 0, 0, 'mortgage', 2 FROM flip_draws d WHERE d.source = 'bank_draw'
+SELECT d.id, 'Mortgage', 0, 0, 'mortgage'::flip_conta_tipo, 2 FROM flip_draws d WHERE d.source = 'bank_draw'
 UNION ALL
-SELECT d.id, 'Salário', 0, 0, 'salario', 3 FROM flip_draws d WHERE d.source = 'bank_draw'
+SELECT d.id, 'Salário', 0, 0, 'salario'::flip_conta_tipo, 3 FROM flip_draws d WHERE d.source = 'bank_draw'
 UNION ALL
-SELECT d.id, 'Lucro', 0, 0, 'lucro', 4 FROM flip_draws d WHERE d.source = 'bank_draw';
+SELECT d.id, 'Lucro', 0, 0, 'lucro'::flip_conta_tipo, 4 FROM flip_draws d WHERE d.source = 'bank_draw';
 
 -- =============================================================================
 -- 4) Trigger: ao inserir novo bank_draw, auto-cria as 5 contas
@@ -91,11 +91,11 @@ BEGIN
 
   INSERT INTO flip_draw_items (draw_id, category, amount, spent_amount, conta_tipo, display_order)
   VALUES
-    (NEW.id, 'Construção', 0, 0, 'construcao', 0),
-    (NEW.id, 'Cottage',    0, 0, 'cottage',    1),
-    (NEW.id, 'Mortgage',   0, 0, 'mortgage',   2),
-    (NEW.id, 'Salário',    0, 0, 'salario',    3),
-    (NEW.id, 'Lucro',      0, 0, 'lucro',      4);
+    (NEW.id, 'Construção', 0, 0, 'construcao'::flip_conta_tipo, 0),
+    (NEW.id, 'Cottage',    0, 0, 'cottage'::flip_conta_tipo,    1),
+    (NEW.id, 'Mortgage',   0, 0, 'mortgage'::flip_conta_tipo,   2),
+    (NEW.id, 'Salário',    0, 0, 'salario'::flip_conta_tipo,    3),
+    (NEW.id, 'Lucro',      0, 0, 'lucro'::flip_conta_tipo,      4);
 
   RETURN NEW;
 END;
