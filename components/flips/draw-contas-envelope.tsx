@@ -520,7 +520,7 @@ function SplitDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Dividir dinheiro recebido</DialogTitle>
           <DialogDescription>
@@ -669,7 +669,7 @@ function ExpenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
             Gasto em {meta.icon} {meta.label}
@@ -804,7 +804,7 @@ function ContaDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className={cn("flex items-center gap-2", meta.color)}>
             <span className="text-xl">{meta.icon}</span>
